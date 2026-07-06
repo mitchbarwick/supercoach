@@ -1,0 +1,15 @@
+You are building a web app which has the aim of helping amateur football (soccer) coaches plan and understand routines for their teams.
+
+Here's an example of a perfect outcome:
+Jasmine is a volunteer coach of an under 12's soccer team. She has never coaches soccer before. Her team have a range of experience levels. Jasmine opens the app and indicates that she is running a 45 minute training session. She inputs the number of children who have turned up and indicates that no goalkeeper or strikers have turned up. She indicates the equipment she has - balls, vests, cones. She indicates what the team needs to work on - fitness, 1 v 1 ball skills, triangles.
+
+Next, the SuperCoach app generates a plan for Jasmine that covers the entire 45 minutes for her team. From warm up to cool down. Everything has an allotted duration. Drink breaks are factored in. First their is an overarching plan. Something she can keep on her phone for quick reference and time keeping. But Jasmine is able to click into each drill and see an easy to understand description of the drill - how to set it up, what skills it develops, how to explain it to kids of her age group. It's all laid out clearly with meaningful headings. Like a professional, friendly, smart coaching assistant.
+
+The app also shows visual diagrams (preferably GIFs) visualising each drill. Top down view of a football pitch with tokens to represent the players. Each drill has a GIF that helps visually explain how it works. The visuals are consistent, clean, clear. They are not randomly generated GIFs but are built from a visual animation system which understands its purpose of visually reflecting football positions and movements.
+
+
+Jasmine ticks off the drills as she goes. She can make notes against them, same them for future sessions if she likes them. (Which means that next time she asks for a session where that drill would be relevant, it is chosen from her favourites instead of a drill being generated).
+
+Visually, the app is clean, modern and performant. Think Airbnb design principles. This is not some basic, cheap app. It is a high quality product designed and built for gold standard user experiences.
+
+For the models required, I have an azure foundry account which is logged in in browser that you can use to set up what you need. Aim for the best balance of quality and cost, but always get great results.

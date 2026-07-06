@@ -1,0 +1,184 @@
+// Session setup wizard — the "Jasmine flow" entry point.
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { FOCUS_AREAS, EQUIPMENT, AGE_GROUPS } from '../data/drills.js'
+import { buildSession } from '../engine/sessionBuilder.js'
+import { aiConfigured } from '../ai/azure.js'
+import { designSessionWithAI, SessionDesignError } from '../ai/sessionDesigner.js'
+import { useStore, actions } from '../store/useStore.js'
+import PositionMap from '../components/PositionMap.jsx'
+
+const DURATIONS = [30, 45, 60, 75, 90]
+
+export default function SessionSetup() {
+  const navigate = useNavigate()
+  const favourites = useStore((s) => s.favourites)
+  const [step, setStep] = useState(0)
+  const [duration, setDuration] = useState(45)
+  const [players, setPlayers] = useState(10)
+  const [ageGroup, setAgeGroup] = useState('U9-U11')
+  const [positions, setPositions] = useState({ forwards: true, midfield: true, defence: true, goalkeeper: true })
+  const [equipment, setEquipment] = useState(['balls', 'cones', 'vests'])
+  const [focus, setFocus] = useState([])
+  const [anything, setAnything] = useState(false)
+  const [aiState, setAiState] = useState('idle') // 'idle' | 'loading' | 'error'
+  const [aiError, setAiError] = useState('')
+
+  const steps = ['Session', 'Squad', 'Kit', 'Focus']
+
+  const toggle = (list, id, setter) =>
+    setter(list.includes(id) ? list.filter((x) => x !== id) : [...list, id])
+
+  const generate = async () => {
+    const opts = { duration, players, ageGroup, positions, equipment, focus, favourites }
+
+    if (!aiConfigured()) {
+      actions.saveSession(buildSession(opts))
+      navigate('/plan')
+      return
+    }
+
+    setAiState('loading')
+    setAiError('')
+    try {
+      const session = await designSessionWithAI(opts)
+      actions.saveSession(session)
+      navigate('/plan')
+    } catch (err) {
+      setAiState('error')
+      setAiError(err instanceof SessionDesignError ? err.message : 'Something went wrong building your session.')
+    }
+  }
+
+  const goBack = () => {
+    setAiState('idle')
+    setStep(step - 1)
+  }
+
+  const next = () => (step < steps.length - 1 ? setStep(step + 1) : generate())
+  const canNext = step !== 3 || focus.length > 0 || anything
+
+  const pickAnything = () => {
+    setAnything(true)
+    setFocus([])
+  }
+  const pickFocus = (id) => {
+    setAnything(false)
+    toggle(focus, id, setFocus)
+  }
+
+  return (
+    <div>
+      <div className="hero">
+        <div className="kick">🎽</div>
+        <h1>Plan tonight's session</h1>
+        <p>Tell me what you're working with — I'll build the whole session, warm-up to cool-down.</p>
+      </div>
+
+      <div className="wizard-dots">
+        {steps.map((s, i) => <div key={s} className={`dot ${i <= step ? 'on' : ''}`} />)}
+      </div>
+
+      {step === 0 && (
+        <div className="card fade-in">
+          <label className="field-label">How long is your session?</label>
+          <div className="chip-row" style={{ marginBottom: 20 }}>
+            {DURATIONS.map((d) => (
+              <button key={d} className={`chip ${duration === d ? 'on' : ''}`} onClick={() => setDuration(d)}>
+                {d} min
+              </button>
+            ))}
+          </div>
+          <label className="field-label">Age group</label>
+          <div className="chip-row">
+            {AGE_GROUPS.map((a) => (
+              <button key={a.id} className={`chip ${ageGroup === a.id ? 'on' : ''}`} onClick={() => setAgeGroup(a.id)}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div className="card fade-in">
+          <label className="field-label">How many players turned up?</label>
+          <div style={{ marginBottom: 22 }}>
+            <div className="row" style={{ marginBottom: 6 }}>
+              <span className="val">{players}</span>
+              <span className="muted">including any keepers</span>
+            </div>
+            <input
+              type="range"
+              className="slider"
+              min="2"
+              max="30"
+              value={players}
+              onChange={(e) => setPlayers(Number(e.target.value))}
+            />
+          </div>
+          <label className="field-label">Who's here today?</label>
+          <p className="field-hint">Tap a row to leave it out — I'll skip drills that need positions you don't have.</p>
+          <PositionMap positions={positions} onToggle={(id) => setPositions({ ...positions, [id]: !positions[id] })} />
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="card fade-in">
+          <label className="field-label">What equipment do you have?</label>
+          <p className="field-hint">Only drills you can actually run will make the plan.</p>
+          <div className="chip-row">
+            {EQUIPMENT.map((e) => (
+              <button key={e.id} className={`chip ${equipment.includes(e.id) ? 'on' : ''}`} onClick={() => toggle(equipment, e.id, setEquipment)}>
+                {e.emoji} {e.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="card fade-in">
+          <label className="field-label">What does the team need to work on?</label>
+          <p className="field-hint">Pick up to three — the plan will prioritise these. Or pick anything.</p>
+          <div className="chip-row">
+            <button className={`chip ${anything ? 'on coral' : ''}`} onClick={pickAnything}>
+              🌈 Anything
+            </button>
+            {FOCUS_AREAS.map((f) => (
+              <button
+                key={f.id}
+                className={`chip ${focus.includes(f.id) ? 'on coral' : ''}`}
+                onClick={() => (focus.includes(f.id) || focus.length < 3) && pickFocus(f.id)}
+              >
+                {f.emoji} {f.label}
+              </button>
+            ))}
+          </div>
+          {favourites.length > 0 && (
+            <p className="muted" style={{ marginTop: 16 }}>⭐ You have {favourites.length} favourite drill{favourites.length > 1 ? 's' : ''} — they'll be picked first when they fit.</p>
+          )}
+        </div>
+      )}
+
+      {step === steps.length - 1 && aiState === 'error' && (
+        <div className="card fade-in" style={{ borderColor: 'var(--coral-600)' }}>
+          <p style={{ color: 'var(--coral-700)', fontWeight: 800 }}>⚠️ Couldn't build your session</p>
+          <p className="muted" style={{ marginTop: 6 }}>{aiError}</p>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={generate}>Try again</button>
+        </div>
+      )}
+
+      <div className="sticky-cta">
+        <div className="inner">
+          {step > 0 && (
+            <button className="btn btn-ghost" onClick={goBack} disabled={aiState === 'loading'}>Back</button>
+          )}
+          <button className="btn btn-primary btn-block" onClick={next} disabled={!canNext || aiState === 'loading'}>
+            {aiState === 'loading' ? '✨ Designing your session…' : step === steps.length - 1 ? '✨ Build my session' : 'Continue'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
