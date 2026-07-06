@@ -1,21 +1,19 @@
 // ============================================================
 // Rule-based session assembler.
-// Takes what the coach has (time, players, positions, kit,
-// focus areas) and produces a fully timed plan from warm-up
-// to cool-down, with drink breaks factored in.
+// Takes what the coach has (time, players, kit, focus areas)
+// and produces a fully timed plan from warm-up to cool-down,
+// with drink breaks factored in.
 // Favourited drills are preferred whenever they fit.
 // ============================================================
 import { DRILLS, FOCUS_AREAS } from '../data/drills.js'
 
 const BREAK_EVERY_MIN = 18 // activity minutes between drink breaks
 const BREAK_LEN = 3
-const ALL_POSITIONS = { forwards: true, midfield: true, defence: true, goalkeeper: true }
 
 export function fits(drill, ctx) {
   // equipment: every required item must be available
   if (!drill.equipment.every((e) => ctx.equipment.includes(e))) return false
   if (ctx.players < drill.players.min) return false
-  if (drill.needsPositions?.some((p) => !ctx.positions[p])) return false
   return true
 }
 
@@ -23,11 +21,10 @@ export function buildCtx(opts) {
   return {
     players: opts.players,
     ageGroup: opts.ageGroup,
-    positions: opts.positions || ALL_POSITIONS,
     equipment: opts.equipment || [],
     // "Anything" (empty focus) puts every tag on equal footing rather than
     // secretly favouring teamwork — the pool is then shaped only by hard
-    // constraints, favourites, and position preference.
+    // constraints and favourites.
     focus: opts.focus?.length ? opts.focus : FOCUS_AREAS.map((f) => f.id),
     favourites: opts.favourites || [],
   }
@@ -93,9 +90,6 @@ function scoreDrill(drill, ctx, usedFocus) {
     if (ctx.focus.includes(f)) s += usedFocus[f] ? 4 : 10 // unseen focus areas first
   }
   if (ctx.favourites.includes(drill.id)) s += 6
-  for (const p of drill.preferredPositions || []) {
-    if (ctx.positions[p]) s += 5 // skews toward drills suited to who actually showed up
-  }
   if (ctx.players > drill.players.max) s -= 3 // usable via multiple groups, slightly penalised
   s += Math.random() * 2 // gentle variety between sessions
   return s
@@ -111,7 +105,6 @@ function pickBest(pool, ctx, usedFocus, picked) {
 /**
  * @param {object} opts
  *  duration (min), players (int), ageGroup (id),
- *  positions {forwards, midfield, defence, goalkeeper},
  *  equipment [ids], focus [ids], favourites [drill ids]
  * @returns {blocks: [{id,type,drillId?,title,emoji,duration,startMin,blurb}]}
  */

@@ -2,7 +2,7 @@
 // points, age adaptations, notes and favourite toggle.
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { getDrill, sayToKids, FOCUS_AREAS, AGE_GROUPS } from '../data/drills.js'
+import { getDrill, sayToKids, FOCUS_AREAS } from '../data/drills.js'
 import PitchAnimation from '../components/PitchAnimation.jsx'
 import { useStore, actions } from '../store/useStore.js'
 import { getCoachingTips, aiConfigured } from '../ai/azure.js'
@@ -29,9 +29,6 @@ export default function DrillDetail() {
   const [toast, setToast] = useState('')
 
   const ageGroup = session?.request?.ageGroup || 'U9-U11'
-  // "Say this to the kids" defaults to the session's age group but can be
-  // previewed for any band without leaving the page.
-  const [sayAge, setSayAge] = useState(ageGroup)
   const isFav = favourites.includes(id)
 
   // Plan context: only present when this drill was opened from today's plan
@@ -92,33 +89,23 @@ export default function DrillDetail() {
         </button>
       </div>
 
-      <div className="chip-row" style={{ marginBottom: 16 }}>
-        {drill.focus.map((f) => {
-          const fa = FOCUS_AREAS.find((x) => x.id === f)
-          return fa ? <span key={f} className="tag green">{fa.emoji} {fa.label}</span> : null
-        })}
-        <span className="tag grey">👥 {drill.players.min}–{drill.players.max} players</span>
-        <span className="tag grey">⏱ ~{drill.baseDuration} min</span>
-      </div>
+      {!inPlan && (
+        <div className="chip-row" style={{ marginBottom: 16 }}>
+          {drill.focus.map((f) => {
+            const fa = FOCUS_AREAS.find((x) => x.id === f)
+            return fa ? <span key={f} className="tag green">{fa.emoji} {fa.label}</span> : null
+          })}
+          <span className="tag grey">👥 {drill.players.min}–{drill.players.max} players</span>
+          <span className="tag grey">⏱ ~{drill.baseDuration} min</span>
+        </div>
+      )}
 
       <div style={{ marginBottom: 14 }}>
         <PitchAnimation diagram={drill.diagram} />
       </div>
 
       <Section icon="🗣️" title="Say this to the kids">
-        <div className="chip-row" style={{ marginBottom: 10 }}>
-          {AGE_GROUPS.map((a) => (
-            <button
-              key={a.id}
-              className={`chip ${sayAge === a.id ? 'on' : ''}`}
-              style={{ fontSize: 12.5, padding: '4px 10px' }}
-              onClick={() => setSayAge(a.id)}
-            >
-              {a.id}{a.id === ageGroup ? ' ★' : ''}
-            </button>
-          ))}
-        </div>
-        <p style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>"{sayToKids(drill, sayAge)}"</p>
+        <p style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>"{sayToKids(drill, ageGroup)}"</p>
       </Section>
 
       <Section icon="📐" title="Set it up">

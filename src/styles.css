@@ -112,6 +112,16 @@ input, select, textarea { font-family: inherit; }
 .chip.on { background: var(--green-700); border-color: var(--green-700); color: #fff; box-shadow: var(--shadow-sm); }
 .chip.on.coral { background: var(--coral-600); border-color: var(--coral-600); }
 
+/* ---- Large vertical single-select list (age group) ---- */
+.age-list { display: flex; flex-direction: column; gap: 12px; }
+.age-option {
+  width: 100%; text-align: left; padding: 20px 22px; border-radius: var(--radius-lg);
+  border: 1.5px solid var(--line); background: var(--card); color: var(--ink-900);
+  font-size: 18px; font-weight: 800; transition: all 0.14s ease;
+}
+.age-option:hover { border-color: var(--ink-300); box-shadow: var(--shadow-sm); }
+.age-option.on { background: var(--green-700); border-color: var(--green-700); color: #fff; box-shadow: var(--shadow-sm); }
+
 /* ---- Form bits ---- */
 .field-label { font-weight: 800; font-size: 15px; margin-bottom: 8px; display: block; color: var(--ink-900); }
 .field-hint { font-size: 13.5px; color: var(--ink-500); margin-top: -4px; margin-bottom: 8px; }
@@ -131,10 +141,6 @@ input, select, textarea { font-family: inherit; }
   border: 3px solid #fff; box-shadow: var(--shadow-sm); cursor: pointer;
 }
 .slider::-moz-range-track { height: 8px; border-radius: 999px; background: var(--line); }
-
-.position-map { margin-bottom: 4px; }
-.position-row rect { transition: fill 0.14s ease; }
-.position-row:hover rect { fill: rgba(255,255,255,0.12); }
 
 .seg { display: flex; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
 .seg button {
@@ -221,7 +227,6 @@ input.text-input {
 .hero { text-align: center; padding: 14px 8px 16px; }
 .hero h1 { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
 .hero p { color: var(--ink-500); font-size: 15.5px; margin-top: 8px; max-width: 440px; margin-left: auto; margin-right: auto; }
-.hero .kick { font-size: 38px; margin-bottom: 6px; }
 
 /* ---- Wizard steps ---- */
 .wizard-dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 22px; }
@@ -231,8 +236,14 @@ input.text-input {
 .sticky-cta {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
   background: linear-gradient(to top, var(--bg) 70%, transparent);
-  padding: 14px 16px 16px;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
   pointer-events: none;
+  /* iOS WKWebView (Safari/Edge/Chrome on iOS) can fail to keep position:fixed
+     pinned to the true viewport bottom during address-bar show/hide and
+     momentum scrolling unless the element is promoted to its own GPU
+     compositing layer. */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 .sticky-cta .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 10px; pointer-events: auto; }
 @media (min-width: 900px) { .sticky-cta .inner { max-width: 760px; } }

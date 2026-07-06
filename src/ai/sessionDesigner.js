@@ -19,8 +19,8 @@ export class SessionDesignError extends Error {
 }
 
 function trimForPrompt(drill) {
-  const { id, name, category, focus, equipment, players, baseDuration, blurb, needsPositions, preferredPositions } = drill
-  return { id, name, category, focus, equipment, players, baseDuration, blurb, needsPositions: needsPositions || [], preferredPositions: preferredPositions || [] }
+  const { id, name, category, focus, equipment, players, baseDuration, blurb } = drill
+  return { id, name, category, focus, equipment, players, baseDuration, blurb }
 }
 
 function buildMessages(ctx, skeleton, pool, wantGame) {
@@ -45,7 +45,6 @@ function buildMessages(ctx, skeleton, pool, wantGame) {
     `- Duration: ${skeleton.total} minutes total`,
     `- Players today: ${ctx.players}`,
     `- Age group: ${ctx.ageGroup}`,
-    `- Positions available: ${JSON.stringify(ctx.positions)}`,
     `- Equipment available: ${ctx.equipment.join(', ') || 'none'}`,
     `- Focus areas to prioritise (cover each at least once if possible): ${ctx.focus.join(', ')}`,
     `- Favourite drills (prefer these when appropriate): ${ctx.favourites.join(', ') || 'none'}`,

@@ -751,7 +751,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'vests'],
     players: { min: 4, max: 16 },
     baseDuration: 12,
-    preferredPositions: ['forwards', 'defence'],
     blurb: 'Score by dribbling through either of two cone gates.',
     setup: [
       'Square about 15 x 15 steps per pair of players.',
@@ -817,7 +816,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones'],
     players: { min: 4, max: 16 },
     baseDuration: 12,
-    preferredPositions: ['forwards', 'defence'],
     blurb: 'Attack down a channel and stop the ball in the end zone to score.',
     setup: [
       'Channels about 10 steps wide and 20 long, one per pair.',
@@ -879,7 +877,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones'],
     players: { min: 6, max: 18 },
     baseDuration: 10,
-    preferredPositions: ['defence'],
     blurb: 'Attackers try to knock the cone-castle over; defenders protect it.',
     setup: [
       'Circle about 15 steps across, a tall cone (the castle) in the middle.',
@@ -941,7 +938,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones'],
     players: { min: 3, max: 24 },
     baseDuration: 10,
-    preferredPositions: ['midfield'],
     blurb: 'Groups of three pass around a cone triangle — the shape of football.',
     setup: [
       'Cone triangles with sides about 8 steps, one per group of three.',
@@ -1005,7 +1001,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'vests'],
     players: { min: 5, max: 16 },
     baseDuration: 10,
-    preferredPositions: ['midfield'],
     blurb: 'Keep-ball in a circle — the classic possession game.',
     setup: [
       'Circle or square about 10–12 steps across per group of 5–7.',
@@ -1067,7 +1062,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'vests'],
     players: { min: 6, max: 18 },
     baseDuration: 12,
-    preferredPositions: ['midfield'],
     blurb: 'Teams of three move up the pitch keeping a triangle shape.',
     setup: [
       'A channel about 15 steps wide running the length of your area.',
@@ -1131,7 +1125,6 @@ export const DRILLS = [
     equipment: ['balls', 'rebounder'],
     players: { min: 2, max: 16 },
     baseDuration: 10,
-    preferredPositions: ['midfield'],
     blurb: 'Fast one-touch passing against a rebounder net — the ball never stops moving.',
     setup: [
       'Set up the rebounder net with a passing line about 6-8 steps back.',
@@ -1186,7 +1179,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'goals'],
     players: { min: 4, max: 16 },
     baseDuration: 12,
-    preferredPositions: ['forwards', 'goalkeeper'],
     blurb: 'Touch out of your feet, strike, follow in for the rebound.',
     setup: [
       'A goal (or cone goal) with a shooting line about 10–12 steps out.',
@@ -1249,7 +1241,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones'],
     players: { min: 4, max: 16 },
     baseDuration: 10,
-    preferredPositions: ['forwards'],
     blurb: 'No goals needed — dribble at speed and pass through a small gate to score.',
     setup: [
       'Three cone gates (2 steps wide) spread along a "goal line".',
@@ -1313,7 +1304,6 @@ export const DRILLS = [
     equipment: ['balls', 'goals', 'mannequins'],
     players: { min: 2, max: 12 },
     baseDuration: 10,
-    preferredPositions: ['forwards'],
     blurb: 'Curl and dip free kicks over a mannequin wall into the top corner.',
     setup: [
       'Set up a goal with a mannequin wall about 9-10 steps out from a free-kick spot.',
@@ -1370,7 +1360,6 @@ export const DRILLS = [
     focus: ['goalkeeping', 'shooting'],
     equipment: ['balls', 'cones', 'goals'],
     players: { min: 2, max: 8 },
-    needsPositions: ['goalkeeper'],
     baseDuration: 10,
     blurb: 'Two keepers face off, throwing and kicking to score past each other.',
     setup: [
@@ -1545,7 +1534,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'goals'],
     players: { min: 4, max: 16 },
     baseDuration: 12,
-    preferredPositions: ['forwards', 'defence'],
     blurb: 'Beat one defender, then beat the goal — the full striker\'s job in one rep.',
     setup: [
       'A goal with a starting gate about 20 steps out; attacker queue at the gate with balls.',
@@ -1608,7 +1596,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'goals'],
     players: { min: 6, max: 18 },
     baseDuration: 12,
-    preferredPositions: ['forwards', 'midfield'],
     blurb: 'Two attackers, one defender — learn the oldest question in football: pass or go?',
     setup: [
       'A goal and a start line about 20 steps out.',
@@ -1731,7 +1718,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'goals', 'mannequins'],
     players: { min: 4, max: 16 },
     baseDuration: 12,
-    preferredPositions: ['midfield', 'forwards'],
     blurb: 'Play the wall pass around a mannequin defender and finish first time.',
     setup: [
       'Goal, a mannequin about 12 steps out as the "defender", and a start cone 10 steps before it.',
@@ -1791,7 +1777,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones', 'vests'],
     players: { min: 8, max: 20 },
     baseDuration: 12,
-    preferredPositions: ['midfield'],
     blurb: 'Draw the defence to one side, then ping the big diagonal to the free winger.',
     setup: [
       'Wide pitch about 30 x 25 steps with a target gate in each far corner.',
@@ -1853,7 +1838,6 @@ export const DRILLS = [
     equipment: ['balls', 'goals'],
     players: { min: 4, max: 16 },
     baseDuration: 10,
-    preferredPositions: ['forwards'],
     blurb: 'Partner tosses, striker volleys — clean technique on a moving, bouncing ball.',
     setup: [
       'A goal with a server standing beside the post area, arms full of balls (or one ball, retrieved each turn).',
@@ -1914,7 +1898,6 @@ export const DRILLS = [
     equipment: ['balls', 'goals', 'flags', 'cones'],
     players: { min: 6, max: 16 },
     baseDuration: 12,
-    preferredPositions: ['forwards', 'midfield'],
     blurb: 'Wingers whip in crosses, runners attack the near and far post.',
     setup: [
       'A goal, a corner flag marking the crossing zone on one wing, and a winger queue with balls out wide.',
@@ -1981,7 +1964,6 @@ export const DRILLS = [
     equipment: ['balls', 'cones'],
     players: { min: 4, max: 16 },
     baseDuration: 10,
-    preferredPositions: ['defence'],
     blurb: 'Defenders learn the art of NOT tackling — delay the attacker until help arrives.',
     setup: [
       'Channels about 8 steps wide and 20 long.',
@@ -2046,7 +2028,6 @@ export const DRILLS = [
     focus: ['goalkeeping'],
     equipment: ['balls', 'goals'],
     players: { min: 2, max: 8 },
-    needsPositions: ['goalkeeper'],
     baseDuration: 10,
     blurb: 'Scoop, W-catch, high claim — the keeper\'s three hand shapes in one rolling circuit.',
     setup: [
@@ -2233,7 +2214,6 @@ export const DRILLS = [
     equipment: ['balls', 'goals'],
     players: { min: 4, max: 20 },
     baseDuration: 12,
-    preferredPositions: ['forwards'],
     blurb: 'A knockout shooting tournament where every player picks a country and battles to be champion.',
     setup: [
       'One goal, shooting line about 10 steps out.',
@@ -2345,8 +2325,6 @@ export const DRILLS = [
     focus: ['goalkeeping', 'shooting', 'teamwork'],
     equipment: ['balls', 'goals'],
     players: { min: 4, max: 14 },
-    needsPositions: ['goalkeeper'],
-    preferredPositions: ['forwards'],
     baseDuration: 10,
     blurb: 'Outfield players take turns rushing the keeper in waves — great pressure practice for everyone.',
     setup: [
@@ -2532,7 +2510,6 @@ export const DRILLS = [
     equipment: ['balls', 'goals'],
     players: { min: 2, max: 20 },
     baseDuration: 10,
-    preferredPositions: ['forwards', 'midfield'],
     blurb: 'The classic — hit the crossbar from distance, loudest CLANG wins.',
     setup: [
       'One goal, a shooting line 12–18 steps out depending on age.',
