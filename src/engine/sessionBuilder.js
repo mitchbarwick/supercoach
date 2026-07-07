@@ -5,7 +5,7 @@
 // with drink breaks factored in.
 // Favourited drills are preferred whenever they fit.
 // ============================================================
-import { DRILLS, FOCUS_AREAS } from '../data/drills.js'
+import { DRILLS, FOCUS_AREAS, AGE_BLOCK_CAPS, drillDurationRange } from '../data/drills.js'
 
 const BREAK_EVERY_MIN = 18 // activity minutes between drink breaks
 const BREAK_LEN = 3
@@ -14,6 +14,12 @@ export function fits(drill, ctx) {
   // equipment: every required item must be available
   if (!drill.equipment.every((e) => ctx.equipment.includes(e))) return false
   if (ctx.players < drill.players.min) return false
+  // grouping: pairs drills need even numbers, triangle drills need
+  // multiples of 3, etc. — never plan a drill the squad can't form.
+  const mult = drill.players.multiple
+  if (mult && ctx.players % mult !== 0) return false
+  // U6-U8 teams don't have goalkeepers, so keeper-focused drills are out.
+  if (ctx.ageGroup === 'U6-U8' && drill.focus.includes('goalkeeping')) return false
   return true
 }
 
@@ -30,16 +36,17 @@ export function buildCtx(opts) {
   }
 }
 
-export function computeSkeleton(total, players) {
-  const warmLen = total <= 45 ? Math.max(6, Math.round(total * 0.15)) : 10
-  const coolLen = total <= 45 ? 5 : 6
+export function computeSkeleton(total, players, ageGroup) {
+  const caps = AGE_BLOCK_CAPS[ageGroup] || AGE_BLOCK_CAPS['U9-U11']
+  const warmLen = Math.min(total <= 45 ? Math.max(6, Math.round(total * 0.15)) : 10, caps.warmup)
+  const coolLen = Math.min(total <= 45 ? 5 : 6, caps.cooldown)
   const wantGame = total >= 35 && players >= 6
-  const gameLen = wantGame ? Math.max(10, Math.round(total * 0.25)) : 0
+  const gameLen = wantGame ? Math.min(Math.max(10, Math.round(total * 0.25)), caps.game) : 0
   let mainBudget = total - warmLen - coolLen - gameLen
   const expectedBreaks = Math.floor((mainBudget + gameLen) / (BREAK_EVERY_MIN + BREAK_LEN))
   mainBudget -= expectedBreaks * BREAK_LEN
   const targetDrillCount = Math.max(2, Math.min(4, Math.floor(mainBudget / 10)))
-  return { warmLen, coolLen, wantGame, gameLen, mainBudget, targetDrillCount }
+  return { warmLen, coolLen, wantGame, gameLen, mainBudget, targetDrillCount, gameMax: caps.game, drillMax: caps.drill }
 }
 
 /**
@@ -50,7 +57,7 @@ export function computeSkeleton(total, players) {
  * here, regardless of who chose the drill, so the total always matches
  * the requested session length.
  */
-export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total, coolLen) {
+export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total, coolLen, gameMax = Infinity) {
   const blocks = []
   let cursor = 0
   let sinceBreak = 0
@@ -75,7 +82,9 @@ export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total,
   if (gameChoice) {
     maybeBreak(total - cursor - coolLen)
     const len = total - cursor - coolLen
-    push({ type: 'game', duration: Math.max(8, len), ...gameChoice })
+    // cap the game by the age group's attention span — any leftover
+    // minutes flow into a longer, more relaxed cool-down
+    push({ type: 'game', duration: Math.max(8, Math.min(len, gameMax)), ...gameChoice })
   }
 
   const coolActual = Math.max(4, total - cursor)
@@ -111,7 +120,7 @@ function pickBest(pool, ctx, usedFocus, picked) {
 export function buildSession(opts) {
   const ctx = buildCtx(opts)
   const total = opts.duration
-  const { warmLen, coolLen, wantGame, mainBudget: initialBudget, targetDrillCount } = computeSkeleton(total, ctx.players)
+  const { warmLen, coolLen, wantGame, mainBudget: initialBudget, targetDrillCount, gameMax } = computeSkeleton(total, ctx.players, ctx.ageGroup)
   const usedFocus = {}
   const picked = new Set()
   const fixedBlocks = []
@@ -128,16 +137,21 @@ export function buildSession(opts) {
   const mains = DRILLS.filter((d) => d.category === 'drill')
   let mainBudget = initialBudget
   let slots = targetDrillCount
-  while (slots > 0 && mainBudget >= 8) {
+  while (mainBudget >= 8) {
     const drill = pickBest(mains, ctx, usedFocus, picked)
     if (!drill) break
     picked.add(drill.id)
     drill.focus.forEach((f) => { if (ctx.focus.includes(f)) usedFocus[f] = true })
-    let len = slots === 1 ? mainBudget : Math.min(Math.max(8, drill.baseDuration), mainBudget - (slots - 1) * 8)
-    len = Math.round(len)
+    // aim for the drill's base length (leaving ≥8 min per remaining
+    // slot), then clamp to the realistic range for this age group —
+    // young squads get more, shorter drills instead of marathon ones
+    const range = drillDurationRange(drill, ctx.ageGroup)
+    let len = slots > 1 ? Math.min(Math.max(8, drill.baseDuration), mainBudget - (slots - 1) * 8) : mainBudget
+    len = Math.max(Math.min(len, range.max), Math.min(range.min, mainBudget))
+    len = Math.round(Math.min(len, mainBudget))
     fixedBlocks.push({ type: 'drill', drillId: drill.id, title: drill.name, emoji: drill.emoji, duration: len, blurb: drill.blurb })
     mainBudget -= len
-    slots -= 1
+    slots = Math.max(1, slots - 1)
   }
 
   // ---- game ----
@@ -154,7 +168,7 @@ export function buildSession(opts) {
   const cd = pickBest(cools, ctx, usedFocus, picked) || cools[0]
   const cooldownChoice = { drillId: cd.id, title: cd.name, emoji: cd.emoji, blurb: cd.blurb }
 
-  const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total, coolLen)
+  const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total, coolLen, gameMax)
   return { blocks, totalPlanned, request: { ...opts } }
 }
 

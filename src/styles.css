@@ -255,21 +255,69 @@ input.text-input {
 /* ---- Pitch animation ---- */
 .pitch-wrap {
   border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
-  border: 1px solid var(--line); background: #2e8f57; position: relative;
+  border: 1px solid var(--line); background: #2e8f57;
 }
-.pitch-controls {
-  position: absolute; bottom: 10px; right: 10px; display: flex; gap: 6px;
+.pitch-stage { position: relative; }
+/* Safe zone below the pitch: captions + controls can never cover
+   cones, players or the ball, no matter how small the screen is. */
+.pitch-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(7, 59, 37, 0.95); padding: 8px 10px 8px 14px;
+  min-height: 50px;
 }
+.phase-banner {
+  flex: 1; min-width: 0; color: #fff; font-size: 12.5px; font-weight: 800;
+  line-height: 1.35;
+}
+.area-tag {
+  flex-shrink: 0; font-size: 10.5px; font-weight: 800; white-space: nowrap;
+  color: rgba(255, 255, 255, 0.85); background: rgba(255, 255, 255, 0.14);
+  padding: 3px 9px; border-radius: 999px;
+}
+.pitch-controls { display: flex; gap: 6px; flex-shrink: 0; }
 .pitch-controls button {
   background: rgba(255, 255, 255, 0.92); border: none; border-radius: 999px;
   width: 34px; height: 34px; font-size: 14px; box-shadow: var(--shadow-sm);
   display: flex; align-items: center; justify-content: center;
 }
-.phase-banner {
-  position: absolute; top: 10px; left: 10px; background: rgba(7, 59, 37, 0.78);
-  color: #fff; font-size: 12.5px; font-weight: 800; padding: 5px 12px; border-radius: 999px;
-  backdrop-filter: blur(4px);
+@media (max-width: 420px) {
+  .area-tag { display: none; } /* keep captions readable on narrow phones */
 }
+
+/* ---- Set-up callout (parallel sets for today's squad) ---- */
+.setup-callout {
+  margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-md, 12px);
+  background: var(--amber-100, #fdf1d7); border: 1px solid rgba(192, 127, 18, 0.25);
+  font-size: 14.5px; line-height: 1.5; color: var(--ink-700);
+}
+
+/* ---- Session complete celebration ---- */
+.celebrate-card { text-align: center; padding: 22px 18px 24px; overflow: hidden; }
+.celebrate-stage { max-width: 360px; margin: 0 auto 6px; }
+.celebrate-stage svg { width: 100%; height: auto; display: block; }
+.celebrate-title { font-size: 22px; margin-top: 4px; animation: celebratePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.15s; }
+@keyframes celebratePop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+.hop { animation: hopUp 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center bottom; }
+@keyframes hopUp {
+  0%, 55%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-7px); }
+}
+.coach-sway { animation: coachSway 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center bottom; }
+@keyframes coachSway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+.confetto { animation: confettiFall 2.8s linear infinite; }
+@keyframes confettiFall {
+  0% { transform: translateY(-12px) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translateY(64px) rotate(320deg); opacity: 0; }
+}
+.recap-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.recap-row:last-child { border-bottom: none; }
 
 /* ---- Misc ---- */
 .row { display: flex; align-items: center; gap: 10px; }

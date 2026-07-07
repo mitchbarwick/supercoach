@@ -53,6 +53,44 @@ export const AGE_GROUPS = [
   { id: 'U15+', label: 'Under 15+' },
 ];
 
+// How long one block can realistically hold each age group's focus,
+// in minutes, per block category. Ten minutes of a passing drill is
+// unrealistic for 6-year-olds — but a 10-minute mini-game is fine,
+// which is why games get a higher ceiling than drills.
+export const AGE_BLOCK_CAPS = {
+  'U6-U8': { warmup: 8, drill: 8, game: 12, cooldown: 6 },
+  'U9-U11': { warmup: 10, drill: 12, game: 16, cooldown: 7 },
+  'U12-U14': { warmup: 12, drill: 15, game: 20, cooldown: 8 },
+  'U15+': { warmup: 12, drill: 18, game: 25, cooldown: 10 },
+};
+
+// The realistic time range a drill can run for, clamped by the age
+// group's attention span for that block type.
+export function drillDurationRange(drill, ageGroup) {
+  const caps = AGE_BLOCK_CAPS[ageGroup] || AGE_BLOCK_CAPS['U9-U11'];
+  const cap = caps[drill.category] || caps.drill;
+  const min = Math.min(Math.max(4, drill.baseDuration - 3), cap);
+  const max = Math.max(min, Math.min(drill.baseDuration + 5, cap));
+  return { min, max };
+}
+
+// How many copies of a drill the coach can run at once with today's
+// squad, plus the total equipment that needs. Drills declare
+// `sets: { size, equipment: { coneId: perSet } }` when they split into
+// parallel groups; whole-group drills simply omit `sets`.
+export function setsFor(drill, players) {
+  const size = drill.sets?.size;
+  if (!players || !size || size < 1) return null;
+  const count = Math.floor(players / size);
+  if (count < 1) return null;
+  const spare = players - count * size;
+  const equipment = {};
+  for (const [id, perSet] of Object.entries(drill.sets.equipment || {})) {
+    equipment[id] = perSet * count;
+  }
+  return { count, size, spare, equipment };
+}
+
 // helper for a static entity
 const still = (x, y) => [{ t: 0, x, y }, { t: 1, x, y }];
 
@@ -171,7 +209,7 @@ export const DRILLS = [
     category: 'warmup',
     focus: ['dribbling', '1v1', 'fitness'],
     equipment: ['balls', 'cones', 'vests'],
-    players: { min: 5, max: 24 },
+    players: { min: 4, max: 24 },
     baseDuration: 8,
     blurb: 'Dribblers try to cross the square without a shark stealing their ball.',
     setup: [
@@ -225,7 +263,8 @@ export const DRILLS = [
     category: 'warmup',
     focus: ['passing', 'fitness'],
     equipment: ['balls', 'cones'],
-    players: { min: 4, max: 30 },
+    players: { min: 4, max: 30, multiple: 2 },
+    sets: { size: 2, equipment: { balls: 1 } },
     baseDuration: 7,
     blurb: 'Jog and pass in pairs down a channel, feet moving before the whistle even blows.',
     setup: [
@@ -328,7 +367,8 @@ export const DRILLS = [
     category: 'warmup',
     focus: ['1v1', 'dribbling'],
     equipment: ['cones'],
-    players: { min: 4, max: 30 },
+    players: { min: 4, max: 30, multiple: 2 },
+    sets: { size: 2, equipment: { balls: 1 } },
     baseDuration: 6,
     blurb: 'Partners mirror each other\'s movements to switch on quick feet and defensive stance.',
     setup: [
@@ -381,6 +421,7 @@ export const DRILLS = [
     focus: ['fitness'],
     equipment: ['ladder', 'cones'],
     players: { min: 4, max: 20 },
+    sets: { size: 5, equipment: { ladder: 1, cones: 2 } },
     baseDuration: 8,
     blurb: 'Fast feet through the ladder, sprint out the end, new pattern every trip.',
     setup: [
@@ -570,6 +611,7 @@ export const DRILLS = [
     focus: ['fitness', 'teamwork'],
     equipment: ['cones'],
     players: { min: 6, max: 24 },
+    sets: { size: 4, equipment: { cones: 2 } },
     baseDuration: 10,
     blurb: 'Teams race in relay legs — sprint, weave, and turn.',
     setup: [
@@ -624,6 +666,7 @@ export const DRILLS = [
     focus: ['fitness', 'dribbling'],
     equipment: ['balls', 'cones'],
     players: { min: 4, max: 20 },
+    sets: { size: 4, equipment: { cones: 6, balls: 1 } },
     baseDuration: 10,
     blurb: 'Weave through cones with the ball, sprint back without it.',
     setup: [
@@ -750,6 +793,7 @@ export const DRILLS = [
     focus: ['1v1', 'dribbling', 'defending'],
     equipment: ['balls', 'cones', 'vests'],
     players: { min: 4, max: 16 },
+    sets: { size: 2, equipment: { cones: 8, balls: 1 } },
     baseDuration: 12,
     blurb: 'Score by dribbling through either of two cone gates.',
     setup: [
@@ -815,6 +859,7 @@ export const DRILLS = [
     focus: ['1v1', 'dribbling', 'defending'],
     equipment: ['balls', 'cones'],
     players: { min: 4, max: 16 },
+    sets: { size: 2, equipment: { cones: 6, balls: 1 } },
     baseDuration: 12,
     blurb: 'Attack down a channel and stop the ball in the end zone to score.',
     setup: [
@@ -936,7 +981,8 @@ export const DRILLS = [
     category: 'drill',
     focus: ['triangles', 'passing'],
     equipment: ['balls', 'cones'],
-    players: { min: 3, max: 24 },
+    players: { min: 3, max: 24, multiple: 3 },
+    sets: { size: 3, equipment: { cones: 3, balls: 1 } },
     baseDuration: 10,
     blurb: 'Groups of three pass around a cone triangle — the shape of football.',
     setup: [
@@ -1000,6 +1046,7 @@ export const DRILLS = [
     focus: ['triangles', 'passing', 'teamwork', 'defending'],
     equipment: ['balls', 'cones', 'vests'],
     players: { min: 5, max: 16 },
+    sets: { size: 5, equipment: { cones: 5, balls: 1, vests: 1 } },
     baseDuration: 10,
     blurb: 'Keep-ball in a circle — the classic possession game.',
     setup: [
@@ -1060,7 +1107,8 @@ export const DRILLS = [
     category: 'drill',
     focus: ['triangles', 'passing', 'fitness', 'teamwork'],
     equipment: ['balls', 'cones', 'vests'],
-    players: { min: 6, max: 18 },
+    players: { min: 6, max: 18, multiple: 3 },
+    sets: { size: 3, equipment: { balls: 1, vests: 3 } },
     baseDuration: 12,
     blurb: 'Teams of three move up the pitch keeping a triangle shape.',
     setup: [
@@ -1124,6 +1172,7 @@ export const DRILLS = [
     focus: ['passing', 'fitness'],
     equipment: ['balls', 'rebounder'],
     players: { min: 2, max: 16 },
+    sets: { size: 2, equipment: { rebounder: 1, balls: 1 } },
     baseDuration: 10,
     blurb: 'Fast one-touch passing against a rebounder net — the ball never stops moving.',
     setup: [
@@ -1385,6 +1434,16 @@ export const DRILLS = [
     adaptations: {
       easier: ['Underarm rolls only.', 'Move the goals closer.'],
       harder: ['Volleys allowed.', 'One-hand saves = 2 points.'],
+    },
+    variants: {
+      keeper: [
+        'Your keeper(s) live in the duel arena — set position, save, instant counter.',
+        'Rotate a new challenger into the far goal every 2 points so keepers face fresh opponents.',
+      ],
+      outfield: [
+        'Everyone else splits into two supply crews, one behind each goal: collect rebounds, feed balls, and keep the score loudly.',
+        'Spare players play 2-touch keep-ball beside the arena and swap in as challengers each round.',
+      ],
     },
     diagram: {
       duration: 6,
@@ -2055,6 +2114,16 @@ export const DRILLS = [
       easier: ['Softer, slower serves.', 'High balls thrown lower.'],
       harder: ['Serves alternate randomly.', 'Add a passive attacker standing near the high-ball zone.'],
     },
+    variants: {
+      keeper: [
+        'Keeper works the full circuit in goal: scoop, basket, W-catch, high claim — two circuits then rotate.',
+        'Second keeper (if you have one) serves, so they read serve heights too.',
+      ],
+      outfield: [
+        'Everyone else pairs up nearby and runs the same four-catch sequence hands-only — great for throw-ins and chest control.',
+        'Rotate one pair into goal each circuit so every player gets keeper practice.',
+      ],
+    },
     diagram: {
       duration: 8,
       areaLabel: 'Handling circuit',
@@ -2351,6 +2420,16 @@ export const DRILLS = [
       easier: ['Slow the pace between attackers.', 'Bigger goal for the keeper to feel successful early.'],
       harder: ['Attackers get 2 touches only before shooting.', 'Two attackers arrive at once.'],
     },
+    variants: {
+      keeper: [
+        'Keeper holds the goal against the waves — "set, save, up, reset" between every attacker.',
+        'Swap the keeper every 90 seconds so nobody stands in the queue too long.',
+      ],
+      outfield: [
+        'Attackers queue with a ball each — while waiting, juggle or toe-tap so nobody stands still.',
+        'After your attempt, collect your ball and rejoin via a dribble around the outside.',
+      ],
+    },
     diagram: {
       duration: 7,
       areaLabel: 'Keeper gauntlet',
@@ -2593,22 +2672,22 @@ export const DRILLS = [
       harder: ['Add gentle ball juggling in pairs while cooling down.'],
     },
     diagram: {
-      duration: 8,
+      duration: 16,
       areaLabel: 'Team circle',
-      circleRadius: 20,
       cones: [],
       phases: [
-        { t: 0, label: 'Stretch together' },
-        { t: 0.5, label: 'Favourite moment of today?' },
+        { t: 0, label: 'Reach for the sky — tall as you can!' },
+        { t: 0.25, label: 'Toe touch — fold forward, legs straight' },
+        { t: 0.5, label: 'Quad hold — heel to bottom, balance!' },
+        { t: 0.75, label: 'Butterfly sit — soles together, knees low' },
       ],
       entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(50, 12) },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(69, 19) },
-        { id: 'p3', kind: 'player', team: 'a', label: '3', path: still(76, 36) },
-        { id: 'p4', kind: 'player', team: 'a', label: '4', path: still(64, 50) },
-        { id: 'p5', kind: 'player', team: 'a', label: '5', path: still(36, 50) },
-        { id: 'p6', kind: 'player', team: 'a', label: '6', path: still(24, 36) },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(31, 19) },
+        // Little people doing the stretch sequence together — the poses
+        // show exactly how the body should be positioned at each step.
+        { id: 'coach', kind: 'figure', team: 'n', x: 22, y: 50, scale: 2, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
+        { id: 'f1', kind: 'figure', team: 'a', x: 42, y: 50, scale: 2, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
+        { id: 'f2', kind: 'figure', team: 'a', x: 60, y: 50, scale: 2, flip: true, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
+        { id: 'f3', kind: 'figure', team: 'a', x: 79, y: 50, scale: 2, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
       ],
     },
   },
@@ -2620,6 +2699,7 @@ export const DRILLS = [
     focus: ['dribbling'],
     equipment: ['balls'],
     players: { min: 2, max: 30 },
+    sets: { size: 1, equipment: { balls: 1 } },
     baseDuration: 5,
     blurb: 'Relaxed juggling challenges while heart rates come down.',
     setup: [
@@ -2668,7 +2748,8 @@ export const DRILLS = [
     category: 'cooldown',
     focus: ['teamwork', 'fitness'],
     equipment: [],
-    players: { min: 2, max: 30 },
+    players: { min: 2, max: 30, multiple: 2 },
+    sets: { size: 2 },
     baseDuration: 5,
     blurb: 'Partner-assisted stretches paired with a quick chat about today\'s best moment.',
     setup: [
@@ -2696,18 +2777,20 @@ export const DRILLS = [
       harder: ['Add a partner-resisted core stretch (gentle sit-up holds).'],
     },
     diagram: {
-      duration: 8,
+      duration: 14,
       areaLabel: 'Partner pairs',
       cones: [],
       phases: [
-        { t: 0, label: 'Gentle stretch...' },
-        { t: 0.5, label: 'Swap and share!' },
+        { t: 0, label: 'Hamstring reach — legs long, ease forward' },
+        { t: 0.5, label: 'Butterfly — soles together, gentle press' },
       ],
       entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(38, 26) },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(46, 26) },
-        { id: 'p3', kind: 'player', team: 'b', label: '3', path: still(60, 42) },
-        { id: 'p4', kind: 'player', team: 'b', label: '4', path: still(68, 42) },
+        // Seated pairs facing each other — the reach shows the hamstring
+        // stretch shape, then both fold into butterfly sits.
+        { id: 'f1', kind: 'figure', team: 'a', x: 30, y: 34, scale: 2, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
+        { id: 'f2', kind: 'figure', team: 'a', x: 46, y: 34, scale: 2, flip: true, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
+        { id: 'f3', kind: 'figure', team: 'b', x: 58, y: 52, scale: 2, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
+        { id: 'f4', kind: 'figure', team: 'b', x: 74, y: 52, scale: 2, flip: true, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
       ],
     },
   },
@@ -2718,7 +2801,8 @@ export const DRILLS = [
     category: 'cooldown',
     focus: ['passing', 'shooting'],
     equipment: ['balls'],
-    players: { min: 2, max: 30 },
+    players: { min: 2, max: 30, multiple: 2 },
+    sets: { size: 2, equipment: { balls: 1 } },
     baseDuration: 5,
     blurb: 'Gentle partner chipping and catching to bring the energy down with soft touches.',
     setup: [
@@ -2768,7 +2852,8 @@ export const DRILLS = [
     category: 'cooldown',
     focus: ['goalkeeping', 'fitness'],
     equipment: ['balls'],
-    players: { min: 2, max: 30 },
+    players: { min: 2, max: 30, multiple: 2 },
+    sets: { size: 2, equipment: { balls: 1 } },
     baseDuration: 5,
     blurb: 'Gentle rolling and scoop catches to bring keepers (and everyone else) down slowly.',
     setup: [
@@ -2794,6 +2879,16 @@ export const DRILLS = [
     adaptations: {
       easier: ['Roll the ball slower and closer.'],
       harder: ['Add a gentle bounce for a catch at head height.'],
+    },
+    variants: {
+      keeper: [
+        'Your keeper does the full sequence — scoops both sides, then soft chest-height catches.',
+        'Pair the keeper with your most accurate roller so their reps stay quality.',
+      ],
+      outfield: [
+        'Outfield pairs do the same rolls but collect with the sole of the boot and pass back gently — soft first touches, same wind-down.',
+        'Everyone joins together at the end for shoulder rolls and ankle shakes.',
+      ],
     },
     diagram: {
       duration: 6,

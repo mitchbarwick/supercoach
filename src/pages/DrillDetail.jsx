@@ -2,7 +2,7 @@
 // points, age adaptations, notes and favourite toggle.
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { getDrill, sayToKids, FOCUS_AREAS } from '../data/drills.js'
+import { getDrill, sayToKids, setsFor, drillDurationRange, FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
 import PitchAnimation from '../components/PitchAnimation.jsx'
 import { useStore, actions } from '../store/useStore.js'
 import { getCoachingTips, aiConfigured } from '../ai/azure.js'
@@ -29,6 +29,7 @@ export default function DrillDetail() {
   const [toast, setToast] = useState('')
 
   const ageGroup = session?.request?.ageGroup || 'U9-U11'
+  const squadSize = session?.request?.players || null
   const isFav = favourites.includes(id)
 
   // Plan context: only present when this drill was opened from today's plan
@@ -95,8 +96,15 @@ export default function DrillDetail() {
             const fa = FOCUS_AREAS.find((x) => x.id === f)
             return fa ? <span key={f} className="tag green">{fa.emoji} {fa.label}</span> : null
           })}
-          <span className="tag grey">👥 {drill.players.min}–{drill.players.max} players</span>
-          <span className="tag grey">⏱ ~{drill.baseDuration} min</span>
+          <span className="tag grey">
+            👥 {drill.players.min}–{drill.players.max} players
+            {drill.players.multiple === 2 && ' · even numbers'}
+            {drill.players.multiple >= 3 && ` · groups of ${drill.players.multiple}`}
+          </span>
+          {(() => {
+            const r = drillDurationRange(drill, ageGroup)
+            return <span className="tag grey">⏱ {r.min === r.max ? `~${r.min}` : `${r.min}–${r.max}`} min</span>
+          })()}
         </div>
       )}
 
@@ -112,6 +120,25 @@ export default function DrillDetail() {
         <ul className="nice-list numbered">
           {drill.setup.map((s, i) => <li key={i}><span className="dot">{i + 1}</span><span>{s}</span></li>)}
         </ul>
+        {(() => {
+          // With today's squad size, tell the coach how many copies of
+          // this drill to run at once and the total kit that needs.
+          const plan = setsFor(drill, squadSize)
+          if (!plan || plan.count < 2) return null
+          const kit = Object.entries(plan.equipment)
+            .map(([eqId, n]) => `${n} ${(EQUIPMENT.find((e) => e.id === eqId)?.label || eqId).toLowerCase()}`)
+            .join(' + ')
+          return (
+            <div className="setup-callout">
+              <strong>👥 With your {squadSize} players:</strong>{' '}
+              {plan.size === 1
+                ? <>everyone works at once</>
+                : <>set up <strong>{plan.count} of these at once</strong> (groups of {plan.size})</>}
+              {kit && <> — you&apos;ll need {kit} in total</>}
+              {plan.spare > 0 && <>. {plan.spare} spare player{plan.spare > 1 ? 's' : ''} — rotate them in every minute or so</>}.
+            </div>
+          )
+        })()}
       </Section>
 
       <Section icon="▶️" title="How it works">
@@ -131,6 +158,28 @@ export default function DrillDetail() {
           </div>
         )}
       </Section>
+
+      {drill.variants && (
+        <Section icon="🧤" title="Keep the whole team busy">
+          <p className="muted" style={{ marginBottom: 12, fontSize: 14 }}>
+            This one&apos;s keeper-focused — here&apos;s how nobody stands around watching.
+          </p>
+          <div className="row" style={{ alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <span className="tag blue" style={{ marginBottom: 8 }}>🧤 Goalkeeper</span>
+              <ul className="nice-list" style={{ marginTop: 8 }}>
+                {drill.variants.keeper.map((s, i) => <li key={i}><span className="dot">•</span><span>{s}</span></li>)}
+              </ul>
+            </div>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <span className="tag green" style={{ marginBottom: 8 }}>⚽ Rest of the team</span>
+              <ul className="nice-list" style={{ marginTop: 8 }}>
+                {drill.variants.outfield.map((s, i) => <li key={i}><span className="dot">•</span><span>{s}</span></li>)}
+              </ul>
+            </div>
+          </div>
+        </Section>
+      )}
 
       <Section icon="🎚️" title="Make it easier / harder">
         <div className="row" style={{ alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>

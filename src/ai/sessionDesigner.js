@@ -6,7 +6,7 @@
 // before handing it to assembleTimeline() for final timing.
 // Mirrors buildSession()'s contract: {blocks, totalPlanned, request}.
 // ============================================================
-import { DRILLS, getDrill } from '../data/drills.js'
+import { DRILLS, getDrill, AGE_BLOCK_CAPS, drillDurationRange } from '../data/drills.js'
 import { chat, aiConfigured } from './azure.js'
 import { buildCtx, computeSkeleton, fits, assembleTimeline } from '../engine/sessionBuilder.js'
 
@@ -53,6 +53,8 @@ function buildMessages(ctx, skeleton, pool, wantGame) {
       'do not include breaks and don\'t worry about the cool-down\'s exact length:',
     `- Warm-up should be about ${skeleton.warmLen} minutes.`,
     `- The ${skeleton.targetDrillCount} main drills together should total about ${skeleton.mainBudget} minutes.`,
+    `- Attention span: ${ctx.ageGroup} players can hold focus on one drill for at most ${(AGE_BLOCK_CAPS[ctx.ageGroup] || AGE_BLOCK_CAPS['U9-U11']).drill} minutes — never plan a single drill longer than that (games can run longer).`,
+    `- Player grouping: some drills declare players.multiple (e.g. pairs need even numbers, triangles need multiples of 3). With ${ctx.players} players, only pick drills the squad can split into evenly.`,
     '',
     'Approved drill library (choose "drillId" only from these ids):',
     JSON.stringify(pool),
@@ -148,12 +150,16 @@ export function validateAiChoices(raw, ctx, skeleton, wantGame) {
 
   const drillBlocks = drillEntries.map((choice) => {
     const drill = resolve(choice, 'drill')
+    // clamp whatever the AI proposed into the realistic range for this
+    // drill and age group — attention spans are a hard constraint
+    const range = drillDurationRange(drill, ctx.ageGroup)
+    const proposed = coerceDuration(choice.duration, drill.baseDuration)
     return {
       type: 'drill',
       drillId: drill.id,
       title: drill.name,
       emoji: drill.emoji,
-      duration: coerceDuration(choice.duration, drill.baseDuration),
+      duration: Math.max(range.min, Math.min(proposed, range.max)),
       blurb: coerceBlurb(choice.blurb, drill.blurb),
     }
   })
@@ -195,7 +201,7 @@ export async function designSessionWithAI(opts) {
   }
 
   const ctx = buildCtx(opts)
-  const skeleton = computeSkeleton(opts.duration, ctx.players)
+  const skeleton = computeSkeleton(opts.duration, ctx.players, ctx.ageGroup)
   const pool = DRILLS.filter((d) => fits(d, ctx))
 
   for (const cat of ['warmup', 'cooldown']) {
@@ -230,6 +236,6 @@ export async function designSessionWithAI(opts) {
   }
 
   const { fixedBlocks, gameChoice, cooldownChoice } = validateAiChoices(raw, ctx, skeleton, wantGame)
-  const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, opts.duration, skeleton.coolLen)
+  const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, opts.duration, skeleton.coolLen, skeleton.gameMax)
   return { blocks, totalPlanned, request: { ...opts } }
 }

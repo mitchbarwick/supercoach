@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useStore, actions } from '../store/useStore.js'
 import { BLOCK_STYLE } from '../engine/sessionBuilder.js'
 import { FOCUS_AREAS } from '../data/drills.js'
+import SessionCelebration from '../components/SessionCelebration.jsx'
 
 const fmtTime = (m) => `${m}'`
 
@@ -86,12 +87,7 @@ export default function PlanView() {
         })}
       </div>
 
-      {done === blocks.length && (
-        <div className="card" style={{ textAlign: 'center', background: 'var(--green-50)' }}>
-          <h3 style={{ fontSize: 20 }}>🎉 Session complete!</h3>
-          <p className="muted" style={{ marginTop: 6 }}>Great work, coach. Favourite the drills that landed well — next time they'll be picked first.</p>
-        </div>
-      )}
+      {done === blocks.length && <SessionCelebration session={session} />}
     </div>
   )
 }
