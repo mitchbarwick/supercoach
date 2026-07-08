@@ -57,7 +57,7 @@ export default function EmergencyGuide() {
       {/* Persistent safety strip */}
       <div className="calm-strip">
         <span className="calm-dot" aria-hidden="true" /> Stay calm and stay with the player.
-        Unsure at any point? <a href="tel:999">Call 999</a> / <a href="tel:112">112</a> — no one will criticise you for calling.
+        Unsure at any point? <a href="tel:000">Call 000</a> / <a href="tel:112">112</a> — no one will criticise you for calling.
       </div>
 
       {/* Progress dots */}
@@ -110,7 +110,7 @@ export default function EmergencyGuide() {
 
         {showCall && meta.key === 'flags' && (
           <div className="call-panel fade-in" role="alert">
-            <strong>📞 Call 999 (UK) or 112 now.</strong>
+            <strong>📞 Call 000 (Triple Zero) or 112 now.</strong>
             <ul className="nice-list" style={{ marginTop: 10 }}>
               <li><span className="dot">•</span> Put the phone on speaker so your hands stay free</li>
               <li><span className="dot">•</span> Stay with the player — send someone else to meet the ambulance</li>
@@ -118,7 +118,7 @@ export default function EmergencyGuide() {
               <li><span className="dot">•</span> Contact the player's parent or carer as soon as you can</li>
             </ul>
             <div className="row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-              <a className="btn btn-coral" href="tel:999">📞 Call 999</a>
+              <a className="btn btn-coral" href="tel:000">📞 Call 000</a>
               <a className="btn btn-ghost" href="tel:112">📞 Call 112</a>
             </div>
           </div>

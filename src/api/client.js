@@ -31,7 +31,7 @@ export const api = {
   updateProgram: (token, id, patch) => req(`/programs/${id}`, { method: 'PUT', token, body: patch }),
   deleteProgram: (token, id) => req(`/programs/${id}`, { method: 'DELETE', token }),
   sendFeedback: (token, payload) => req('/feedback', { method: 'POST', token, body: payload }),
-  adminOverview: (token) => req('/admin/overview', { token }),
+  adminOverview: (token) => req('/dashboard/overview', { token }),
 }
 
 export { ApiError }

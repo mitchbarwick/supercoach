@@ -29,13 +29,13 @@ export default function Emergency() {
         <div>
           <strong>Serious injury? Call emergency services first.</strong>
           <p>
-            Call <strong>999</strong> (UK) or <strong>112</strong> right away if a player is unresponsive,
-            struggling to breathe, has a suspected neck, back or head injury, heavy bleeding, or a visible
+            Call <strong>000</strong> (Triple Zero) or <strong>112</strong> from a mobile right away if a player is
+            unresponsive, struggling to breathe, has a suspected neck, back or head injury, heavy bleeding, or a visible
             deformity. When in doubt, always consult a medical professional — this guidance supports you,
             it does not replace trained help.
           </p>
           <div className="row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-            <a className="btn btn-coral btn-sm" href="tel:999">📞 Call 999</a>
+            <a className="btn btn-coral btn-sm" href="tel:000">📞 Call 000</a>
             <a className="btn btn-ghost btn-sm" href="tel:112">📞 Call 112</a>
           </div>
         </div>

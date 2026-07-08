@@ -8,6 +8,7 @@ import { useStore, actions } from '../store/useStore.js'
 import { getDrill } from '../data/drills.js'
 import { accountsEnabled } from '../config.js'
 import AccountButton from '../components/AccountButton.jsx'
+import Landing from './Landing.jsx'
 
 function timeAgo(ts) {
   const mins = Math.round((Date.now() - ts) / 60000)
@@ -62,8 +63,16 @@ export default function Home() {
   const favourites = useStore((s) => s.favourites)
   const session = useStore((s) => s.session)
   const ticks = useStore((s) => s.ticks)
+  const guestEntered = useStore((s) => s.guestEntered)
 
   useEffect(() => { actions.refresh() }, [])
+
+  // Signed-out visitors see the landing (which nudges them to sign in) on
+  // every visit, until they either sign in or choose to continue as guest
+  // for this session. Only when accounts are actually available.
+  if (!auth && !guestEntered && accountsEnabled()) {
+    return <Landing />
+  }
 
   // Nothing here yet? Go straight to the wizard — no extra taps for
   // a first-time coach.

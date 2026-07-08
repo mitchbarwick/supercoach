@@ -1,5 +1,5 @@
 // Emergency first-aid guidance for common football injuries.
-// Content follows widely-taught first-aid principles (FA/St John Ambulance style):
+// Content follows widely-taught first-aid principles (Football Australia/St John Ambulance style):
 // "If in doubt, sit them out" and "when unsure, call for professional help".
 // This is guidance for coaches, NOT a substitute for medical training or care.
 
@@ -638,7 +638,7 @@ export const INJURIES = [
     ],
     assess: [
       'Heat exhaustion: pale, sweaty, headache, dizzy, cramps, tired — uncomfortable but responds to cooling',
-      'Heatstroke: hot skin, confusion, deteriorating consciousness — a 999 call, cool them aggressively while you wait',
+      'Heatstroke: hot skin, confusion, deteriorating consciousness — a 000 call, cool them aggressively while you wait',
     ],
     doNow: [
       'Stop them playing and move them to shade immediately',

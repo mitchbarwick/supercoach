@@ -2,6 +2,7 @@
 // Renders nothing until the API + Google client id are configured,
 // so the app looks exactly like phase 2 until accounts go live.
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { accountsEnabled } from '../config.js'
 import { renderGoogleButton, googleSignOut } from '../auth/googleAuth.js'
 import { api } from '../api/client.js'
@@ -9,6 +10,7 @@ import { useStore, actions } from '../store/useStore.js'
 
 export default function AccountButton({ compact = false }) {
   const auth = useStore((s) => s.auth)
+  const navigate = useNavigate()
   const holder = useRef(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -48,7 +50,7 @@ export default function AccountButton({ compact = false }) {
         )}
         <button
           className="btn btn-ghost btn-sm"
-          onClick={() => { googleSignOut(); actions.signOut() }}
+          onClick={() => { googleSignOut(); actions.signOut(); navigate('/') }}
         >
           Sign out
         </button>

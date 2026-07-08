@@ -20,14 +20,18 @@ export default function DrillLibrary() {
         ⭐ Favourite the drills your team loves — SuperCoach picks favourites first when building sessions.
       </p>
 
-      <div className="chip-row" style={{ marginBottom: 18 }}>
-        <button className={`chip ${!filter ? 'on' : ''}`} onClick={() => setFilter(null)}>All</button>
+      <select
+        className="select-input"
+        style={{ marginBottom: 18 }}
+        value={filter || ''}
+        onChange={(e) => setFilter(e.target.value || null)}
+        aria-label="Filter drills by focus"
+      >
+        <option value="">All focus areas</option>
         {FOCUS_AREAS.map((f) => (
-          <button key={f.id} className={`chip ${filter === f.id ? 'on' : ''}`} onClick={() => setFilter(filter === f.id ? null : f.id)}>
-            {f.emoji} {f.label}
-          </button>
+          <option key={f.id} value={f.id}>{f.emoji} {f.label}</option>
         ))}
-      </div>
+      </select>
 
       {list.map((d) => {
         const isFav = favourites.includes(d.id)

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, Link, NavLink, useLocation, useNavigationType } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import SessionSetup from './pages/SessionSetup.jsx'
@@ -22,6 +22,7 @@ export default function App() {
   const { pathname } = useLocation()
   const navType = useNavigationType()
   const isAdmin = useStore((s) => Boolean(s.auth?.user?.isAdmin))
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     // Only scroll fresh navigations to the top — back/forward (POP) keeps
@@ -30,18 +31,46 @@ export default function App() {
     if (navType !== 'POP') window.scrollTo(0, 0)
   }, [pathname, navType])
 
+  // Close the mobile menu on any route change.
+  useEffect(() => { setMenuOpen(false) }, [pathname])
+
+  // Let Escape close the menu.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e) => e.key === 'Escape' && setMenuOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
+  const closeMenu = () => setMenuOpen(false)
+
   return (
     <div className="app-shell">
       <header className="topbar">
-        <Link to="/" className="brand">
+        <Link to="/" className="brand" onClick={closeMenu}>
           <span className="ball">⚽</span> SuperCoach
         </Link>
-        <nav className="topnav" aria-label="Main navigation">
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          aria-controls="main-nav"
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
+        </button>
+        <nav
+          id="main-nav"
+          className={`topnav ${menuOpen ? 'open' : ''}`}
+          aria-label="Main navigation"
+        >
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={closeMenu}
               className={({ isActive }) => `topnav-link ${isActive ? 'on' : ''}`}
             >
               <span className="topnav-emoji" aria-hidden="true">{item.emoji}</span>
@@ -49,21 +78,27 @@ export default function App() {
             </NavLink>
           ))}
           {isAdmin && (
-            <NavLink to="/admin" className={({ isActive }) => `topnav-link ${isActive ? 'on' : ''}`}>
+            <NavLink
+              to="/admin"
+              onClick={closeMenu}
+              className={({ isActive }) => `topnav-link ${isActive ? 'on' : ''}`}
+            >
               <span className="topnav-emoji" aria-hidden="true">📊</span>
               <span className="topnav-label">Admin</span>
             </NavLink>
           )}
           <NavLink
             to="/emergency"
+            onClick={closeMenu}
             className={({ isActive }) => `topnav-emergency ${isActive ? 'on' : ''}`}
             title="Emergency injury support"
           >
             <span className="topnav-emoji" aria-hidden="true">🚨</span>
-            <span>Emergency</span>
+            <span className="topnav-label">Emergency</span>
           </NavLink>
         </nav>
       </header>
+      {menuOpen && <button className="nav-backdrop" aria-hidden="true" tabIndex={-1} onClick={closeMenu} />}
       <main key={pathname} className="page-fade">
         <Routes>
           <Route path="/" element={<Home />} />

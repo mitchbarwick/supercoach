@@ -8,7 +8,8 @@
 //   PUT  /api/programs/{id}      update (rename / save flag / blocks / lastRunAt)
 //   DELETE /api/programs/{id}
 //   POST /api/feedback           free-text drill feedback + telemetry (auth optional)
-//   GET  /api/admin/overview     counts + recent feedback + recent users (admin)
+//   GET  /api/dashboard/overview counts + recent feedback + recent users (admin)
+//        NB: route must NOT start with 'admin' — Azure Functions reserves /admin
 import { app } from '@azure/functions'
 import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose'
 import { getContainers, countAll } from './lib/db.js'
@@ -251,8 +252,8 @@ app.http('feedback', {
 
 // ---------- admin ----------
 
-app.http('adminOverview', {
-  route: 'admin/overview',
+app.http('dashboardOverview', {
+  route: 'dashboard/overview',
   methods: ['GET', 'OPTIONS'],
   authLevel: 'anonymous',
   handler: wrap(async (request) => {
