@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { getDrill, sayToKids, setsFor, drillDurationRange, FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
 import PitchAnimation from '../components/PitchAnimation.jsx'
+import DrillFeedback from '../components/DrillFeedback.jsx'
 import { useStore, actions } from '../store/useStore.js'
 import { getCoachingTips, aiConfigured } from '../ai/azure.js'
 
@@ -207,6 +208,8 @@ export default function DrillDetail() {
         />
         <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>Saved automatically — your notes show up whenever this drill comes back.</p>
       </Section>
+
+      <DrillFeedback drill={drill} source={inPlan ? 'plan' : 'library'} />
 
       {toast && <div className="toast">{toast}</div>}
 

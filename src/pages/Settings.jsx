@@ -1,10 +1,14 @@
-// Azure AI Foundry connection settings.
+// Account + Azure AI Foundry connection settings.
 import { useState } from 'react'
 import { useStore, actions } from '../store/useStore.js'
 import { aiConfigured } from '../ai/azure.js'
+import { accountsEnabled } from '../config.js'
+import AccountButton from '../components/AccountButton.jsx'
 
 export default function Settings() {
   const azure = useStore((s) => s.azure)
+  const auth = useStore((s) => s.auth)
+  const syncedAt = useStore((s) => s.syncedAt)
   const [form, setForm] = useState(azure)
   const [saved, setSaved] = useState(false)
 
@@ -17,7 +21,28 @@ export default function Settings() {
   return (
     <div>
       <h1 style={{ fontSize: 26, marginBottom: 4 }}>Settings</h1>
-      <p className="muted" style={{ marginBottom: 18 }}>Connect Azure AI Foundry to get coaching tips tailored to your exact age group on every drill page.</p>
+      <p className="muted" style={{ marginBottom: 18 }}>Your account, plus the optional AI connection for age-specific coaching tips.</p>
+
+      {accountsEnabled() && (
+        <div className="card">
+          <div className="section-h">👤 Account {auth && <span className="tag green">Signed in</span>}</div>
+          {auth ? (
+            <>
+              <AccountButton />
+              <p className="muted" style={{ fontSize: 13, marginTop: 10 }}>
+                Sessions, saved programs and favourites sync to your account
+                {syncedAt ? ` — last synced ${new Date(syncedAt).toLocaleTimeString()}` : ''}.
+                Signing out keeps everything on this device.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="muted" style={{ fontSize: 14, marginBottom: 14 }}>Sign in to keep your sessions, saved programs and favourite drills on every device.</p>
+              <AccountButton />
+            </>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="section-h">✨ Azure AI Foundry {aiConfigured() && <span className="tag green">Connected</span>}</div>

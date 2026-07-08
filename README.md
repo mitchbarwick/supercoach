@@ -20,6 +20,17 @@ Then open the URL Vite prints (usually http://localhost:5173).
 
 Everything persists in the browser (localStorage) — no account needed.
 
+## Accounts (phase 3, optional)
+
+Sign in with Google (Settings or Home) and your recent sessions, saved
+sessions, favourites and usual setup (age group, squad size, kit) sync to
+every device. Home shows your history with **Run again** / **Edit** (swap
+any drill for an alternative that fits tonight's squad). Every drill page
+has a feedback button — notes arrive at the admin dashboard (`#/admin`,
+app-creator account only) tagged with drill, age group and player count.
+Backend: Azure Functions + Cosmos DB — see `DEPLOYMENT.md`. Without it the
+app runs guest-only, exactly as before.
+
 ## Drill animation system
 
 Every drill carries a declarative `diagram` spec (`src/data/drills.js`) rendered by `src/components/PitchAnimation.jsx`: a consistent 100×64 top-down pitch with cones, gates, goals, zones, and player/ball tokens that move along keyframe paths with phase captions. Add a new drill = add data, no new drawing code.

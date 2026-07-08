@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "COSMOS_CONNECTION_STRING": "AccountEndpoint=https://<account>.documents.azure.com:443/;AccountKey=<key>;",
+    "GOOGLE_CLIENT_ID": "<your-google-oauth-client-id>.apps.googleusercontent.com",
+    "JWT_SECRET": "<long-random-string>",
+    "ADMIN_EMAILS": "mitch.j.barwick@gmail.com",
+    "ALLOWED_ORIGINS": "https://mitchbarwick.github.io,http://localhost:5173"
+  }
+}

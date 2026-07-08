@@ -1,16 +1,75 @@
 // The overview plan — designed to live on a phone at the pitch.
-import { Link, useNavigate } from 'react-router-dom'
+// ?edit=1 (or the ✎ button) opens edit mode: swap any drill for an
+// alternative that fits tonight's squad and kit.
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore, actions } from '../store/useStore.js'
-import { BLOCK_STYLE } from '../engine/sessionBuilder.js'
-import { FOCUS_AREAS } from '../data/drills.js'
+import { BLOCK_STYLE, fits, buildCtx } from '../engine/sessionBuilder.js'
+import { FOCUS_AREAS, DRILLS } from '../data/drills.js'
 import SessionCelebration from '../components/SessionCelebration.jsx'
 
 const fmtTime = (m) => `${m}'`
 
+function SwapPicker({ block, session, favourites, onPick, onClose }) {
+  const ctx = buildCtx({ ...session.request, favourites })
+  const usedIds = new Set(session.blocks.map((b) => b.drillId).filter(Boolean))
+  const alts = DRILLS
+    .filter((d) => d.category === block.type && d.id !== block.drillId && !usedIds.has(d.id) && fits(d, ctx))
+    .sort((a, b) => Number(favourites.includes(b.id)) - Number(favourites.includes(a.id)))
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="spread" style={{ marginBottom: 4 }}>
+          <strong style={{ fontSize: 16 }}>Swap "{block.title}"</strong>
+          <button className="icon-btn sm" aria-label="Close" onClick={onClose}>✕</button>
+        </div>
+        <p className="muted" style={{ fontSize: 13.5, marginBottom: 12 }}>
+          Everything below fits your {session.request.players} players and tonight's kit.
+        </p>
+        {alts.length === 0 && <p className="muted">No other drills fit tonight's setup — try adding equipment next time.</p>}
+        <div className="sheet-list">
+          {alts.map((d) => (
+            <button key={d.id} className="swap-option" onClick={() => onPick(d)}>
+              <span className="emoji-badge" style={{ background: 'var(--green-100)' }}>{d.emoji}</span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <span className="item-title">{d.name} {favourites.includes(d.id) && '❤️'}</span>
+                <span className="item-sub" style={{ display: 'block' }}>{d.blurb}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PlanView() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const session = useStore((s) => s.session)
   const ticks = useStore((s) => s.ticks)
+  const favourites = useStore((s) => s.favourites)
+  const currentProgramId = useStore((s) => s.currentProgramId)
+  const editing = searchParams.get('edit') === '1'
+  const [swapBlock, setSwapBlock] = useState(null)
+  const [toast, setToast] = useState('')
+
+  const setEditing = (on) => {
+    setSwapBlock(null)
+    setSearchParams(on ? { edit: '1' } : {}, { replace: true })
+  }
+
+  const doSwap = (drill) => {
+    const blocks = session.blocks.map((b) =>
+      b.id === swapBlock.id
+        ? { ...b, drillId: drill.id, title: drill.name, emoji: drill.emoji, blurb: drill.blurb }
+        : b,
+    )
+    actions.updateProgramSession(currentProgramId, { ...session, blocks })
+    setSwapBlock(null)
+    setToast(`Swapped in ${drill.name} ✓`)
+    setTimeout(() => setToast(''), 1800)
+  }
 
   if (!session) {
     return (
@@ -18,7 +77,7 @@ export default function PlanView() {
         <div className="big">📋</div>
         <h2>No session yet</h2>
         <p style={{ margin: '10px 0 22px' }}>Build one in under a minute.</p>
-        <Link to="/" className="btn btn-primary">Plan a session</Link>
+        <Link to="/new" className="btn btn-primary">Plan a session</Link>
       </div>
     )
   }
@@ -33,8 +92,22 @@ export default function PlanView() {
     <div>
       <div className="spread" style={{ marginBottom: 6 }}>
         <h1 style={{ fontSize: 26 }}>Tonight's session</h1>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>New plan</button>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            className={`btn btn-sm ${editing ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setEditing(!editing)}
+          >
+            {editing ? '✓ Done' : '✎ Edit'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/new')}>New plan</button>
+        </div>
       </div>
+      {editing && (
+        <div className="edit-banner">
+          ⇄ Tap <strong>Swap</strong> on any drill to switch it for one that fits tonight's squad.
+          {currentProgramId ? ' Changes save to this session automatically.' : ''}
+        </div>
+      )}
       <p className="muted" style={{ marginBottom: 12 }}>
         {request.duration} min · {request.players} players · {request.ageGroup}
         {focusLabels.length > 0 && <> · {focusLabels.join(', ')}</>}
@@ -71,15 +144,24 @@ export default function PlanView() {
                       <span className="duration-pill">{b.duration} min</span>
                     </div>
                     <p className="item-sub">{b.blurb}</p>
-                    {clickable && <span className="muted" style={{ fontSize: 12.5, color: 'var(--green-700)', fontWeight: 800 }}>Tap for full drill →</span>}
+                    {clickable && !editing && <span className="muted" style={{ fontSize: 12.5, color: 'var(--green-700)', fontWeight: 800 }}>Tap for full drill →</span>}
                   </div>
-                  <button
-                    className={`check-circle ${ticks[b.id] ? 'on' : ''}`}
-                    aria-label={ticks[b.id] ? 'Mark not done' : 'Mark done'}
-                    onClick={(e) => { e.stopPropagation(); actions.toggleTick(b.id) }}
-                  >
-                    ✓
-                  </button>
+                  {editing && clickable ? (
+                    <button
+                      className="btn btn-ghost btn-sm swap-btn"
+                      onClick={(e) => { e.stopPropagation(); setSwapBlock(b) }}
+                    >
+                      ⇄ Swap
+                    </button>
+                  ) : (
+                    <button
+                      className={`check-circle ${ticks[b.id] ? 'on' : ''}`}
+                      aria-label={ticks[b.id] ? 'Mark not done' : 'Mark done'}
+                      onClick={(e) => { e.stopPropagation(); actions.toggleTick(b.id) }}
+                    >
+                      ✓
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -87,7 +169,18 @@ export default function PlanView() {
         })}
       </div>
 
-      {done === blocks.length && <SessionCelebration session={session} />}
+      {done === blocks.length && !editing && <SessionCelebration session={session} />}
+
+      {swapBlock && (
+        <SwapPicker
+          block={swapBlock}
+          session={session}
+          favourites={favourites}
+          onPick={doSwap}
+          onClose={() => setSwapBlock(null)}
+        />
+      )}
+      {toast && <div className="toast">{toast}</div>}
     </div>
   )
 }

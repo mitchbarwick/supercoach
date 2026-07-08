@@ -1,0 +1,27 @@
+# Deploys the Functions API. Manual trigger (Actions tab -> Run workflow)
+# so it never red-flags the repo before Azure is provisioned.
+# Needs the AZURE_FUNCTIONAPP_PUBLISH_PROFILE secret (download from the
+# Function App's Overview -> Get publish profile) and the app name below.
+name: Deploy API to Azure Functions
+
+on:
+  workflow_dispatch:
+
+env:
+  FUNCTION_APP_NAME: supercoach-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --omit=dev
+        working-directory: api
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          package: api
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}

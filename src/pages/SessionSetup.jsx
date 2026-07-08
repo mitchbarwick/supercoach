@@ -21,11 +21,15 @@ const AGE_DEFAULTS = {
 export default function SessionSetup() {
   const navigate = useNavigate()
   const favourites = useStore((s) => s.favourites)
+  // Remembered decisions from the coach's last session — age group,
+  // squad size, duration and kit come prefilled so a returning coach
+  // can tap straight through.
+  const prefs = useStore((s) => s.prefs)
   const [step, setStep] = useState(0)
-  const [duration, setDuration] = useState(45)
-  const [players, setPlayers] = useState(10)
-  const [ageGroup, setAgeGroup] = useState(null)
-  const [equipment, setEquipment] = useState(['balls', 'cones', 'vests'])
+  const [duration, setDuration] = useState(prefs?.duration || 45)
+  const [players, setPlayers] = useState(prefs?.players || 10)
+  const [ageGroup, setAgeGroup] = useState(prefs?.ageGroup || null)
+  const [equipment, setEquipment] = useState(prefs?.equipment?.length ? prefs.equipment : ['balls', 'cones', 'vests'])
   const [focus, setFocus] = useState([])
   const [anything, setAnything] = useState(true)
   const [aiState, setAiState] = useState('idle') // 'idle' | 'loading' | 'error'
@@ -38,8 +42,14 @@ export default function SessionSetup() {
 
   const pickAge = (id) => {
     setAgeGroup(id)
-    const d = AGE_DEFAULTS[id]
-    if (d) { setDuration(d.duration); setPlayers(d.players) }
+    if (prefs?.ageGroup === id) {
+      // Her usual group — keep her usual numbers, not the generic defaults.
+      if (prefs.duration) setDuration(prefs.duration)
+      if (prefs.players) setPlayers(prefs.players)
+    } else {
+      const d = AGE_DEFAULTS[id]
+      if (d) { setDuration(d.duration); setPlayers(d.players) }
+    }
     setStep(1)
   }
 
@@ -95,6 +105,9 @@ export default function SessionSetup() {
       {step === 0 && (
         <div className="card fade-in">
           <label className="field-label">Age group</label>
+          {prefs?.ageGroup && (
+            <p className="field-hint">✨ Remembered from last time — tap {prefs.ageGroup} to keep everything as usual.</p>
+          )}
           <div className="age-list">
             {AGE_GROUPS.map((a) => (
               <button key={a.id} className={`age-option ${ageGroup === a.id ? 'on' : ''}`} onClick={() => pickAge(a.id)}>
