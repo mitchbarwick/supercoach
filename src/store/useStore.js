@@ -30,6 +30,10 @@ const defaults = {
   programs: [],         // [{id,name,saved,createdAt,lastRunAt,runs,session}]
   currentProgramId: null,
   syncedAt: 0,
+  // Ephemeral (never persisted): a signed-out visitor who chose "continue
+  // as guest" for THIS session. Reset to false on every fresh load so the
+  // landing keeps encouraging sign-in until they actually sign in.
+  guestEntered: false,
 }
 
 let state = load()
@@ -38,7 +42,9 @@ const listeners = new Set()
 function load() {
   try {
     const raw = localStorage.getItem(KEY)
-    return raw ? { ...defaults, ...JSON.parse(raw) } : { ...defaults }
+    // guestEntered is ephemeral — force it false on load regardless of what
+    // may have been written to storage, so the landing shows on each visit.
+    return raw ? { ...defaults, ...JSON.parse(raw), guestEntered: false } : { ...defaults }
   } catch {
     return { ...defaults }
   }
@@ -250,5 +256,10 @@ export const actions = {
   signOut() {
     // Keep everything local — her plans stay on this device.
     setState({ auth: null })
+  },
+
+  /** Signed-out visitor chose to continue as a guest for this session. */
+  enterAsGuest() {
+    setState({ guestEntered: true })
   },
 }
