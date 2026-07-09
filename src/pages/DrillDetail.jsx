@@ -2,7 +2,7 @@
 // points, age adaptations, notes and favourite toggle.
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { getDrill, sayToKids, setsFor, drillDurationRange, FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
+import { getDrill, sayToKids, setsFor, drillDurationRange, ageRangeLabel, FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
 import PitchAnimation from '../components/PitchAnimation.jsx'
 import DrillFeedback from '../components/DrillFeedback.jsx'
 import AccountButton from '../components/AccountButton.jsx'
@@ -113,6 +113,7 @@ export default function DrillDetail() {
             const r = drillDurationRange(drill, ageGroup)
             return <span className="tag grey">⏱ {r.min === r.max ? `~${r.min}` : `${r.min}–${r.max}`} min</span>
           })()}
+          <span className="tag blue">🧒 {ageRangeLabel(drill)}</span>
         </div>
       )}
 

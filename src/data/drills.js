@@ -64,6 +64,38 @@ export const AGE_BLOCK_CAPS = {
   'U15+': { warmup: 12, drill: 18, game: 25, cooldown: 10 },
 };
 
+// Age bands, youngest → oldest. Used to keep complex drills away from
+// little kids and baby drills away from older squads.
+export const AGE_ORDER = AGE_GROUPS.map((a) => a.id);
+
+// Numeric bounds for each band, so we can render a friendly age label.
+const AGE_BOUNDS = {
+  'U6-U8': [6, 8],
+  'U9-U11': [9, 11],
+  'U12-U14': [12, 14],
+  'U15+': [15, null],
+};
+
+// Is this drill pitched for the squad in front of you? A drill carries
+// `ages: [youngest, oldest]` (inclusive band pair); a drill with no age
+// data is treated as suitable for everyone.
+export function drillSuitsAge(drill, ageGroup) {
+  const i = AGE_ORDER.indexOf(ageGroup);
+  if (i === -1) return true; // unknown group — don't filter anything out
+  const [min, max] = drill.ages || [AGE_ORDER[0], AGE_ORDER[AGE_ORDER.length - 1]];
+  return i >= AGE_ORDER.indexOf(min) && i <= AGE_ORDER.indexOf(max);
+}
+
+// A short, friendly age label for a drill, e.g. "All ages", "Ages 6–14",
+// "Ages 12+". Used in the drill UI so the suitability tagging is visible.
+export function ageRangeLabel(drill) {
+  const [min, max] = drill.ages || [AGE_ORDER[0], AGE_ORDER[AGE_ORDER.length - 1]];
+  if (min === AGE_ORDER[0] && max === AGE_ORDER[AGE_ORDER.length - 1]) return 'All ages';
+  const lo = (AGE_BOUNDS[min] || [6])[0];
+  const hi = (AGE_BOUNDS[max] || [null, null])[1];
+  return hi == null ? `Ages ${lo}+` : `Ages ${lo}–${hi}`;
+}
+
 // The realistic time range a drill can run for, clamped by the age
 // group's attention span for that block type.
 export function drillDurationRange(drill, ageGroup) {
@@ -3072,7 +3104,1274 @@ export const DRILLS = [
       ],
     },
   },
+
+  // ================= ADVANCED / OLDER SQUADS =================
+  // Pitched at U12-U14 and U15+ (see DRILL_META). Faster, more tactical,
+  // more technically demanding than the core library.
+  {
+    id: 'dynamic-mobility',
+    name: 'Dynamic Mobility Prep',
+    emoji: '🤸',
+    category: 'warmup',
+    focus: ['fitness'],
+    equipment: ['cones'],
+    players: { min: 4, max: 30 },
+    baseDuration: 10,
+    blurb: 'A proper adult activation — mobility, glute switch-on and progressive sprints.',
+    setup: [
+      'Two cone lines about 20 steps apart.',
+      'Players spread along the first line with room to move freely.',
+    ],
+    howToPlay: [
+      'Work down and back through a mobility sequence, one movement per length.',
+      'World\'s greatest stretch → walking hamstring sweeps → leg swings at the line → lateral lunges → A-skips → strides.',
+      'Finish with two builds to 80% and one to 95% — never a cold 100%.',
+      'Keep rest short between lengths so the heart rate climbs steadily.',
+    ],
+    coachingPoints: [
+      'Control the mobility work — reach end range, don\'t bounce through it.',
+      'Switch the glutes on: squeeze at the top of each lunge and skip.',
+      'Build sprint intensity gradually — the last stride primes the nervous system for training.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'This is how the pros warm up. Big controlled movements to open the hips and hamstrings, then build the sprints up gradually — no flat-out until your body\'s ready.',
+      'U15+': 'Full activation — mobilise the hips and hamstrings through range, fire the glutes, then progress the runs. This is your injury-prevention insurance, so do every rep properly.',
+    },
+    adaptations: {
+      easier: ['Shorten the distance and drop the fastest stride.'],
+      harder: ['Add a resisted stride with a partner holding a bib around the waist.'],
+    },
+    diagram: {
+      duration: 7,
+      areaLabel: '20-step channel',
+      cones: [{ x: 20, y: 12 }, { x: 20, y: 32 }, { x: 20, y: 52 }, { x: 80, y: 12 }, { x: 80, y: 32 }, { x: 80, y: 52 }],
+      phases: [
+        { t: 0, label: 'Mobility down…' },
+        { t: 0.5, label: '…build the stride back' },
+      ],
+      entities: [
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 22, y: 18 }, { t: 0.45, x: 78, y: 18 }, { t: 0.55, x: 78, y: 18 }, { t: 1, x: 22, y: 18 }] },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 22, y: 32 }, { t: 0.45, x: 78, y: 32 }, { t: 0.55, x: 78, y: 32 }, { t: 1, x: 22, y: 32 }] },
+        { id: 'p3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 22, y: 46 }, { t: 0.45, x: 78, y: 46 }, { t: 0.55, x: 78, y: 46 }, { t: 1, x: 22, y: 46 }] },
+        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
+      ],
+    },
+  },
+  {
+    id: 'first-touch-out',
+    name: 'First Touch Out of Pressure',
+    emoji: '🎯',
+    category: 'drill',
+    focus: ['dribbling', 'passing'],
+    equipment: ['balls', 'cones', 'vests'],
+    players: { min: 6, max: 18 },
+    sets: { size: 3, equipment: { balls: 1, cones: 4 } },
+    baseDuration: 12,
+    blurb: 'Receive on the half-turn under a defender\'s pressure and play out the far side.',
+    setup: [
+      'Grid about 12 x 12 steps per group of three.',
+      'A feeder on one side, a receiver in the middle, a defender pressing from behind.',
+      'Two small target gates on the far side.',
+    ],
+    howToPlay: [
+      'Feeder passes into the receiver; the defender presses from one shoulder.',
+      'Receiver takes a directional first touch away from the pressure and plays through a far gate.',
+      'Defender starts at 50% then goes live once the receiver is comfortable.',
+      'Rotate feeder → receiver → defender every few reps.',
+    ],
+    coachingPoints: [
+      'Check your shoulder before the ball arrives — know where the defender and space are.',
+      'First touch out of the feet, into the space away from the defender, not straight down.',
+      'Half-turn as you receive so you\'re already facing where you want to go.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Before the ball even gets to you, look over your shoulder so you know where the defender is. Then your first touch takes the ball AWAY from them into space — don\'t trap it under your feet where they can nick it.',
+      'U15+': 'Scan early, receive on the half-turn, and use one directional touch to escape the press into the far gate. The touch happens before the defender can commit — receiving is an attacking action, not a passive one.',
+    },
+    adaptations: {
+      easier: ['Defender stays passive and just applies token pressure.', 'Bigger grid, wider gates.'],
+      harder: ['Two-touch limit.', 'Defender can win and counter to the feeder\'s line.'],
+    },
+    diagram: {
+      duration: 7,
+      areaLabel: '12 x 12 grid',
+      cones: [{ x: 20, y: 14 }, { x: 20, y: 50 }],
+      gates: [
+        [{ x: 82, y: 16 }, { x: 82, y: 26 }],
+        [{ x: 82, y: 38 }, { x: 82, y: 48 }],
+      ],
+      phases: [
+        { t: 0, label: 'Feeder plays in…' },
+        { t: 0.4, label: 'Touch away from pressure…' },
+        { t: 0.7, label: '…play through the gate' },
+      ],
+      entities: [
+        { id: 'feed', kind: 'player', team: 'a', label: 'F', path: still(22, 32) },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 24, y: 32 }, { t: 0.32, x: 48, y: 30 }, { t: 0.5, x: 56, y: 22 }, { t: 0.72, x: 82, y: 21 }, { t: 1, x: 82, y: 21 }],
+        },
+        {
+          id: 'rec', kind: 'player', team: 'a', label: 'R',
+          path: [{ t: 0, x: 50, y: 34 }, { t: 0.4, x: 52, y: 28 }, { t: 0.6, x: 60, y: 24 }, { t: 1, x: 68, y: 22 }],
+        },
+        {
+          id: 'def', kind: 'player', team: 'b', label: 'D',
+          path: [{ t: 0, x: 54, y: 40 }, { t: 0.4, x: 52, y: 33 }, { t: 0.7, x: 58, y: 30 }, { t: 1, x: 62, y: 28 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'disguise-pass',
+    name: 'Disguised Passing Grid',
+    emoji: '🎭',
+    category: 'drill',
+    focus: ['passing', 'triangles'],
+    equipment: ['balls', 'cones'],
+    players: { min: 6, max: 20 },
+    sets: { size: 4, equipment: { balls: 1, cones: 4 } },
+    baseDuration: 12,
+    blurb: 'Look one way, pass the other — deception passing in a tight diamond.',
+    setup: [
+      'Diamond of four cones about 10 steps apart, one player on each cone.',
+      'One ball to start.',
+    ],
+    howToPlay: [
+      'The ball moves around the diamond, but every player must disguise at least one pass — open the body one way and pass another.',
+      'Use the outside of the foot, a fake-and-cut, or eyes to the wrong receiver.',
+      'Add a second ball once the rhythm is there so players scan constantly.',
+      'Call "switch" to reverse direction on command.',
+    ],
+    coachingPoints: [
+      'Disguise starts with the eyes and hips — sell the fake before the foot.',
+      'Firm, accurate weight even when the pass is disguised.',
+      'Receive across your body so the next disguise is ready.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Trick your teammates and anyone watching — look like you\'re passing one way, then send it the other with the outside of your foot. Sell the lie with your eyes and hips first.',
+      'U15+': 'Every pass carries disguise — manipulate the picture with your eyes, hips and shoulders before releasing, ideally with the outside of the boot. Weight and accuracy don\'t drop just because you\'re deceiving.',
+    },
+    adaptations: {
+      easier: ['No disguise required for the first two minutes — just crisp passing.'],
+      harder: ['Two balls at once.', 'One-touch disguised passes only.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: '10-step diamond',
+      cones: [{ x: 50, y: 12 }, { x: 82, y: 32 }, { x: 50, y: 52 }, { x: 18, y: 32 }],
+      phases: [
+        { t: 0, label: 'Eyes say left…' },
+        { t: 0.5, label: '…ball goes right!' },
+      ],
+      entities: [
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(50, 12) },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(82, 32) },
+        { id: 'p3', kind: 'player', team: 'a', label: '3', path: still(50, 52) },
+        { id: 'p4', kind: 'player', team: 'a', label: '4', path: still(18, 32) },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 50, y: 14 }, { t: 0.1, x: 50, y: 14 }, { t: 0.3, x: 20, y: 32 }, { t: 0.4, x: 20, y: 32 }, { t: 0.6, x: 50, y: 50 }, { t: 0.7, x: 50, y: 50 }, { t: 0.9, x: 80, y: 32 }, { t: 1, x: 80, y: 32 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'two-touch-rondo',
+    name: 'Two-Touch Positional Rondo',
+    emoji: '🌀',
+    category: 'drill',
+    focus: ['passing', 'teamwork'],
+    equipment: ['balls', 'cones', 'vests'],
+    players: { min: 6, max: 12 },
+    baseDuration: 14,
+    blurb: 'A 5v2 rondo with a two-touch limit and a rule to break lines through the middle.',
+    setup: [
+      'Square about 12 x 12 steps.',
+      'Five players around the edge, two defenders inside, one ball.',
+    ],
+    howToPlay: [
+      'Outside players keep possession, maximum two touches each.',
+      'A pass split between the two defenders ("through the middle") is worth a point and resets their count.',
+      'When a defender wins it or forces it out, the guilty passer goes in.',
+      'Progress to one-touch for the strongest groups.',
+    ],
+    coachingPoints: [
+      'Open your body before you receive so both next passes are on.',
+      'Bounce and move — don\'t stand still after you pass.',
+      'Bravery to split the defenders beats the safe pass around the outside.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Keep the ball away from the two in the middle, but you only get two touches. Best of all is threading it between the two defenders — that\'s the pass we\'re really hunting for.',
+      'U15+': 'Two-touch keep-ball with positional discipline — receive on an open body, one touch to set, one to play, and prioritise splitting the defenders over recycling around the outside. Scan before every reception.',
+    },
+    adaptations: {
+      easier: ['Unlimited touches and a bigger square.', 'Three defenders removed to 5v1.'],
+      harder: ['One-touch only.', 'Shrink the square.', 'Add a third defender.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: '12 x 12 rondo',
+      cones: [{ x: 22, y: 10 }, { x: 78, y: 10 }, { x: 22, y: 54 }, { x: 78, y: 54 }],
+      phases: [
+        { t: 0, label: 'Keep it moving, two touches…' },
+        { t: 0.55, label: 'Split the defenders!' },
+      ],
+      entities: [
+        { id: 'o1', kind: 'player', team: 'a', label: '1', path: still(50, 10) },
+        { id: 'o2', kind: 'player', team: 'a', label: '2', path: still(80, 32) },
+        { id: 'o3', kind: 'player', team: 'a', label: '3', path: still(50, 54) },
+        { id: 'o4', kind: 'player', team: 'a', label: '4', path: still(20, 32) },
+        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 44, y: 28 }, { t: 0.5, x: 50, y: 30 }, { t: 1, x: 46, y: 34 }] },
+        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 58, y: 36 }, { t: 0.5, x: 54, y: 32 }, { t: 1, x: 58, y: 30 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 50, y: 12 }, { t: 0.1, x: 50, y: 12 }, { t: 0.28, x: 22, y: 32 }, { t: 0.4, x: 22, y: 32 }, { t: 0.55, x: 50, y: 32 }, { t: 0.7, x: 50, y: 32 }, { t: 0.9, x: 80, y: 32 }, { t: 1, x: 80, y: 32 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'third-man-runs',
+    name: 'Third-Man Runs',
+    emoji: '🏃',
+    category: 'drill',
+    focus: ['passing', 'triangles', 'teamwork'],
+    equipment: ['balls', 'cones'],
+    players: { min: 6, max: 18 },
+    sets: { size: 3, equipment: { balls: 1, cones: 3 } },
+    baseDuration: 14,
+    blurb: 'Player one sets to two, and the pass springs a third runner in behind.',
+    setup: [
+      'Three cones in a line about 12 steps apart, plus a target gate beyond.',
+      'One player on each cone, one ball.',
+    ],
+    howToPlay: [
+      'Player 1 passes into player 2, who has checked in.',
+      'As 2 receives, player 3 makes a run beyond — 2 sets or turns and releases 3 through the gate.',
+      'The pattern is: pass, bounce, and the third man attacks the space.',
+      'Rotate positions after every rep and run it both sides.',
+    ],
+    coachingPoints: [
+      'Timing: the third-man run starts as the first pass travels, not after.',
+      'The bounce pass from the middle man must be one or two touches, no dwelling.',
+      'Communicate the run — a shout or a signal cues the release.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Three of you, one move: I pass to the middle player, and while that\'s happening YOU sprint into the space behind. The middle player just bounces it into your run. Timing is everything — go early.',
+      'U15+': 'Classic third-man combination — the receiver isn\'t the target, the runner beyond is. Time your run as the first pass travels, and the middle man plays first or second touch into the space. Disguise and timing unlock it.',
+    },
+    adaptations: {
+      easier: ['Walk the pattern through with no defender and no time pressure.'],
+      harder: ['Add a passive then live defender on the middle man.', 'One-touch bounce only.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Combination lane',
+      cones: [{ x: 20, y: 44 }, { x: 46, y: 24 }, { x: 40, y: 50 }],
+      gates: [[{ x: 84, y: 14 }, { x: 84, y: 26 }]],
+      phases: [
+        { t: 0, label: '1 passes to 2…' },
+        { t: 0.4, label: '3 runs beyond…' },
+        { t: 0.7, label: '…set springs the third man' },
+      ],
+      entities: [
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(20, 44) },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 48, y: 26 }, { t: 0.4, x: 44, y: 30 }, { t: 1, x: 46, y: 30 }] },
+        {
+          id: 'p3', kind: 'player', team: 'a', label: '3',
+          path: [{ t: 0, x: 40, y: 50 }, { t: 0.4, x: 50, y: 44 }, { t: 0.7, x: 66, y: 30 }, { t: 1, x: 82, y: 20 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 22, y: 44 }, { t: 0.32, x: 46, y: 28 }, { t: 0.42, x: 46, y: 28 }, { t: 0.55, x: 56, y: 34 }, { t: 0.62, x: 56, y: 34 }, { t: 0.85, x: 84, y: 20 }, { t: 1, x: 84, y: 20 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'wall-pass-gauntlet',
+    name: 'Wall-Pass Gauntlet',
+    emoji: '🧱',
+    category: 'drill',
+    focus: ['passing', '1v1'],
+    equipment: ['balls', 'cones', 'mannequins'],
+    players: { min: 4, max: 16 },
+    sets: { size: 4, equipment: { balls: 1, cones: 4 } },
+    baseDuration: 12,
+    blurb: 'Give-and-go your way past a line of defenders using bounce players.',
+    setup: [
+      'A 25-step lane with 2–3 mannequins (or passive defenders) spaced down it.',
+      'A "wall" player stationed beside each mannequin.',
+      'Attacker starts at one end with the ball.',
+    ],
+    howToPlay: [
+      'Attacker dribbles at the first defender, plays a wall pass off the bounce player, and collects it beyond.',
+      'Repeat past each defender down the gauntlet, finishing with a pass into the end gate.',
+      'Wall players give a crisp one-touch return every time.',
+      'Time each run and rotate the wall players in.',
+    ],
+    coachingPoints: [
+      'Commit the defender first — dribble AT them before you release the wall pass.',
+      'Return pass should be first-time and into the space you\'re running into.',
+      'Explode onto the return — the second after the give is where you beat them.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'One-twos all the way down the lane. Run right at the defender so they freeze, slip it to your wall mate, then burst past to get it back. It\'s the oldest trick in football and it always works.',
+      'U15+': 'Continuous give-and-go against each defender — engage before you release, demand a first-time return into your run, and accelerate through the gap. The dribble sets up the combination; the acceleration finishes it.',
+    },
+    adaptations: {
+      easier: ['Fewer defenders, wider lane, no timing.'],
+      harder: ['Live defenders instead of mannequins.', 'Weak-foot returns only.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: '25-step gauntlet',
+      cones: [{ x: 14, y: 32 }],
+      gates: [[{ x: 86, y: 26 }, { x: 86, y: 38 }]],
+      phases: [
+        { t: 0, label: 'Drive at the defender…' },
+        { t: 0.4, label: 'Give-and-go past them…' },
+        { t: 0.75, label: '…and the next one' },
+      ],
+      entities: [
+        { id: 'm1', kind: 'player', team: 'n', label: 'M', path: still(40, 32) },
+        { id: 'm2', kind: 'player', team: 'n', label: 'M', path: still(64, 32) },
+        { id: 'w1', kind: 'player', team: 'a', label: 'W', path: still(42, 18) },
+        { id: 'w2', kind: 'player', team: 'a', label: 'W', path: still(66, 46) },
+        {
+          id: 'att', kind: 'player', team: 'a', label: 'A',
+          path: [{ t: 0, x: 16, y: 32 }, { t: 0.3, x: 34, y: 32 }, { t: 0.45, x: 46, y: 26 }, { t: 0.6, x: 58, y: 32 }, { t: 0.78, x: 70, y: 38 }, { t: 1, x: 84, y: 32 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 18, y: 32 }, { t: 0.3, x: 40, y: 22 }, { t: 0.38, x: 40, y: 22 }, { t: 0.48, x: 50, y: 27 }, { t: 0.6, x: 64, y: 42 }, { t: 0.68, x: 64, y: 42 }, { t: 0.8, x: 74, y: 36 }, { t: 1, x: 86, y: 32 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'overlap-underlap',
+    name: 'Overlap & Underlap',
+    emoji: '↪️',
+    category: 'drill',
+    focus: ['passing', 'teamwork', 'shooting'],
+    equipment: ['balls', 'cones', 'goals'],
+    players: { min: 6, max: 16 },
+    baseDuration: 14,
+    blurb: 'Wide combinations — decide overlap or underlap by reading the defender, then cross to finish.',
+    setup: [
+      'A wide channel down one flank into a full goal with a keeper.',
+      'A winger with the ball, a full-back supporting, a defender jockeying, strikers waiting centrally.',
+    ],
+    howToPlay: [
+      'Winger drives inside; the full-back reads the space — overlap outside or underlap inside.',
+      'Winger releases into the run, the support player delivers, strikers attack near and far post.',
+      'If the defender shows inside, go outside (overlap); if they show outside, go inside (underlap).',
+      'Rotate roles and attack both flanks.',
+    ],
+    coachingPoints: [
+      'The run decides the pass — the runner reads the defender, the winger reacts.',
+      'Overlap when the defender jockeys inside; underlap when they force you wide.',
+      'Deliver early and cut it back across the six-yard line — the cutback beats the floated cross.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Two of you against one defender out wide. If your teammate runs OUTSIDE you, that\'s an overlap; if they run INSIDE, that\'s an underlap. Watch which way the defender leans and pick the run they can\'t stop, then whip a low ball across the goal.',
+      'U15+': 'Wide rotation to create the cross — read the full-back\'s body shape and choose overlap or underlap accordingly. The runner\'s timing manipulates the defender; deliver early with a cutback rather than a hopeful floated ball.',
+    },
+    adaptations: {
+      easier: ['No defender — just rehearse the overlap timing and delivery.'],
+      harder: ['Add a recovering centre-back.', 'One-touch delivery and first-time finishes only.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Wide channel to goal',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 18, y: 50 }],
+      phases: [
+        { t: 0, label: 'Winger drives inside…' },
+        { t: 0.4, label: 'Full-back overlaps outside…' },
+        { t: 0.7, label: 'Cutback and finish!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.7, x: 86, y: 28 }, { t: 1, x: 87, y: 34 }] },
+        {
+          id: 'wing', kind: 'player', team: 'a', label: 'W',
+          path: [{ t: 0, x: 24, y: 50 }, { t: 0.4, x: 42, y: 44 }, { t: 0.6, x: 54, y: 40 }, { t: 1, x: 62, y: 42 }],
+        },
+        {
+          id: 'fb', kind: 'player', team: 'a', label: 'B',
+          path: [{ t: 0, x: 18, y: 56 }, { t: 0.4, x: 40, y: 54 }, { t: 0.65, x: 62, y: 52 }, { t: 1, x: 78, y: 50 }],
+        },
+        {
+          id: 'st', kind: 'player', team: 'a', label: 'S',
+          path: [{ t: 0, x: 60, y: 20 }, { t: 0.6, x: 74, y: 26 }, { t: 0.85, x: 80, y: 30 }, { t: 1, x: 82, y: 32 }],
+        },
+        { id: 'def', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 36, y: 46 }, { t: 0.4, x: 48, y: 44 }, { t: 1, x: 60, y: 46 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 26, y: 50 }, { t: 0.42, x: 50, y: 48 }, { t: 0.5, x: 50, y: 48 }, { t: 0.68, x: 78, y: 50 }, { t: 0.76, x: 78, y: 50 }, { t: 0.9, x: 80, y: 32 }, { t: 1, x: 90, y: 32 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'press-and-escape',
+    name: '4v2 Press & Escape',
+    emoji: '🔀',
+    category: 'drill',
+    focus: ['passing', 'defending'],
+    equipment: ['balls', 'cones', 'vests'],
+    players: { min: 6, max: 18 },
+    baseDuration: 13,
+    blurb: 'Two grids: keep the ball, then on a trigger break into the next grid to escape the press.',
+    setup: [
+      'Two adjoining squares about 12 x 12 steps.',
+      'Four attackers and two defenders start in the first square, one ball.',
+    ],
+    howToPlay: [
+      'Attackers keep possession 4v2 in the first square.',
+      'On the coach\'s call (or after a set number of passes), they must dribble or pass into the second square — the two defenders press to stop the escape.',
+      'A clean transfer into the next grid scores; a turnover means defenders swap in.',
+      'Defenders work on pressing together to trap the escape route.',
+    ],
+    coachingPoints: [
+      'Attackers: keep the ball moving to shift the defenders, then break when they\'re pulled apart.',
+      'The escape pass is only on once a defender commits — bait the press first.',
+      'Defenders: press as a pair, one pressures, one screens the escape.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Keep the ball off the two defenders, then when I shout, escape into the next square before they can trap you. The trick is to move them out of position first, then dart through the gap they leave.',
+      'U15+': 'Positional keep-ball with a directional escape — manipulate the two pressers, wait for one to commit, then transfer into the next grid through the vacated space. Defenders press in a coordinated pair to force the turnover.',
+    },
+    adaptations: {
+      easier: ['Bigger grids, escape allowed anytime.'],
+      harder: ['Add a third defender.', 'Two-touch limit on the escape.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Two 12-step grids',
+      cones: [{ x: 8, y: 10 }, { x: 50, y: 10 }, { x: 92, y: 10 }, { x: 8, y: 54 }, { x: 50, y: 54 }, { x: 92, y: 54 }],
+      phases: [
+        { t: 0, label: 'Keep it, 4v2…' },
+        { t: 0.55, label: 'Trigger — escape the grid!' },
+      ],
+      entities: [
+        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 18, y: 18 }, { t: 0.5, x: 24, y: 20 }, { t: 1, x: 30, y: 18 }] },
+        { id: 'a2', kind: 'player', team: 'a', label: '2', path: still(20, 46) },
+        { id: 'a3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 40, y: 40 }, { t: 0.55, x: 58, y: 34 }, { t: 1, x: 72, y: 30 }] },
+        { id: 'a4', kind: 'player', team: 'a', label: '4', path: still(42, 16) },
+        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 30, y: 28 }, { t: 0.55, x: 44, y: 30 }, { t: 1, x: 56, y: 32 }] },
+        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 34, y: 40 }, { t: 0.55, x: 46, y: 40 }, { t: 1, x: 58, y: 40 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 20, y: 20 }, { t: 0.2, x: 42, y: 18 }, { t: 0.3, x: 42, y: 18 }, { t: 0.5, x: 40, y: 40 }, { t: 0.58, x: 40, y: 40 }, { t: 0.8, x: 70, y: 30 }, { t: 1, x: 72, y: 30 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'zonal-shift',
+    name: 'Zonal Shift Defending',
+    emoji: '🛡️',
+    category: 'drill',
+    focus: ['defending', 'teamwork'],
+    equipment: ['balls', 'cones', 'vests'],
+    players: { min: 6, max: 16 },
+    baseDuration: 14,
+    blurb: 'A defensive unit slides across as a connected line to shut down the ball side.',
+    setup: [
+      'Wide grid marked into three vertical zones.',
+      'A back line of 3–4 defenders; attackers pass across the top to move the ball side to side.',
+    ],
+    howToPlay: [
+      'Attackers switch the ball between zones; the defensive line shifts across together to stay compact on the ball side.',
+      'The nearest defender pressures; the rest slide and tuck in to cover.',
+      'If attackers play forward through the line, they score; if the line stays connected and wins it, defenders score.',
+      'Progress to letting attackers dribble to break the line.',
+    ],
+    coachingPoints: [
+      'Shift as a unit — stay connected, no gaps opening between defenders.',
+      'Ball-side defender presses, far-side defenders tuck in and cover the middle.',
+      'Slide on the pass, not after it lands — anticipate the switch.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'You\'re a back line joined by an invisible rope. When the ball goes across, everyone slides across together to stay tight on that side — never let a gap open between you. The closest player presses, the rest cover behind.',
+      'U15+': 'Zonal sliding as a unit — stay compact and connected, shift on the pass to protect the ball side, and cover inside as you go. The line defends the space, not the man; the gaps between you are what gets punished.',
+    },
+    adaptations: {
+      easier: ['Attackers pass only, no dribbling or forward balls yet.'],
+      harder: ['Allow forward passes and dribbles.', 'Add a striker between the lines to punish gaps.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Three-zone grid',
+      cones: [{ x: 36, y: 8 }, { x: 36, y: 56 }, { x: 64, y: 8 }, { x: 64, y: 56 }],
+      phases: [
+        { t: 0, label: 'Ball on the left, press it…' },
+        { t: 0.5, label: 'Switch — slide across together!' },
+      ],
+      entities: [
+        { id: 'a1', kind: 'player', team: 'a', label: '1', path: still(22, 12) },
+        { id: 'a2', kind: 'player', team: 'a', label: '2', path: still(50, 12) },
+        { id: 'a3', kind: 'player', team: 'a', label: '3', path: still(78, 12) },
+        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 26, y: 40 }, { t: 0.5, x: 44, y: 40 }, { t: 1, x: 60, y: 40 }] },
+        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 44, y: 44 }, { t: 0.5, x: 60, y: 42 }, { t: 1, x: 74, y: 40 }] },
+        { id: 'd3', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 60, y: 46 }, { t: 0.5, x: 72, y: 44 }, { t: 1, x: 82, y: 42 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 22, y: 14 }, { t: 0.1, x: 22, y: 14 }, { t: 0.35, x: 50, y: 13 }, { t: 0.45, x: 50, y: 13 }, { t: 0.7, x: 78, y: 14 }, { t: 1, x: 78, y: 14 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'recovery-defending',
+    name: 'Recovery Run Defending',
+    emoji: '🔙',
+    category: 'drill',
+    focus: ['defending', 'fitness'],
+    equipment: ['balls', 'cones', 'goals'],
+    players: { min: 4, max: 14 },
+    baseDuration: 12,
+    blurb: 'Attacker starts with a head start — the defender sprints back goal-side and defends the finish.',
+    setup: [
+      'A half-pitch area into a full goal with a keeper.',
+      'Attacker starts on halfway with the ball; defender starts a few steps behind, level or trailing.',
+    ],
+    howToPlay: [
+      'On "go", the attacker drives at goal and the defender sprints to recover goal-side.',
+      'Defender must get on the goal side of the attacker before challenging — never dive in from behind.',
+      'Once recovered, jockey the attacker away from goal and force a poor shot or win the ball.',
+      'Vary the head start to change the difficulty.',
+    ],
+    coachingPoints: [
+      'Recovery line: sprint back towards your own goal first, not straight at the ball.',
+      'Get goal-side and touch-tight before you engage — patience once you\'re back.',
+      'Show the attacker onto their weaker side and away from the middle.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'The attacker gets a head start on you — your first job is to sprint back towards your own goal to get GOAL-SIDE of them. Don\'t lunge in from behind, that\'s a foul or a spin. Get back, get calm, then jockey them wide.',
+      'U15+': 'Recover on the correct line — back towards goal to regain your goal-side position before engaging. Once recovered, delay and show them wide onto their weak side. Recovery defending is a sprint followed by patience, never a slide from behind.',
+    },
+    adaptations: {
+      easier: ['Defender starts level, smaller head start.'],
+      harder: ['Larger head start for the attacker.', 'Add a second attacker for a 2v1 recovery.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Half-pitch to goal',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      phases: [
+        { t: 0, label: 'Attacker drives, defender chases…' },
+        { t: 0.5, label: 'Recover goal-side…' },
+        { t: 0.8, label: 'Jockey and force wide' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.8, x: 84, y: 30 }, { t: 1, x: 86, y: 33 }] },
+        {
+          id: 'att', kind: 'player', team: 'a', label: 'A',
+          path: [{ t: 0, x: 30, y: 30 }, { t: 0.4, x: 50, y: 30 }, { t: 0.7, x: 66, y: 34 }, { t: 1, x: 74, y: 42 }],
+        },
+        {
+          id: 'def', kind: 'player', team: 'b', label: 'D',
+          path: [{ t: 0, x: 24, y: 36 }, { t: 0.45, x: 52, y: 36 }, { t: 0.7, x: 70, y: 32 }, { t: 1, x: 76, y: 38 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 32, y: 30 }, { t: 0.4, x: 52, y: 31 }, { t: 0.7, x: 68, y: 35 }, { t: 1, x: 76, y: 44 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'back-to-goal',
+    name: 'Back-to-Goal Hold & Turn',
+    emoji: '🔄',
+    category: 'drill',
+    focus: ['dribbling', 'shooting'],
+    equipment: ['balls', 'cones', 'goals', 'vests'],
+    players: { min: 4, max: 14 },
+    baseDuration: 13,
+    blurb: 'Striker receives with back to goal under pressure, holds it up, then turns to finish.',
+    setup: [
+      'Shooting area into a full goal with a keeper.',
+      'A striker with a defender behind, a feeder on the halfway line.',
+    ],
+    howToPlay: [
+      'Feeder passes into the striker, who has a defender tight behind.',
+      'Striker holds the ball up, protecting it, then either turns to shoot or lays it back and spins for the return.',
+      'Read the defender: if tight, roll them; if they give space, turn and drive.',
+      'Rotate striker, defender and feeder.',
+    ],
+    coachingPoints: [
+      'Get big and strong — arm across, low base, feel where the defender is.',
+      'First touch sets up the turn or the hold — cushion it away from the defender\'s foot.',
+      'Decide early: roll the tight defender, or turn and shoot if they\'re off you.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'You\'ve got a defender leaning on your back. Get strong, arm out to feel them, and protect the ball. Then feel which way they\'re NOT — and spin off them to shoot. Strikers who can hold it up are gold.',
+      'U15+': 'Receive with a low, strong base and use your arm to map the defender. Cushion your first touch out of their reach, then turn across their body or roll them to finish. Hold-up play is about physical duel plus a decisive turn.',
+    },
+    adaptations: {
+      easier: ['Defender passive, striker free to turn and shoot.'],
+      harder: ['Defender fully live.', 'Two-touch finish limit.', 'Add a second striker for a lay-off combination.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Shooting area',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 20, y: 32 }],
+      phases: [
+        { t: 0, label: 'In to the striker…' },
+        { t: 0.45, label: 'Hold it up, feel the defender…' },
+        { t: 0.7, label: 'Roll and finish!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.75, x: 85, y: 29 }, { t: 1, x: 87, y: 34 }] },
+        { id: 'feed', kind: 'player', team: 'a', label: 'F', path: still(22, 32) },
+        {
+          id: 'st', kind: 'player', team: 'a', label: 'S',
+          path: [{ t: 0, x: 56, y: 34 }, { t: 0.45, x: 58, y: 32 }, { t: 0.7, x: 64, y: 28 }, { t: 1, x: 70, y: 30 }],
+        },
+        {
+          id: 'def', kind: 'player', team: 'b', label: 'D',
+          path: [{ t: 0, x: 62, y: 36 }, { t: 0.45, x: 62, y: 34 }, { t: 0.7, x: 64, y: 34 }, { t: 1, x: 66, y: 36 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 24, y: 32 }, { t: 0.4, x: 54, y: 34 }, { t: 0.48, x: 54, y: 34 }, { t: 0.62, x: 62, y: 30 }, { t: 0.72, x: 62, y: 30 }, { t: 0.88, x: 82, y: 30 }, { t: 1, x: 90, y: 31 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'finish-under-pressure',
+    name: 'Finish Under Pressure',
+    emoji: '⚡',
+    category: 'drill',
+    focus: ['shooting', '1v1'],
+    equipment: ['balls', 'cones', 'goals'],
+    players: { min: 4, max: 14 },
+    baseDuration: 12,
+    blurb: 'Strike early before a recovering defender arrives — composure at speed.',
+    setup: [
+      'Shooting box into a full goal with a keeper.',
+      'Attacker runs onto a played ball; a defender starts a step behind and recovers.',
+    ],
+    howToPlay: [
+      'Coach or feeder plays the ball into space for the attacker to run onto.',
+      'The defender starts level and chases — the attacker must take a touch and finish before being closed down.',
+      'Reward clean early finishes; a delayed shot lets the defender block.',
+      'Alternate finishing sides and starting positions.',
+    ],
+    coachingPoints: [
+      'Touch out of the feet at pace, then get the shot away early and low.',
+      'Pick your spot before the ball arrives — decision made, no hesitation.',
+      'Composure isn\'t slow — it\'s a calm, fast, accurate strike.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'You get a head start, but a defender is chasing you down. One touch to set it, then SHOOT — don\'t take an extra touch or they\'ll block it. Decide where you\'re putting it before the ball even reaches you.',
+      'U15+': 'Attack the played ball at speed, take a positive touch across your body, and finish early and low before the recovering defender arrives. Pre-select your finish — composure under pressure is a fast decision, not a slow one.',
+    },
+    adaptations: {
+      easier: ['Bigger head start, no defender for the first reps.'],
+      harder: ['Defender starts level or ahead.', 'One-touch finishes only.'],
+    },
+    diagram: {
+      duration: 7,
+      areaLabel: 'Shooting box',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      phases: [
+        { t: 0, label: 'Run onto it, defender chasing…' },
+        { t: 0.5, label: 'Touch and finish early!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.6, x: 85, y: 27 }, { t: 1, x: 87, y: 35 }] },
+        {
+          id: 'att', kind: 'player', team: 'a', label: 'A',
+          path: [{ t: 0, x: 34, y: 38 }, { t: 0.45, x: 58, y: 34 }, { t: 0.65, x: 66, y: 32 }, { t: 1, x: 72, y: 32 }],
+        },
+        {
+          id: 'def', kind: 'player', team: 'b', label: 'D',
+          path: [{ t: 0, x: 30, y: 44 }, { t: 0.5, x: 56, y: 40 }, { t: 1, x: 70, y: 36 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 36, y: 28 }, { t: 0.42, x: 60, y: 32 }, { t: 0.5, x: 60, y: 32 }, { t: 0.72, x: 84, y: 28 }, { t: 1, x: 90, y: 30 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'long-range-striking',
+    name: 'Long-Range Striking',
+    emoji: '🚀',
+    category: 'drill',
+    focus: ['shooting', 'fitness'],
+    equipment: ['balls', 'cones', 'goals'],
+    players: { min: 4, max: 16 },
+    sets: { size: 4, equipment: { balls: 2, cones: 2 } },
+    baseDuration: 12,
+    blurb: 'Driven shots from distance — clean technique on the laces for power and dip.',
+    setup: [
+      'Shooting line about 20–25 steps from a full goal with a keeper.',
+      'Balls stacked at the line; a server can roll balls in for striking on the move.',
+    ],
+    howToPlay: [
+      'Players take a positive touch out of their feet and strike from distance.',
+      'Alternate a set ball and a rolling ball fed square, so they strike stationary and moving balls.',
+      'Aim for the corners with a driven, dipping strike — not just power.',
+      'Keep a score of clean strikes on target and challenge them to beat it.',
+    ],
+    coachingPoints: [
+      'Plant foot beside the ball, strike through the middle-to-top with the laces.',
+      'Keep the knee and head over the ball to keep it down.',
+      'A firm, clean contact beats a big swing — timing gives you the power.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'This is the screamer from distance. Take a touch to set it, plant your standing foot next to the ball, and hit through it with your laces — knee over the ball to keep it down. Clean contact, not a wild swing.',
+      'U15+': 'Driven long-range striking — positive touch, plant beside the ball, contact through the top-middle with the laces and your head over it for dip. Timing and a locked ankle generate the power; aim for the frame of the goal.',
+    },
+    adaptations: {
+      easier: ['Move the line closer.', 'Set balls only, no rolling feed.'],
+      harder: ['Strike first-time off the roll.', 'Target zones in the top corners only.'],
+    },
+    diagram: {
+      duration: 7,
+      areaLabel: '25-step range',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 30, y: 22 }, { x: 30, y: 42 }],
+      phases: [
+        { t: 0, label: 'Touch to set…' },
+        { t: 0.45, label: 'Strike through the laces!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.6, x: 85, y: 26 }, { t: 1, x: 87, y: 33 }] },
+        {
+          id: 'st', kind: 'player', team: 'a', label: 'S',
+          path: [{ t: 0, x: 30, y: 32 }, { t: 0.3, x: 36, y: 32 }, { t: 0.45, x: 40, y: 32 }, { t: 1, x: 42, y: 34 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 32, y: 32 }, { t: 0.3, x: 40, y: 32 }, { t: 0.45, x: 42, y: 32 }, { t: 0.75, x: 84, y: 22, arc: 5 }, { t: 1, x: 90, y: 24 }],
+        },
+        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(22, 40) },
+      ],
+    },
+  },
+  {
+    id: 'volley-circuit',
+    name: 'Volley & Half-Volley Circuit',
+    emoji: '🎾',
+    category: 'drill',
+    focus: ['shooting'],
+    equipment: ['balls', 'cones', 'goals'],
+    players: { min: 4, max: 14 },
+    baseDuration: 11,
+    blurb: 'Technique station for striking the dropping ball cleanly — volleys and half-volleys.',
+    setup: [
+      'A serving player beside the goal and a striker arriving from a cone about 12 steps out.',
+      'A full goal with a keeper (or target zones if no keeper).',
+    ],
+    howToPlay: [
+      'Server tosses the ball for the striker to volley or half-volley on the move.',
+      'Rotate through: side-foot volley, laces volley, half-volley off the bounce.',
+      'The striker times the run so they meet the dropping ball in stride.',
+      'Change the serving side to practise both feet.',
+    ],
+    coachingPoints: [
+      'Get your body over the ball — leaning back sends volleys over the bar.',
+      'Watch the ball onto your foot; short backlift, firm ankle.',
+      'For half-volleys, strike it just as it bounces to keep it down.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Hit the ball out of the air before it lands. The secret is leaning OVER the ball, not back — lean back and it flies over the bar. Small backswing, lock your ankle, and watch it right onto your foot.',
+      'U15+': 'Clean contact on the dropping ball — body over it, compact backlift, ankle locked, eyes down. Side-foot for placement, laces for power, and strike half-volleys right off the bounce to keep them down.',
+    },
+    adaptations: {
+      easier: ['Server drops it from the hand for an easier, higher bounce.'],
+      harder: ['Serve from wide for a moving, crossed ball to volley first-time.'],
+    },
+    diagram: {
+      duration: 7,
+      areaLabel: 'Volley station',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 40, y: 46 }],
+      phases: [
+        { t: 0, label: 'Server tosses it up…' },
+        { t: 0.5, label: 'Meet it in stride and volley!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.6, x: 85, y: 35 }, { t: 1, x: 87, y: 31 }] },
+        { id: 'srv', kind: 'player', team: 'a', label: 'F', path: still(58, 50) },
+        {
+          id: 'st', kind: 'player', team: 'a', label: 'S',
+          path: [{ t: 0, x: 40, y: 44 }, { t: 0.4, x: 54, y: 40 }, { t: 0.55, x: 60, y: 38 }, { t: 1, x: 64, y: 38 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 58, y: 48 }, { t: 0.3, x: 60, y: 38, arc: 6 }, { t: 0.55, x: 62, y: 40 }, { t: 0.8, x: 84, y: 30, arc: 4 }, { t: 1, x: 90, y: 31 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'counter-transition',
+    name: '3v2 Counter Transition',
+    emoji: '⚡',
+    category: 'drill',
+    focus: ['fitness', 'teamwork', 'shooting'],
+    equipment: ['balls', 'cones', 'goals', 'vests'],
+    players: { min: 6, max: 16 },
+    baseDuration: 14,
+    blurb: 'Win it and go — a fast 3v2 break the instant possession turns over.',
+    setup: [
+      'A pitch with a goal and keeper at each end (or one goal plus a target line).',
+      'Three attackers, two defenders, and a coach who feeds the transition moment.',
+    ],
+    howToPlay: [
+      'Start with the two defenders in possession; on the coach\'s trigger the three attackers win or receive the ball and break.',
+      'Attackers have a limited time (say 8 seconds) to finish the 3v2 before more defenders would recover.',
+      'On a turnover, the two defenders counter to the opposite target immediately.',
+      'Sprint recoveries both ways — it\'s a transition drill, so nobody jogs.',
+    ],
+    coachingPoints: [
+      'First pass forward and fast — punish the disorganised defence before it sets.',
+      'Attackers spread wide to stretch the two defenders, then attack the gaps.',
+      'The moment of transition is everything — react a second quicker than the opponent.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'The second you win the ball, GO — you\'ve got three against two and only a few seconds before it\'s gone. Spread out to stretch them, play forward fast, and finish before they get organised. Transitions win games.',
+      'U15+': 'Attack the transition moment — win it and break at speed in a 3v2 before the defence recovers shape. Play forward first, use width to stretch the two, and finish inside the time limit. Reacting quicker to the turnover is the whole point.',
+    },
+    adaptations: {
+      easier: ['Longer time limit, defenders start deeper.'],
+      harder: ['Shorten the time limit.', 'Add a recovering third defender who joins after 3 seconds.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Transition zone',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      phases: [
+        { t: 0, label: 'Win it…' },
+        { t: 0.4, label: 'Break 3v2, spread wide…' },
+        { t: 0.75, label: 'Finish before they set!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.75, x: 85, y: 28 }, { t: 1, x: 87, y: 34 }] },
+        {
+          id: 'a1', kind: 'player', team: 'a', label: '1',
+          path: [{ t: 0, x: 30, y: 32 }, { t: 0.4, x: 50, y: 30 }, { t: 0.7, x: 66, y: 26 }, { t: 1, x: 74, y: 26 }],
+        },
+        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 28, y: 16 }, { t: 0.5, x: 52, y: 14 }, { t: 1, x: 72, y: 20 }] },
+        { id: 'a3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 28, y: 48 }, { t: 0.5, x: 54, y: 50 }, { t: 1, x: 76, y: 40 }] },
+        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 40, y: 28 }, { t: 0.5, x: 58, y: 30 }, { t: 1, x: 70, y: 32 }] },
+        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 44, y: 40 }, { t: 0.5, x: 62, y: 40 }, { t: 1, x: 74, y: 36 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 32, y: 32 }, { t: 0.35, x: 52, y: 14 }, { t: 0.45, x: 52, y: 14 }, { t: 0.7, x: 74, y: 26 }, { t: 0.78, x: 74, y: 26 }, { t: 0.92, x: 84, y: 30 }, { t: 1, x: 90, y: 31 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'combination-finish',
+    name: 'Combination Play to Finish',
+    emoji: '🎬',
+    category: 'drill',
+    focus: ['passing', 'shooting', 'teamwork'],
+    equipment: ['balls', 'cones', 'goals'],
+    players: { min: 6, max: 16 },
+    baseDuration: 14,
+    blurb: 'A rehearsed passing pattern — bounce, set, spin — that ends with a first-time finish.',
+    setup: [
+      'A shooting third with a full goal and keeper.',
+      'Three or four stations: a starter, a wide bounce player, a set player, and a finisher.',
+    ],
+    howToPlay: [
+      'Run a fixed pattern: pass wide, overlap, cutback, set, and finish first-time.',
+      'Every player moves after they pass — pass and follow into the next station.',
+      'Once the pattern is smooth, add a passive defender in the box.',
+      'Attack both sides so players combine off each foot.',
+    ],
+    coachingPoints: [
+      'Crisp, first-time passing keeps the defence from setting.',
+      'Movement after the pass is the drill — never admire your pass.',
+      'The finisher arrives late and strikes first-time, across the keeper.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'This is a set play you rehearse until it\'s automatic — pass, move, set, finish, all one-touch and flowing. The golden rule: the moment you pass, you sprint into the next space. No standing and watching.',
+      'U15+': 'Rehearsed combination to goal — first-time passing, pass-and-move at every station, and a late-arriving first-time finish across the keeper. Speed of ball and speed of movement break a set defence; the pattern becomes muscle memory.',
+    },
+    adaptations: {
+      easier: ['Two touches allowed, walk-through the pattern first.'],
+      harder: ['One-touch throughout.', 'Add a live defender in the box.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Shooting third',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 24, y: 44 }],
+      phases: [
+        { t: 0, label: 'Start wide…' },
+        { t: 0.4, label: 'Cutback to the set player…' },
+        { t: 0.75, label: 'First-time finish!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.75, x: 85, y: 29 }, { t: 1, x: 87, y: 34 }] },
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 26, y: 44 }, { t: 0.4, x: 44, y: 48 }, { t: 1, x: 58, y: 50 }] },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 58, y: 52 }, { t: 0.4, x: 66, y: 46 }, { t: 1, x: 62, y: 40 }] },
+        {
+          id: 'fin', kind: 'player', team: 'a', label: '3',
+          path: [{ t: 0, x: 50, y: 22 }, { t: 0.5, x: 62, y: 26 }, { t: 0.75, x: 70, y: 30 }, { t: 1, x: 74, y: 32 }],
+        },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 28, y: 44 }, { t: 0.3, x: 58, y: 50 }, { t: 0.4, x: 58, y: 50 }, { t: 0.55, x: 64, y: 40 }, { t: 0.65, x: 64, y: 40 }, { t: 0.88, x: 84, y: 30 }, { t: 1, x: 90, y: 31 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'defensive-shape',
+    name: 'Defensive Unit Shape',
+    emoji: '🧩',
+    category: 'drill',
+    focus: ['defending', 'teamwork'],
+    equipment: ['cones', 'vests', 'balls'],
+    players: { min: 8, max: 18 },
+    baseDuration: 14,
+    blurb: 'A back unit plus midfield learns to press, drop and stay compact between the lines.',
+    setup: [
+      'Two-thirds of a pitch, marked with reference cones for the lines.',
+      'A defensive block of 5–6; attackers overload with the ball to move them.',
+    ],
+    howToPlay: [
+      'Attackers circulate the ball; the defensive unit presses when the ball goes forward and drops when it goes back.',
+      'Keep the distance between the defensive and midfield lines tight — no through-balls between them.',
+      'Coach freezes play to check spacing, then plays on.',
+      'Reward the unit for forcing backward passes and winning the ball as a block.',
+    ],
+    coachingPoints: [
+      'Press forward together on a poor touch; drop together on a controlled back pass.',
+      'Keep the two lines close — compactness kills the space between them.',
+      'Talk constantly: "press", "drop", "hold" — the loudest unit defends best.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'You defend as one connected block, not as individuals. When the ball goes forward and they take a heavy touch — everyone presses together. When it goes back — everyone drops together. Keep the lines tight so there\'s no gap to play through. And TALK.',
+      'U15+': 'Collective defending — press and drop as a synchronised block based on the ball and the quality of touch, staying compact vertically so there\'s no space between the lines. Triggers and communication drive it; the unit defends the space between the lines as a single organism.',
+    },
+    adaptations: {
+      easier: ['Attackers pass only, coach calls press/drop triggers aloud.'],
+      harder: ['Attackers can dribble and play forward freely.', 'Add a target striker between the lines.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Two-line block',
+      cones: [{ x: 30, y: 8 }, { x: 30, y: 56 }, { x: 70, y: 8 }, { x: 70, y: 56 }],
+      phases: [
+        { t: 0, label: 'Ball goes back — drop and hold…' },
+        { t: 0.5, label: 'Forward pass — press together!' },
+      ],
+      entities: [
+        { id: 'a1', kind: 'player', team: 'a', label: '1', path: still(20, 20) },
+        { id: 'a2', kind: 'player', team: 'a', label: '2', path: still(20, 44) },
+        { id: 'a3', kind: 'player', team: 'a', label: '3', path: still(38, 32) },
+        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 62, y: 20 }, { t: 0.5, x: 50, y: 22 }, { t: 1, x: 44, y: 22 }] },
+        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 66, y: 32 }, { t: 0.5, x: 54, y: 32 }, { t: 1, x: 48, y: 32 }] },
+        { id: 'd3', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 62, y: 44 }, { t: 0.5, x: 50, y: 42 }, { t: 1, x: 44, y: 42 }] },
+        { id: 'd4', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 74, y: 32 }, { t: 0.5, x: 62, y: 32 }, { t: 1, x: 56, y: 32 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 38, y: 34 }, { t: 0.2, x: 20, y: 44 }, { t: 0.35, x: 20, y: 44 }, { t: 0.55, x: 20, y: 20 }, { t: 0.65, x: 20, y: 20 }, { t: 0.85, x: 38, y: 30 }, { t: 1, x: 38, y: 30 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'press-to-win',
+    name: 'Press to Win',
+    emoji: '🎯',
+    category: 'game',
+    focus: ['defending', 'teamwork'],
+    equipment: ['balls', 'cones', 'vests', 'goals'],
+    players: { min: 8, max: 18 },
+    baseDuration: 18,
+    blurb: 'A small-sided game that rewards winning the ball high and scoring fast.',
+    setup: [
+      'Small-sided pitch with two goals and keepers.',
+      'Even teams; mark a halfway line and a high "press zone" near each goal.',
+    ],
+    howToPlay: [
+      'Normal small-sided rules, but a goal scored within 8 seconds of winning the ball counts double.',
+      'Winning the ball inside the opponent\'s press zone and scoring counts triple.',
+      'Encourage immediate, coordinated pressing the instant possession is lost.',
+      'Reset quickly after every goal to keep the intensity high.',
+    ],
+    coachingPoints: [
+      'Press as a team on the trigger — a loose touch or a pass into a corner.',
+      'First defender presses the ball, others cut the passing lanes behind.',
+      'Win it high and go straight for goal — hesitation lets them escape.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Winning the ball high up the pitch and scoring quickly is worth double or triple points. So the second your team loses it, everyone hunts together to win it straight back — and when you get it near their goal, go for it fast.',
+      'U15+': 'Conditioned game rewarding the counter-press — coordinated pressing on the trigger, screen the lanes behind the first presser, and transition to goal within the time bonus. Winning it high and finishing fast is the whole incentive.',
+    },
+    adaptations: {
+      easier: ['Longer time bonus, bigger press zones.'],
+      harder: ['Shorten the bonus window.', 'Man-to-man press only in the final third.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Small-sided pitch',
+      goals: [{ x: 8, y: 32, facing: 'right' }, { x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 50, y: 8 }, { x: 50, y: 56 }],
+      phases: [
+        { t: 0, label: 'Lost it — press together!' },
+        { t: 0.5, label: 'Win it high…' },
+        { t: 0.8, label: '…and score fast — double points!' },
+      ],
+      entities: [
+        { id: 'k1', kind: 'player', team: 'k', label: 'K', path: still(11, 32) },
+        { id: 'k2', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.8, x: 85, y: 29 }, { t: 1, x: 87, y: 34 }] },
+        { id: 'd1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 40, y: 30 }, { t: 0.5, x: 52, y: 30 }, { t: 0.8, x: 66, y: 30 }, { t: 1, x: 74, y: 30 }] },
+        { id: 'd2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 44, y: 44 }, { t: 0.5, x: 56, y: 40 }, { t: 1, x: 68, y: 36 }] },
+        { id: 'o1', kind: 'player', team: 'b', label: '3', path: [{ t: 0, x: 48, y: 32 }, { t: 0.5, x: 50, y: 34 }, { t: 1, x: 52, y: 40 }] },
+        { id: 'o2', kind: 'player', team: 'b', label: '4', path: still(58, 46) },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 48, y: 34 }, { t: 0.35, x: 50, y: 32 }, { t: 0.5, x: 52, y: 30 }, { t: 0.78, x: 74, y: 30 }, { t: 0.86, x: 74, y: 30 }, { t: 0.96, x: 90, y: 31 }, { t: 1, x: 90, y: 31 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'transition-game',
+    name: 'End-to-End Transition Game',
+    emoji: '🔁',
+    category: 'game',
+    focus: ['teamwork', 'fitness'],
+    equipment: ['balls', 'cones', 'vests', 'goals'],
+    players: { min: 8, max: 18 },
+    baseDuration: 18,
+    blurb: 'Three zones, quick switches — the game flips end to end the moment possession turns over.',
+    setup: [
+      'A pitch split into three zones with two goals and keepers.',
+      'Even teams; a stack of spare balls at each goal to keep the game flowing.',
+    ],
+    howToPlay: [
+      'Play a normal game, but every time a team wins the ball they must attack the opposite goal at speed.',
+      'If the ball goes out, the keeper restarts immediately with a new ball to force fast transitions.',
+      'Reward quick, direct attacks after a turnover over slow build-up.',
+      'Rotate keepers and keep water breaks short — this is a high-tempo conditioning game.',
+    ],
+    coachingPoints: [
+      'React first at the moment of transition — attack or defend a beat quicker than the opponent.',
+      'When you win it, look forward immediately — the defence is at its most disorganised right then.',
+      'Recover your shape fast when you lose it — sprint back, don\'t ball-watch.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'The game flips end to end constantly. The instant your team wins the ball, you\'re attacking the other goal — and the instant you lose it, you\'re sprinting back. The team that reacts quickest to the switch wins. It\'s tiring, and that\'s the point.',
+      'U15+': 'Continuous transition game — attack and defend the switch of possession at maximum tempo, exploiting the disorganised moment after a turnover and recovering shape instantly when it flips. High-intensity conditioning with a tactical transition focus.',
+    },
+    adaptations: {
+      easier: ['Allow a couple of build-up passes before attacking.'],
+      harder: ['Two-touch maximum.', 'A 6-second shot clock after winning possession.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Three-zone pitch',
+      goals: [{ x: 8, y: 32, facing: 'right' }, { x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 38, y: 8 }, { x: 38, y: 56 }, { x: 62, y: 8 }, { x: 62, y: 56 }],
+      phases: [
+        { t: 0, label: 'Win it in the middle…' },
+        { t: 0.5, label: 'Flip and attack the far goal!' },
+      ],
+      entities: [
+        { id: 'k1', kind: 'player', team: 'k', label: 'K', path: still(11, 32) },
+        { id: 'k2', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.7, x: 85, y: 28 }, { t: 1, x: 87, y: 34 }] },
+        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 46, y: 32 }, { t: 0.5, x: 64, y: 30 }, { t: 1, x: 78, y: 30 }] },
+        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 44, y: 46 }, { t: 0.5, x: 62, y: 42 }, { t: 1, x: 74, y: 38 }] },
+        { id: 'b1', kind: 'player', team: 'b', label: '3', path: [{ t: 0, x: 50, y: 30 }, { t: 0.5, x: 44, y: 34 }, { t: 1, x: 40, y: 40 }] },
+        { id: 'b2', kind: 'player', team: 'b', label: '4', path: [{ t: 0, x: 40, y: 20 }, { t: 0.5, x: 34, y: 26 }, { t: 1, x: 30, y: 34 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 48, y: 32 }, { t: 0.3, x: 50, y: 30 }, { t: 0.45, x: 62, y: 30 }, { t: 0.72, x: 78, y: 30 }, { t: 0.82, x: 78, y: 30 }, { t: 0.95, x: 90, y: 31 }, { t: 1, x: 90, y: 31 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 'wave-attacks',
+    name: 'Wave Attacks',
+    emoji: '🌊',
+    category: 'game',
+    focus: ['shooting', 'teamwork'],
+    equipment: ['balls', 'cones', 'vests', 'goals'],
+    players: { min: 8, max: 18 },
+    baseDuration: 18,
+    blurb: 'Continuous attacking waves — one attack finishes and the next launches straight away.',
+    setup: [
+      'A single goal with a keeper; attackers queue on the halfway line in small groups.',
+      'A pair of defenders in the area; a coach with a stack of balls beside the goal.',
+    ],
+    howToPlay: [
+      'A group of attackers (2–3) breaks and attacks the goal against the defenders.',
+      'The moment the attack ends — goal, save or clearance — the coach feeds the next wave immediately.',
+      'Defenders stay on for a set number of waves, then swap with fresh legs.',
+      'Attackers rejoin the back of the queue and go again.',
+    ],
+    coachingPoints: [
+      'Attack quickly and decisively — waves reward speed and directness.',
+      'Finish the chance you get; there\'s always another wave coming, so no over-elaboration.',
+      'Defenders: deal with the immediate danger, then reset for the next wave fast.',
+    ],
+    kidExplanation: {
+      'U12-U14': 'Attacks come one after another like waves — as soon as one finishes, the next group is already going. Attack fast, take your shot, and get back in line. It never stops, so keep your energy and your finishing sharp.',
+      'U15+': 'Continuous waves of attack against a tiring defence — quick, direct attacking with decisive finishing, no over-elaboration. Repetition under fatigue sharpens both the finish and the defenders\' ability to reset and deal with successive threats.',
+    },
+    adaptations: {
+      easier: ['Send bigger attacking groups for an overload.', 'One defender only.'],
+      harder: ['2v2 waves.', 'Shorter feed interval so defenders never fully recover.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Wave attack zone',
+      goals: [{ x: 92, y: 32, facing: 'left' }],
+      cones: [{ x: 16, y: 16 }, { x: 16, y: 48 }],
+      phases: [
+        { t: 0, label: 'First wave attacks…' },
+        { t: 0.5, label: 'Shot away…' },
+        { t: 0.7, label: 'Next wave — go!' },
+      ],
+      entities: [
+        { id: 'k', kind: 'player', team: 'k', label: 'K', path: [{ t: 0, x: 88, y: 32 }, { t: 0.55, x: 85, y: 27 }, { t: 1, x: 87, y: 34 }] },
+        {
+          id: 'a1', kind: 'player', team: 'a', label: '1',
+          path: [{ t: 0, x: 30, y: 26 }, { t: 0.4, x: 54, y: 28 }, { t: 0.6, x: 66, y: 30 }, { t: 1, x: 72, y: 30 }],
+        },
+        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 30, y: 44 }, { t: 0.4, x: 52, y: 44 }, { t: 1, x: 68, y: 40 }] },
+        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 60, y: 30 }, { t: 0.5, x: 64, y: 30 }, { t: 1, x: 66, y: 34 }] },
+        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 64, y: 42 }, { t: 0.5, x: 66, y: 40 }, { t: 1, x: 68, y: 38 }] },
+        { id: 'w2', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 16, y: 32 }, { t: 0.7, x: 20, y: 32 }, { t: 1, x: 34, y: 32 }] },
+        {
+          id: 'ball', kind: 'ball',
+          path: [{ t: 0, x: 32, y: 26 }, { t: 0.4, x: 56, y: 28 }, { t: 0.52, x: 66, y: 30 }, { t: 0.78, x: 84, y: 28 }, { t: 1, x: 90, y: 30 }],
+        },
+      ],
+    },
+  },
 ];
+
+// ============================================================
+// Age suitability & similarity metadata.
+// Kept as one table so the whole library's balance is reviewable at a
+// glance, then merged onto each drill at load. Two fields per drill:
+//   ages   — inclusive [youngest, oldest] band the drill is pitched for.
+//            Keeps complex drills away from little kids and baby drills
+//            away from older squads (see drillSuitsAge / fits()).
+//   family — an archetype slug. Drills in the same family train the same
+//            thing in the same way (Sharks & Minnows and Ball Tag are
+//            both `dribble-tag`), so the planner avoids stacking two of
+//            them in one session and keeps things varied.
+// ============================================================
+export const DRILL_META = {
+  // ---- warm-ups ----
+  'traffic-lights': { ages: ['U6-U8', 'U12-U14'], family: 'dribble-control' },
+  'dynamic-warmup': { ages: ['U6-U8', 'U15+'], family: 'activation' },
+  'sharks-minnows': { ages: ['U6-U8', 'U12-U14'], family: 'dribble-tag' },
+  'passing-pairs-warmup': { ages: ['U6-U8', 'U15+'], family: 'passing-pairs' },
+  'crab-attack': { ages: ['U6-U8', 'U12-U14'], family: 'reaction-footwork' },
+  'mirror-match': { ages: ['U6-U8', 'U15+'], family: 'reaction-footwork' },
+  'ladder-activation': { ages: ['U6-U8', 'U15+'], family: 'activation' },
+  'follow-the-leader': { ages: ['U6-U8', 'U15+'], family: 'dribble-control' },
+  'gate-hunters': { ages: ['U6-U8', 'U15+'], family: 'dribble-control' },
+  // ---- main drills ----
+  'relay-races': { ages: ['U6-U8', 'U12-U14'], family: 'relay' },
+  'slalom-circuit': { ages: ['U6-U8', 'U15+'], family: 'dribble-control' },
+  'ball-tag': { ages: ['U6-U8', 'U12-U14'], family: 'dribble-tag' },
+  '1v1-gates': { ages: ['U6-U8', 'U15+'], family: '1v1-duel' },
+  '1v1-channel': { ages: ['U6-U8', 'U15+'], family: '1v1-duel' },
+  'defend-the-castle': { ages: ['U6-U8', 'U15+'], family: 'defending' },
+  'triangle-passing': { ages: ['U9-U11', 'U15+'], family: 'passing-pattern' },
+  'rondo': { ages: ['U9-U11', 'U15+'], family: 'possession' },
+  'pass-move-triangles': { ages: ['U9-U11', 'U15+'], family: 'passing-pattern' },
+  'rebounder-returns': { ages: ['U9-U11', 'U15+'], family: 'striking-repetition' },
+  'shooting-gallery': { ages: ['U6-U8', 'U15+'], family: 'finishing-move' },
+  'gate-finish': { ages: ['U6-U8', 'U15+'], family: 'finishing-move' },
+  'free-kick-wall': { ages: ['U12-U14', 'U15+'], family: 'striking-technique' },
+  'keeper-wars': { ages: ['U9-U11', 'U15+'], family: 'keeper-handling' },
+  'speed-spring-circuit': { ages: ['U9-U11', 'U15+'], family: 'speed-fitness' },
+  'turn-and-burn': { ages: ['U9-U11', 'U15+'], family: 'turning' },
+  '1v1-to-goal': { ages: ['U9-U11', 'U15+'], family: 'finishing-move' },
+  '2v1-overload': { ages: ['U9-U11', 'U15+'], family: 'overload' },
+  'passing-golf': { ages: ['U9-U11', 'U15+'], family: 'passing-pattern' },
+  'one-two-finish': { ages: ['U9-U11', 'U15+'], family: 'give-and-go' },
+  'switch-play': { ages: ['U12-U14', 'U15+'], family: 'switch-play' },
+  'toss-volley': { ages: ['U12-U14', 'U15+'], family: 'striking-technique' },
+  'cross-and-finish': { ages: ['U12-U14', 'U15+'], family: 'wide-combination' },
+  'jockey-delay': { ages: ['U9-U11', 'U15+'], family: 'defending' },
+  'keeper-hands-circuit': { ages: ['U9-U11', 'U15+'], family: 'keeper-handling' },
+  // ---- games ----
+  'small-sided-game': { ages: ['U6-U8', 'U15+'], family: 'conditioned-ssg' },
+  'numbers-game': { ages: ['U9-U11', 'U15+'], family: 'conditioned-ssg' },
+  'world-cup-shootout': { ages: ['U9-U11', 'U15+'], family: 'shootout' },
+  'possession-wars': { ages: ['U9-U11', 'U15+'], family: 'possession' },
+  'keepers-gauntlet': { ages: ['U9-U11', 'U15+'], family: 'keeper-handling' },
+  'king-of-the-ring': { ages: ['U9-U11', 'U15+'], family: 'possession' },
+  'four-goal-game': { ages: ['U9-U11', 'U15+'], family: 'conditioned-ssg' },
+  'crossbar-challenge': { ages: ['U9-U11', 'U15+'], family: 'striking-technique' },
+  // ---- cool-downs ----
+  'cooldown-circle': { ages: ['U6-U8', 'U15+'], family: 'cooldown-social' },
+  'keepy-up-cooldown': { ages: ['U9-U11', 'U15+'], family: 'cooldown-ballskill' },
+  'partner-stretch': { ages: ['U6-U8', 'U15+'], family: 'cooldown-social' },
+  'chip-catch-cooldown': { ages: ['U9-U11', 'U15+'], family: 'cooldown-ballskill' },
+  'keeper-cooldown': { ages: ['U9-U11', 'U15+'], family: 'keeper-handling' },
+  'silent-circle': { ages: ['U6-U8', 'U15+'], family: 'cooldown-social' },
+  'walking-football': { ages: ['U6-U8', 'U15+'], family: 'cooldown-game' },
+  'pass-and-praise': { ages: ['U6-U8', 'U15+'], family: 'cooldown-social' },
+  // ---- advanced additions (U12-U14 / U15+) ----
+  'dynamic-mobility': { ages: ['U12-U14', 'U15+'], family: 'activation' },
+  'first-touch-out': { ages: ['U12-U14', 'U15+'], family: 'receiving' },
+  'disguise-pass': { ages: ['U12-U14', 'U15+'], family: 'passing-pattern' },
+  'two-touch-rondo': { ages: ['U15+', 'U15+'], family: 'possession' },
+  'third-man-runs': { ages: ['U15+', 'U15+'], family: 'combination-play' },
+  'wall-pass-gauntlet': { ages: ['U12-U14', 'U15+'], family: 'give-and-go' },
+  'overlap-underlap': { ages: ['U15+', 'U15+'], family: 'wide-combination' },
+  'press-and-escape': { ages: ['U12-U14', 'U15+'], family: 'pressing' },
+  'zonal-shift': { ages: ['U15+', 'U15+'], family: 'unit-defending' },
+  'recovery-defending': { ages: ['U15+', 'U15+'], family: 'recovery-defending' },
+  'back-to-goal': { ages: ['U15+', 'U15+'], family: 'striker-play' },
+  'finish-under-pressure': { ages: ['U15+', 'U15+'], family: 'finishing-move' },
+  'long-range-striking': { ages: ['U15+', 'U15+'], family: 'striking-technique' },
+  'volley-circuit': { ages: ['U12-U14', 'U15+'], family: 'striking-technique' },
+  'counter-transition': { ages: ['U15+', 'U15+'], family: 'transition' },
+  'combination-finish': { ages: ['U15+', 'U15+'], family: 'combination-play' },
+  'defensive-shape': { ages: ['U15+', 'U15+'], family: 'unit-defending' },
+  'press-to-win': { ages: ['U15+', 'U15+'], family: 'conditioned-ssg' },
+  'transition-game': { ages: ['U15+', 'U15+'], family: 'transition' },
+  'wave-attacks': { ages: ['U15+', 'U15+'], family: 'waves' },
+};
+
+// Merge the metadata onto each drill so every consumer (planner, AI
+// designer, UI) sees `ages` and `family` uniformly.
+for (const d of DRILLS) {
+  const m = DRILL_META[d.id];
+  d.ages = m?.ages || [AGE_ORDER[0], AGE_ORDER[AGE_ORDER.length - 1]];
+  // Drills with no declared family are their own family, so they never
+  // collide with anything and are never penalised for similarity.
+  d.family = m?.family || d.id;
+}
+
+// Dev-only guardrail: shout if a drill is missing metadata (easy to
+// forget when adding a new drill) so the table can't silently drift.
+if (import.meta.env?.DEV) {
+  const missing = DRILLS.filter((d) => !DRILL_META[d.id]).map((d) => d.id);
+  if (missing.length) console.warn('[drills] missing age/family metadata for:', missing.join(', '));
+  const orphans = Object.keys(DRILL_META).filter((id) => !DRILLS.some((d) => d.id === id));
+  if (orphans.length) console.warn('[drills] DRILL_META has entries with no drill:', orphans.join(', '));
+}
 
 export const getDrill = (id) => DRILLS.find((d) => d.id === id);
 

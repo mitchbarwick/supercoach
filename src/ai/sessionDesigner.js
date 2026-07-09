@@ -19,8 +19,8 @@ export class SessionDesignError extends Error {
 }
 
 function trimForPrompt(drill) {
-  const { id, name, category, focus, equipment, players, baseDuration, blurb } = drill
-  return { id, name, category, focus, equipment, players, baseDuration, blurb }
+  const { id, name, category, focus, family, equipment, players, baseDuration, blurb } = drill
+  return { id, name, category, focus, family, equipment, players, baseDuration, blurb }
 }
 
 function buildMessages(ctx, skeleton, pool, wantGame) {
@@ -36,6 +36,11 @@ function buildMessages(ctx, skeleton, pool, wantGame) {
     wantGame ? '3. Exactly 1 "game" entry.' : '3. No "game" entry.',
     '4. Exactly 1 "cooldown" entry, last.',
     'Never choose the same drillId more than once.',
+    'Keep the session varied: avoid choosing two drills that share the same "family" — ' +
+      'drills in one family train the same thing the same way, so repeating a family makes the ' +
+      'session monotonous. Prefer a spread of different families across the main drills.',
+    'The library below has already been filtered to drills that suit this squad\'s age and setup, ' +
+      'so every listed drill is age-appropriate — just choose the best mix.',
   ].join('\n')
 
   const user = [

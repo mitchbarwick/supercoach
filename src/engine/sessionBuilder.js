@@ -5,7 +5,7 @@
 // with drink breaks factored in.
 // Favourited drills are preferred whenever they fit.
 // ============================================================
-import { DRILLS, FOCUS_AREAS, AGE_BLOCK_CAPS, drillDurationRange } from '../data/drills.js'
+import { DRILLS, FOCUS_AREAS, AGE_BLOCK_CAPS, drillDurationRange, drillSuitsAge } from '../data/drills.js'
 
 const BREAK_EVERY_MIN = 18 // activity minutes between drink breaks
 const BREAK_LEN = 3
@@ -20,6 +20,9 @@ export function fits(drill, ctx) {
   if (mult && ctx.players % mult !== 0) return false
   // U6-U8 teams don't have goalkeepers, so keeper-focused drills are out.
   if (ctx.ageGroup === 'U6-U8' && drill.focus.includes('goalkeeping')) return false
+  // Age suitability: don't hand complex drills to little kids or baby
+  // drills to older squads.
+  if (!drillSuitsAge(drill, ctx.ageGroup)) return false
   return true
 }
 
@@ -93,21 +96,26 @@ export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total,
   return { blocks, totalPlanned: cursor }
 }
 
-function scoreDrill(drill, ctx, usedFocus) {
+function scoreDrill(drill, ctx, usedFocus, usedFamily) {
   let s = 0
   for (const f of drill.focus) {
     if (ctx.focus.includes(f)) s += usedFocus[f] ? 4 : 10 // unseen focus areas first
   }
   if (ctx.favourites.includes(drill.id)) s += 6
+  // Similarity: a drill from a family we've already used this session is
+  // a repeat of the same challenge — nudge towards something different so
+  // the session stays varied. Soft penalty (never a hard filter), so it
+  // only decides between otherwise comparable options.
+  if (usedFamily?.has(drill.family)) s -= 7
   if (ctx.players > drill.players.max) s -= 3 // usable via multiple groups, slightly penalised
   s += Math.random() * 2 // gentle variety between sessions
   return s
 }
 
-function pickBest(pool, ctx, usedFocus, picked) {
+function pickBest(pool, ctx, usedFocus, picked, usedFamily) {
   const candidates = pool.filter((d) => !picked.has(d.id) && fits(d, ctx))
   if (!candidates.length) return null
-  candidates.sort((a, b) => scoreDrill(b, ctx, usedFocus) - scoreDrill(a, ctx, usedFocus))
+  candidates.sort((a, b) => scoreDrill(b, ctx, usedFocus, usedFamily) - scoreDrill(a, ctx, usedFocus, usedFamily))
   return candidates[0]
 }
 
@@ -122,13 +130,15 @@ export function buildSession(opts) {
   const total = opts.duration
   const { warmLen, coolLen, wantGame, mainBudget: initialBudget, targetDrillCount, gameMax } = computeSkeleton(total, ctx.players, ctx.ageGroup)
   const usedFocus = {}
+  const usedFamily = new Set()
   const picked = new Set()
   const fixedBlocks = []
 
   // ---- warm-up ----
   const warmups = DRILLS.filter((d) => d.category === 'warmup')
-  const wu = pickBest(warmups, ctx, usedFocus, picked) || warmups[1]
+  const wu = pickBest(warmups, ctx, usedFocus, picked, usedFamily) || warmups[1]
   picked.add(wu.id)
+  usedFamily.add(wu.family)
   // NB: warm-ups deliberately don't mark focus areas as covered —
   // each chosen focus should still get a dedicated main drill.
   fixedBlocks.push({ type: 'warmup', drillId: wu.id, title: wu.name, emoji: wu.emoji, duration: warmLen, blurb: wu.blurb })
@@ -138,9 +148,10 @@ export function buildSession(opts) {
   let mainBudget = initialBudget
   let slots = targetDrillCount
   while (mainBudget >= 8) {
-    const drill = pickBest(mains, ctx, usedFocus, picked)
+    const drill = pickBest(mains, ctx, usedFocus, picked, usedFamily)
     if (!drill) break
     picked.add(drill.id)
+    usedFamily.add(drill.family)
     drill.focus.forEach((f) => { if (ctx.focus.includes(f)) usedFocus[f] = true })
     // aim for the drill's base length (leaving ≥8 min per remaining
     // slot), then clamp to the realistic range for this age group —
@@ -158,14 +169,15 @@ export function buildSession(opts) {
   let gameChoice = null
   if (wantGame) {
     const games = DRILLS.filter((d) => d.category === 'game')
-    const game = pickBest(games, ctx, usedFocus, picked) || games[0]
+    const game = pickBest(games, ctx, usedFocus, picked, usedFamily) || games[0]
     picked.add(game.id)
+    usedFamily.add(game.family)
     gameChoice = { drillId: game.id, title: game.name, emoji: game.emoji, blurb: game.blurb }
   }
 
   // ---- cool-down ----
   const cools = DRILLS.filter((d) => d.category === 'cooldown')
-  const cd = pickBest(cools, ctx, usedFocus, picked) || cools[0]
+  const cd = pickBest(cools, ctx, usedFocus, picked, usedFamily) || cools[0]
   const cooldownChoice = { drillId: cd.id, title: cd.name, emoji: cd.emoji, blurb: cd.blurb }
 
   const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total, coolLen, gameMax)
