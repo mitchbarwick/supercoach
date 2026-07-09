@@ -7,6 +7,7 @@ import { accountsEnabled } from '../config.js'
 import { renderGoogleButton, googleSignOut } from '../auth/googleAuth.js'
 import { api } from '../api/client.js'
 import { useStore, actions } from '../store/useStore.js'
+import SigningInScreen from './SigningInScreen.jsx'
 
 export default function AccountButton({ compact = false }) {
   const auth = useStore((s) => s.auth)
@@ -61,8 +62,8 @@ export default function AccountButton({ compact = false }) {
   return (
     <div className="signin-holder">
       <div ref={holder} style={{ minHeight: 44, opacity: busy ? 0.5 : 1 }} />
-      {busy && <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>Signing you in…</p>}
       {error && <p style={{ color: 'var(--coral-700)', fontSize: 13, marginTop: 6 }}>{error}</p>}
+      {busy && <SigningInScreen />}
     </div>
   )
 }
