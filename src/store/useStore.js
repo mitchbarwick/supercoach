@@ -25,6 +25,11 @@ const defaults = {
   // Only the API key needs pasting in Settings.
   azure: { endpoint: 'https://mjbarwick.openai.azure.com', apiKey: '', deployment: 'gpt-35-turbo' },
   aiCache: {},          // cacheKey -> text
+  // Drill rotation memory: how recently each drill was placed in a plan,
+  // so the planner can spread suggestions across the whole library over
+  // time (favourites excepted). Device-local — not mirrored to the account.
+  drillSeen: {},        // drillId -> drillSeq at last use
+  drillSeq: 0,          // monotonic session counter
   // ---- phase 3 ----
   auth: null,           // {token, user:{name,email,picture,isAdmin}}
   prefs: null,          // {ageGroup, players, duration, equipment} — remembered setup choices
@@ -80,6 +85,23 @@ const token = () => state.auth?.token || null
 // false, so the app behaves exactly as it always did.
 export const isGuest = () => accountsEnabled() && !state.auth
 
+// Rotation memory → a 0..1 "seen recently" weight per drill (1 = used in
+// the most recent session, fading linearly to 0 after RECENCY_WINDOW
+// sessions). Drills absent from the map were never used, or used long
+// enough ago to count as fresh again. Consumed by the planner's
+// scoreDrill so coaches see a wide range of drills over time.
+const RECENCY_WINDOW = 10
+export function drillRecencyMap(s = state) {
+  const seq = s.drillSeq || 0
+  const seen = s.drillSeen || {}
+  const map = {}
+  for (const id in seen) {
+    const age = seq - seen[id]
+    if (age >= 0 && age < RECENCY_WINDOW) map[id] = 1 - age / RECENCY_WINDOW
+  }
+  return map
+}
+
 /** Mirror a change to the API when signed in. Never blocks the UI. */
 function mirror(fn) {
   const t = token()
@@ -132,11 +154,19 @@ export const actions = {
     // Guests get one plan at a time, not a growing history — a new plan
     // simply becomes the live session without ever joining `programs`.
     const guest = isGuest()
+    // Rotation memory: stamp every drill in this plan as "just used" so the
+    // planner spreads future suggestions across the library (favourites are
+    // largely exempt — see scoreDrill). Everyone gets this, guests included.
+    const seq = (state.drillSeq || 0) + 1
+    const drillSeen = { ...state.drillSeen }
+    for (const b of session.blocks) if (b.drillId) drillSeen[b.drillId] = seq
     setState((s) => ({
       session: program.session,
       ticks: {},
       currentProgramId: program.id,
       programs: remember && !guest ? trimPrograms([program, ...s.programs]) : s.programs,
+      drillSeq: seq,
+      drillSeen,
     }))
     if (remember && !guest) mirror((t) => api.pushPrograms(t, [program]))
     // Remember the coach's decisions so next time is prefilled.

@@ -24,6 +24,12 @@ function trimForPrompt(drill) {
 }
 
 function buildMessages(ctx, skeleton, pool, wantGame) {
+  // Drills the coach has seen in recent sessions (favourites excluded —
+  // those are meant to recur). Fed to the model so it spreads variety
+  // over time rather than reaching for the same drills every session.
+  const recentlyUsed = Object.keys(ctx.recency || {})
+    .filter((id) => ctx.recency[id] > 0.2 && !ctx.favourites.includes(id))
+    .sort((a, b) => ctx.recency[b] - ctx.recency[a])
   const system =
     'You are SuperCoach, an assistant that plans full grassroots football training sessions for volunteer coaches. ' +
     'Choose drills ONLY from the approved library below, referencing them by their exact "id" — never invent a drill or an id that isn\'t listed. ' +
@@ -53,6 +59,7 @@ function buildMessages(ctx, skeleton, pool, wantGame) {
     `- Equipment available: ${ctx.equipment.join(', ') || 'none'}`,
     `- Focus areas to prioritise (cover each at least once if possible): ${ctx.focus.join(', ')}`,
     `- Favourite drills (prefer these when appropriate): ${ctx.favourites.join(', ') || 'none'}`,
+    `- Recently used — avoid these so the coach sees variety across sessions, unless one is a favourite or clearly the best fit: ${recentlyUsed.join(', ') || 'none'}`,
     '',
     'Timing guidance — the app inserts its own drink breaks and sizes the cool-down automatically; ' +
       'do not include breaks and don\'t worry about the cool-down\'s exact length:',

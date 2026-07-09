@@ -5,7 +5,7 @@ import { FOCUS_AREAS, EQUIPMENT, AGE_GROUPS } from '../data/drills.js'
 import { buildSession } from '../engine/sessionBuilder.js'
 import { aiConfigured } from '../ai/azure.js'
 import { designSessionWithAI, SessionDesignError } from '../ai/sessionDesigner.js'
-import { useStore, actions } from '../store/useStore.js'
+import { useStore, actions, drillRecencyMap } from '../store/useStore.js'
 
 const DURATIONS = [30, 45, 60, 75, 90]
 
@@ -54,7 +54,9 @@ export default function SessionSetup() {
   }
 
   const generate = async () => {
-    const opts = { duration, players, ageGroup, equipment, focus, favourites }
+    // Read the rotation memory fresh at click time so the just-built plan
+    // (recorded on the previous generate) steers this one towards variety.
+    const opts = { duration, players, ageGroup, equipment, focus, favourites, recency: drillRecencyMap() }
 
     if (!aiConfigured()) {
       actions.saveSession(buildSession(opts))

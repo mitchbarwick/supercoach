@@ -36,6 +36,8 @@ export function buildCtx(opts) {
     // constraints and favourites.
     focus: opts.focus?.length ? opts.focus : FOCUS_AREAS.map((f) => f.id),
     favourites: opts.favourites || [],
+    // drillId -> 0..1 "seen recently" weight (see store's drillRecencyMap).
+    recency: opts.recency || {},
   }
 }
 
@@ -97,18 +99,32 @@ export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total,
 }
 
 function scoreDrill(drill, ctx, usedFocus, usedFamily) {
-  let s = 0
+  let focusScore = 0
   for (const f of drill.focus) {
-    if (ctx.focus.includes(f)) s += usedFocus[f] ? 4 : 10 // unseen focus areas first
+    if (ctx.focus.includes(f)) focusScore += usedFocus[f] ? 4 : 10 // unseen focus areas first
   }
-  if (ctx.favourites.includes(drill.id)) s += 6
+  // Cap the focus contribution so a drill isn't favoured just for carrying
+  // more tags — especially in "anything" mode where every focus counts and
+  // 3-tag drills (Sharks, Rondo) would otherwise always win. Covering the
+  // requested work matters; piling on extra tags shouldn't dominate.
+  let s = Math.min(focusScore, 14)
+  const fav = ctx.favourites.includes(drill.id)
+  if (fav) s += 6
   // Similarity: a drill from a family we've already used this session is
   // a repeat of the same challenge — nudge towards something different so
   // the session stays varied. Soft penalty (never a hard filter), so it
   // only decides between otherwise comparable options.
   if (usedFamily?.has(drill.family)) s -= 7
+  // Recency: fade out drills the coach has seen in recent sessions so the
+  // rotation spreads across the whole library over time. A just-used drill
+  // loses up to 20 points — more than any drill's positive score — so it
+  // reliably steps aside for a fresher option, easing back in as the
+  // penalty fades. Favourites lose only up to 4, because favouriting is the
+  // coach's explicit "show me this one more often" signal.
+  const rec = ctx.recency?.[drill.id] || 0 // 0..1, 1 = used most recently
+  s -= rec * (fav ? 4 : 20)
   if (ctx.players > drill.players.max) s -= 3 // usable via multiple groups, slightly penalised
-  s += Math.random() * 2 // gentle variety between sessions
+  s += Math.random() * 3 // gentle variety between otherwise-tied drills
   return s
 }
 
