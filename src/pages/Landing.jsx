@@ -5,10 +5,24 @@
 import { actions } from '../store/useStore.js'
 import AccountButton from '../components/AccountButton.jsx'
 import LandingHero from '../components/LandingHero.jsx'
+import drillScreenPhoto from '../assets/hero-1.png'
+import wizardScreenPhoto from '../assets/hero-2.png'
 
 const FEATURES = [
-  { emoji: '⚡', title: 'A full session in minutes', text: 'Tell us the age group and what you want to work on — we build the whole plan, warm-up to cool-down.' },
-  { emoji: '📚', title: '50+ drills with animations', text: 'Every drill shows a moving diagram, setup and age-appropriate coaching cues.' },
+  {
+    emoji: '⚡',
+    title: 'A full session in minutes',
+    text: 'Tell us the age group and what you want to work on — we build the whole plan, warm-up to cool-down.',
+    image: wizardScreenPhoto,
+    imageAlt: 'A coach holding a phone showing the SuperCoach session wizard set to Under 9–11, with players training on the pitch behind them',
+  },
+  {
+    emoji: '📚',
+    title: '50+ drills with animations',
+    text: 'Every drill shows a moving diagram, setup and age-appropriate coaching cues.',
+    image: drillScreenPhoto,
+    imageAlt: 'A coach holding a phone showing a SuperCoach drill animation, with players training on the pitch behind them',
+  },
   { emoji: '☁️', title: 'Synced across your devices', text: 'Sign in and your plans, saved sessions and favourite drills follow you everywhere.' },
 ]
 
@@ -40,6 +54,7 @@ export default function Landing() {
             <span>
               <strong>{f.title}</strong>
               <span className="muted landing-feature-text">{f.text}</span>
+              {f.image && <img className="landing-feature-photo" src={f.image} alt={f.imageAlt} />}
             </span>
           </li>
         ))}

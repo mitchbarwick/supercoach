@@ -164,6 +164,10 @@ input, select, textarea { font-family: inherit; }
 }
 .landing-features strong { display: block; font-size: 15.5px; }
 .landing-feature-text { display: block; font-size: 14px; margin-top: 2px; }
+.landing-feature-photo {
+  display: block; width: 100%; max-width: 320px; margin-top: 12px;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+}
 .landing-foot { text-align: center; margin-top: 22px; font-size: 13.5px; }
 @media (prefers-reduced-motion: reduce) {
   .topnav-emergency, .calm-dot, .injury-card, .wizard-step, .step-list li,
