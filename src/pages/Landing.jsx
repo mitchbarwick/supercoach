@@ -2,7 +2,7 @@
 // Encourages signing in (so plans sync across devices) with a clear
 // secondary "continue as guest" path. Shown on every visit until the
 // visitor signs in (see Home.jsx) — the guest choice is session-only.
-import { actions } from '../store/useStore.js'
+import { useNavigate } from 'react-router-dom'
 import AccountButton from '../components/AccountButton.jsx'
 import LandingHero from '../components/LandingHero.jsx'
 import drillScreenPhoto from '../assets/hero-1.png'
@@ -27,6 +27,8 @@ const FEATURES = [
 ]
 
 export default function Landing() {
+  const navigate = useNavigate()
+
   return (
     <div className="landing fade-in">
       <div className="landing-hero">
@@ -40,9 +42,9 @@ export default function Landing() {
           <AccountButton />
         </div>
         <p className="muted landing-guest-note">
-          Sign in to keep your sessions on every device — or jump straight in.
+          Sign in to keep your sessions on every device — or try it as a guest first.
         </p>
-        <button className="btn btn-ghost btn-block" onClick={() => actions.enterAsGuest()}>
+        <button className="btn btn-ghost btn-block" onClick={() => navigate('/guest')}>
           Continue as guest →
         </button>
       </div>
@@ -60,7 +62,7 @@ export default function Landing() {
         ))}
       </ul>
 
-      <p className="muted landing-foot">No account needed — everything works as a guest.</p>
+      <p className="muted landing-foot">No account needed to get started — sign in any time for the full experience.</p>
     </div>
   )
 }

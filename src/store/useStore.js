@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from 'react'
 import { api } from '../api/client.js'
 import { AGE_GROUPS, FOCUS_AREAS } from '../data/drills.js'
+import { accountsEnabled } from '../config.js'
 
 const KEY = 'supercoach-v1'
 const MAX_RECENT_UNSAVED = 10
@@ -73,6 +74,12 @@ export function useStore(selector = (s) => s) {
 
 const token = () => state.auth?.token || null
 
+// A signed-out visitor once accounts are actually available — gets a
+// deliberately limited trial (one plan, no favourites/editing, locked
+// content). When accounts aren't configured at all, this is always
+// false, so the app behaves exactly as it always did.
+export const isGuest = () => accountsEnabled() && !state.auth
+
 /** Mirror a change to the API when signed in. Never blocks the UI. */
 function mirror(fn) {
   const t = token()
@@ -122,13 +129,16 @@ export const actions = {
       runs: 1,
       session: { ...session, createdAt: now },
     }
+    // Guests get one plan at a time, not a growing history — a new plan
+    // simply becomes the live session without ever joining `programs`.
+    const guest = isGuest()
     setState((s) => ({
       session: program.session,
       ticks: {},
       currentProgramId: program.id,
-      programs: remember ? trimPrograms([program, ...s.programs]) : s.programs,
+      programs: remember && !guest ? trimPrograms([program, ...s.programs]) : s.programs,
     }))
-    if (remember) mirror((t) => api.pushPrograms(t, [program]))
+    if (remember && !guest) mirror((t) => api.pushPrograms(t, [program]))
     // Remember the coach's decisions so next time is prefilled.
     actions.setPrefs({
       ageGroup: session.request.ageGroup,
@@ -201,6 +211,7 @@ export const actions = {
     setState((s) => ({ notes: { ...s.notes, [drillId]: text } }))
   },
   toggleFavourite(drillId) {
+    if (isGuest()) return // guests can't favourite — sign in to unlock
     setState((s) => ({
       favourites: s.favourites.includes(drillId)
         ? s.favourites.filter((id) => id !== drillId)

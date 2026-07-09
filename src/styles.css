@@ -71,6 +71,8 @@ input, select, textarea { font-family: inherit; }
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 .icon-btn:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.icon-btn:disabled:hover { box-shadow: none; transform: none; }
 
 /* ---- Top nav menu ---- */
 .topnav { display: flex; align-items: center; gap: 4px; }
@@ -520,6 +522,17 @@ input.text-input {
   border: 1px solid var(--green-100); border-radius: var(--radius-md);
   padding: 14px 16px; font-size: 14.5px; color: var(--ink-700);
 }
+
+/* ---- Guest content lock (e.g. "say this to the kids") ---- */
+.locked-content { position: relative; border-radius: var(--radius-md); overflow: hidden; min-height: 64px; }
+.locked-content-body { filter: blur(6px); user-select: none; pointer-events: none; }
+.locked-content-overlay {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center; padding: 16px;
+  background: rgba(255, 255, 255, 0.86);
+}
+.locked-content-overlay strong { font-size: 14.5px; color: var(--ink-900); max-width: 260px; }
 
 /* ============================================================
    Phase 3 — accounts, program history, feedback, admin

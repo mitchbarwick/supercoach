@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore, actions } from '../store/useStore.js'
 import { BLOCK_STYLE, fits, buildCtx } from '../engine/sessionBuilder.js'
 import { FOCUS_AREAS, DRILLS } from '../data/drills.js'
+import { accountsEnabled } from '../config.js'
 import SessionCelebration from '../components/SessionCelebration.jsx'
 
 const fmtTime = (m) => `${m}'`
@@ -50,7 +51,9 @@ export default function PlanView() {
   const ticks = useStore((s) => s.ticks)
   const favourites = useStore((s) => s.favourites)
   const currentProgramId = useStore((s) => s.currentProgramId)
-  const editing = searchParams.get('edit') === '1'
+  const guest = useStore((s) => accountsEnabled() && !s.auth)
+  // Guests can't edit (drill-swap) — force it off even if ?edit=1 is typed directly.
+  const editing = searchParams.get('edit') === '1' && !guest
   const [swapBlock, setSwapBlock] = useState(null)
   const [toast, setToast] = useState('')
 
@@ -93,12 +96,14 @@ export default function PlanView() {
       <div className="spread" style={{ marginBottom: 6 }}>
         <h1 style={{ fontSize: 26 }}>Tonight's session</h1>
         <div className="row" style={{ gap: 8 }}>
-          <button
-            className={`btn btn-sm ${editing ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? '✓ Done' : '✎ Edit'}
-          </button>
+          {!guest && (
+            <button
+              className={`btn btn-sm ${editing ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setEditing(!editing)}
+            >
+              {editing ? '✓ Done' : '✎ Edit'}
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/new')}>New plan</button>
         </div>
       </div>

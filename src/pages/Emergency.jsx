@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { INJURIES, INJURY_CATEGORIES } from '../data/injuries.js'
+import { useStore } from '../store/useStore.js'
+import AccountButton from '../components/AccountButton.jsx'
 
 const SEVERITY_META = {
   urgent: { label: 'Treat as serious', cls: 'coral' },
@@ -11,8 +13,20 @@ const SEVERITY_META = {
 
 export default function Emergency() {
   const navigate = useNavigate()
+  const auth = useStore((s) => s.auth)
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState(null)
+
+  if (!auth) {
+    return (
+      <div className="empty-state">
+        <div className="big">🔒</div>
+        <h2>Sign in for Emergency support</h2>
+        <p style={{ margin: '10px 0 22px' }}>Injury guidance is only available to signed-in coaches.</p>
+        <AccountButton />
+      </div>
+    )
+  }
 
   const q = query.trim().toLowerCase()
   const list = INJURIES.filter(

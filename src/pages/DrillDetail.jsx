@@ -5,7 +5,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { getDrill, sayToKids, setsFor, drillDurationRange, FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
 import PitchAnimation from '../components/PitchAnimation.jsx'
 import DrillFeedback from '../components/DrillFeedback.jsx'
+import AccountButton from '../components/AccountButton.jsx'
 import { useStore, actions } from '../store/useStore.js'
+import { accountsEnabled } from '../config.js'
 import { getCoachingTips, aiConfigured } from '../ai/azure.js'
 
 function Section({ icon, title, children }) {
@@ -26,6 +28,7 @@ export default function DrillDetail() {
   const notes = useStore((s) => s.notes)
   const session = useStore((s) => s.session)
   const ticks = useStore((s) => s.ticks)
+  const guest = useStore((s) => accountsEnabled() && !s.auth)
   const [aiTips, setAiTips] = useState(null)
   const [toast, setToast] = useState('')
 
@@ -84,7 +87,11 @@ export default function DrillDetail() {
         <button
           className="icon-btn"
           style={isFav ? { background: 'var(--coral-100)', borderColor: 'var(--coral-600)' } : {}}
-          onClick={() => { actions.toggleFavourite(id); flash(isFav ? 'Removed from favourites' : '⭐ Saved to favourites — I\'ll pick it first next time') }}
+          onClick={() => {
+            if (guest) { flash('Sign in to favourite drills'); return }
+            actions.toggleFavourite(id)
+            flash(isFav ? 'Removed from favourites' : '⭐ Saved to favourites — I\'ll pick it first next time')
+          }}
           aria-label="Toggle favourite"
         >
           {isFav ? '❤️' : '🤍'}
@@ -114,7 +121,20 @@ export default function DrillDetail() {
       </div>
 
       <Section icon="🗣️" title="Say this to the kids">
-        <p style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>"{sayToKids(drill, ageGroup)}"</p>
+        {guest ? (
+          <div className="locked-content">
+            <p className="locked-content-body" style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>
+              "{sayToKids(drill, ageGroup)}"
+            </p>
+            <div className="locked-content-overlay">
+              <span style={{ fontSize: 22 }}>🔒</span>
+              <strong>Sign in to unlock coaching scripts for every drill</strong>
+              <AccountButton />
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>"{sayToKids(drill, ageGroup)}"</p>
+        )}
       </Section>
 
       <Section icon="📐" title="Set it up">

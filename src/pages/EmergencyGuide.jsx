@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getInjury } from '../data/injuries.js'
+import { useStore } from '../store/useStore.js'
+import AccountButton from '../components/AccountButton.jsx'
 
 const STEPS = [
   { key: 'flags', title: 'First: any red flags?', icon: '🚩' },
@@ -14,9 +16,21 @@ const STEPS = [
 export default function EmergencyGuide() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const auth = useStore((s) => s.auth)
   const injury = getInjury(id)
   const [step, setStep] = useState(0)
   const [showCall, setShowCall] = useState(false)
+
+  if (!auth) {
+    return (
+      <div className="empty-state">
+        <div className="big">🔒</div>
+        <h2>Sign in for Emergency support</h2>
+        <p style={{ margin: '10px 0 22px' }}>Injury guidance is only available to signed-in coaches.</p>
+        <AccountButton />
+      </div>
+    )
+  }
 
   if (!injury) {
     return (

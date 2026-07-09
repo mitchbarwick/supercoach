@@ -3,10 +3,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DRILLS, FOCUS_AREAS } from '../data/drills.js'
 import { useStore, actions } from '../store/useStore.js'
+import { accountsEnabled } from '../config.js'
 
 export default function DrillLibrary() {
   const navigate = useNavigate()
   const favourites = useStore((s) => s.favourites)
+  const guest = useStore((s) => accountsEnabled() && !s.auth)
   const [filter, setFilter] = useState(null)
 
   const list = [...DRILLS]
@@ -47,8 +49,10 @@ export default function DrillLibrary() {
             <button
               className="icon-btn"
               style={isFav ? { background: 'var(--coral-100)', borderColor: 'var(--coral-600)' } : {}}
-              onClick={(e) => { e.stopPropagation(); actions.toggleFavourite(d.id) }}
+              onClick={(e) => { e.stopPropagation(); if (!guest) actions.toggleFavourite(d.id) }}
               aria-label="Toggle favourite"
+              title={guest ? 'Sign in to favourite drills' : undefined}
+              disabled={guest}
             >
               {isFav ? '❤️' : '🤍'}
             </button>
