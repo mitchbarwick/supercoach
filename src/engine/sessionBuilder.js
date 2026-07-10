@@ -9,6 +9,7 @@ import { DRILLS, FOCUS_AREAS, AGE_BLOCK_CAPS, drillDurationRange, drillSuitsAge 
 
 const BREAK_EVERY_MIN = 18 // activity minutes between drink breaks
 const BREAK_LEN = 3
+// (touch: game-bookended session shape)
 
 export function fits(drill, ctx) {
   // equipment: every required item must be available
@@ -20,7 +21,7 @@ export function fits(drill, ctx) {
   if (mult && ctx.players % mult !== 0) return false
   // U6-U8 teams don't have goalkeepers, so keeper-focused drills are out.
   if (ctx.ageGroup === 'U6-U8' && drill.focus.includes('goalkeeping')) return false
-  // Age suitability: don't hand complex drills to little kids or baby
+  // Age suitability: don't hand complex drills to little players or baby
   // drills to older squads.
   if (!drillSuitsAge(drill, ctx.ageGroup)) return false
   return true
@@ -43,15 +44,107 @@ export function buildCtx(opts) {
 
 export function computeSkeleton(total, players, ageGroup) {
   const caps = AGE_BLOCK_CAPS[ageGroup] || AGE_BLOCK_CAPS['U9-U11']
-  const warmLen = Math.min(total <= 45 ? Math.max(6, Math.round(total * 0.15)) : 10, caps.warmup)
+  const young = ageGroup === 'U6-U8' || ageGroup === 'U9-U11'
   const coolLen = Math.min(total <= 45 ? 5 : 6, caps.cooldown)
-  const wantGame = total >= 35 && players >= 6
-  const gameLen = wantGame ? Math.min(Math.max(10, Math.round(total * 0.25)), caps.game) : 0
-  let mainBudget = total - warmLen - coolLen - gameLen
-  const expectedBreaks = Math.floor((mainBudget + gameLen) / (BREAK_EVERY_MIN + BREAK_LEN))
-  mainBudget -= expectedBreaks * BREAK_LEN
-  const targetDrillCount = Math.max(2, Math.min(4, Math.floor(mainBudget / 10)))
-  return { warmLen, coolLen, wantGame, gameLen, mainBudget, targetDrillCount, gameMax: caps.game, drillMax: caps.drill }
+
+  // Relaxed game gate. The Gamesology framework (good-training-session.md)
+  // wants games to bookend every session — yet the old gate (>=35 min AND
+  // >=6 players) gave the youngest, shortest sessions zero games, the exact
+  // inverse of the guide. Now: any session that's long enough to be worth it,
+  // with enough players to form a small-sided game, gets one.
+  const wantGame = total >= 25 && players >= 4
+
+  // Young squads open (and, for the youngest, split) on a short small-sided
+  // game rather than a technical warm-up; older squads keep the warm-up-first
+  // shape. `warmLen` is always computed as the fallback used if no game fits.
+  const openWithGame = young && wantGame
+  const warmup = !openWithGame
+  const shortBlock = Math.min(caps.game, Math.max(6, Math.round(total * 0.15)))
+  const warmLen = Math.min(total <= 45 ? Math.max(6, Math.round(total * 0.15)) : 10, caps.warmup)
+  const arrivalLen = openWithGame ? shortBlock : 0
+  const gameMax = caps.game
+
+  // The closing game absorbs the session's remainder in assembleTimeline, but
+  // we must still reserve room for it here so the main drills don't eat it.
+  const closingReserve = wantGame
+    ? (young ? Math.max(8, shortBlock) : Math.min(gameMax, Math.max(10, Math.round(total * 0.25))))
+    : 0
+  const openLen = openWithGame ? arrivalLen : (warmup ? warmLen : 0)
+
+  // Mid-session game (youngest only) — only kept if there are >=2 drills for
+  // it to separate; otherwise its minutes go back to the main drills.
+  let midGame = ageGroup === 'U6-U8' && wantGame && total >= 34
+  let midLen = midGame ? shortBlock : 0
+
+  const drillSlot = Math.min(10, caps.drill) // ~one main drill's worth of minutes
+  const budgetAfter = (mid) => {
+    let mb = total - openLen - (mid ? midLen : 0) - closingReserve - coolLen
+    const act = openLen + (mid ? midLen : 0) + closingReserve + Math.max(0, mb)
+    mb -= Math.floor(act / (BREAK_EVERY_MIN + BREAK_LEN)) * BREAK_LEN
+    return Math.max(0, mb)
+  }
+  const minDrill = young ? 6 : 8
+  const countCap = 4
+  // Fit the drill count to the budget so the main block actually fills its
+  // share — otherwise leftover minutes spill into the closing game. `maxFit`
+  // caps at the number of minimum-length drills that genuinely fit; young
+  // squads round (their small drill cap means a budget just over a multiple
+  // should still add a drill), older squads floor (unchanged behaviour).
+  const drillCount = (mb) => {
+    const maxFit = Math.max(0, Math.floor(mb / minDrill))
+    const raw = young ? Math.round(mb / drillSlot) : Math.floor(mb / drillSlot)
+    const floor = young ? (mb >= minDrill ? 1 : 0) : Math.min(2, maxFit)
+    return Math.max(floor, Math.min(countCap, maxFit, raw))
+  }
+
+  let mainBudget = budgetAfter(midGame)
+  let targetDrillCount = drillCount(mainBudget)
+  if (midGame && targetDrillCount < 2) {
+    midGame = false
+    midLen = 0
+    mainBudget = budgetAfter(false)
+    targetDrillCount = drillCount(mainBudget)
+  }
+
+  return {
+    warmLen, coolLen, wantGame, openWithGame, midGame, warmup,
+    arrivalLen, midLen, gameLen: closingReserve, mainBudget,
+    targetDrillCount, gameMax, drillMax: caps.drill, minDrill,
+  }
+}
+
+// The ordered block roles a session should contain, e.g.
+// ['game','drill','drill','game','cooldown'] for a young squad or
+// ['warmup','drill','drill','game','cooldown'] for an older one.
+// The single source of truth for block sequence, shared by the rule-based
+// builder, the AI designer's prompt, and its validator so all three agree.
+// A leading 'game' is the arrival game; a 'game' immediately before the
+// final 'cooldown' is the closing game (the one that absorbs remainder);
+// any other mid-list 'game' is the mid-session game.
+export function sessionRoles(skeleton) {
+  const roles = [skeleton.openWithGame ? 'game' : 'warmup']
+  const n = skeleton.targetDrillCount
+  const splitAt = skeleton.midGame && n >= 2 ? Math.ceil(n / 2) : -1
+  for (let i = 0; i < n; i++) {
+    roles.push('drill')
+    if (i === splitAt - 1) roles.push('game')
+  }
+  if (skeleton.wantGame) roles.push('game')
+  roles.push('cooldown')
+  return roles
+}
+
+// Downgrade a skeleton's game shape to what the available game pool can
+// actually supply (distinct games). Drops the mid game first, then the
+// arrival game (reverting to a warm-up open), then the closing game — so a
+// setup with few or no games still yields a valid, buildable session.
+export function resolveShape(sk, gamesAvailable) {
+  let { openWithGame, midGame, wantGame, warmup, arrivalLen, midLen } = sk
+  const need = () => (openWithGame ? 1 : 0) + (midGame ? 1 : 0) + (wantGame ? 1 : 0)
+  if (gamesAvailable < need() && midGame) { midGame = false; midLen = 0 }
+  if (gamesAvailable < need() && openWithGame) { openWithGame = false; warmup = true; arrivalLen = 0 }
+  if (gamesAvailable < need() && wantGame) { wantGame = false }
+  return { ...sk, openWithGame, midGame, wantGame, warmup, arrivalLen, midLen }
 }
 
 /**
@@ -86,10 +179,14 @@ export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total,
 
   if (gameChoice) {
     maybeBreak(total - cursor - coolLen)
-    const len = total - cursor - coolLen
-    // cap the game by the age group's attention span — any leftover
-    // minutes flow into a longer, more relaxed cool-down
-    push({ type: 'game', duration: Math.max(8, Math.min(len, gameMax)), ...gameChoice })
+    // The closing game is the session's flexible "let them play" finale: it
+    // absorbs the remaining time so the cool-down stays at its planned
+    // (age-capped) length rather than ballooning into an over-long wind-down.
+    // A small-sided game may run a little long — an over-long cool-down
+    // shouldn't. (gameMax is retained for callers/back-compat.)
+    void gameMax
+    const len = Math.max(8, total - cursor - coolLen)
+    push({ type: 'game', duration: len, ...gameChoice })
   }
 
   const coolActual = Math.max(4, total - cursor)
@@ -124,6 +221,15 @@ function scoreDrill(drill, ctx, usedFocus, usedFamily) {
   const rec = ctx.recency?.[drill.id] || 0 // 0..1, 1 = used most recently
   s -= rec * (fav ? 4 : 20)
   if (ctx.players > drill.players.max) s -= 3 // usable via multiple groups, slightly penalised
+  // GOOD-principle bonus for young squads: complete-GOOD drills (goals,
+  // opponent, opportunities for all, directional) give young players more
+  // game-realistic engagement than static reps, so nudge the builder
+  // towards them — but keep it below the focus-match weight (max 14)
+  // so covering the requested focus areas still dominates the pick.
+  if ((ctx.ageGroup === 'U6-U8' || ctx.ageGroup === 'U9-U11') && drill.good) {
+    const goodCount = ['goals', 'opponent', 'opportunities', 'directional'].filter((k) => drill.good[k]).length
+    s += goodCount * 2
+  }
   s += Math.random() * 3 // gentle variety between otherwise-tied drills
   return s
 }
@@ -144,51 +250,82 @@ function pickBest(pool, ctx, usedFocus, picked, usedFamily) {
 export function buildSession(opts) {
   const ctx = buildCtx(opts)
   const total = opts.duration
-  const { warmLen, coolLen, wantGame, mainBudget: initialBudget, targetDrillCount, gameMax } = computeSkeleton(total, ctx.players, ctx.ageGroup)
+  const games = DRILLS.filter((d) => d.category === 'game' && fits(d, ctx))
+  const sk = resolveShape(computeSkeleton(total, ctx.players, ctx.ageGroup), games.length)
+  const { warmLen, coolLen, wantGame, openWithGame, midGame, arrivalLen, midLen, mainBudget: initialBudget, targetDrillCount, gameMax, minDrill } = sk
+
   const usedFocus = {}
   const usedFamily = new Set()
   const picked = new Set()
   const fixedBlocks = []
 
-  // ---- warm-up ----
-  const warmups = DRILLS.filter((d) => d.category === 'warmup')
-  const wu = pickBest(warmups, ctx, usedFocus, picked, usedFamily) || warmups[1]
-  picked.add(wu.id)
-  usedFamily.add(wu.family)
-  // NB: warm-ups deliberately don't mark focus areas as covered —
-  // each chosen focus should still get a dedicated main drill.
-  fixedBlocks.push({ type: 'warmup', drillId: wu.id, title: wu.name, emoji: wu.emoji, duration: warmLen, blurb: wu.blurb })
+  const pickGame = () => {
+    const g = pickBest(DRILLS.filter((d) => d.category === 'game'), ctx, usedFocus, picked, usedFamily)
+    if (!g) return null
+    picked.add(g.id)
+    usedFamily.add(g.family)
+    return g
+  }
 
-  // ---- main drills ----
+  // ---- opening: arrival game (young) or warm-up (older) ----
+  // The Gamesology framework bookends the session with games; young squads
+  // therefore open on a short small-sided game instead of a technical drill.
+  if (openWithGame) {
+    const ag = pickGame()
+    if (ag) {
+      fixedBlocks.push({ type: 'game', drillId: ag.id, title: ag.name, emoji: ag.emoji, duration: arrivalLen, blurb: ag.blurb })
+    }
+  }
+  if (!fixedBlocks.length) {
+    // warm-up open (older squads, or young squads with no game available)
+    const warmups = DRILLS.filter((d) => d.category === 'warmup')
+    const wu = pickBest(warmups, ctx, usedFocus, picked, usedFamily) || warmups[1]
+    picked.add(wu.id)
+    usedFamily.add(wu.family)
+    // NB: warm-ups deliberately don't mark focus areas as covered —
+    // each chosen focus should still get a dedicated main drill.
+    fixedBlocks.push({ type: 'warmup', drillId: wu.id, title: wu.name, emoji: wu.emoji, duration: warmLen, blurb: wu.blurb })
+  }
+
+  // ---- main drills (with an optional mid-session game splitting them) ----
   const mains = DRILLS.filter((d) => d.category === 'drill')
+  const splitAfter = midGame && targetDrillCount >= 2 ? Math.ceil(targetDrillCount / 2) : -1
   let mainBudget = initialBudget
   let slots = targetDrillCount
-  while (mainBudget >= 8) {
+  let placed = 0
+  while (mainBudget >= minDrill && placed < targetDrillCount) {
     const drill = pickBest(mains, ctx, usedFocus, picked, usedFamily)
     if (!drill) break
     picked.add(drill.id)
     usedFamily.add(drill.family)
     drill.focus.forEach((f) => { if (ctx.focus.includes(f)) usedFocus[f] = true })
-    // aim for the drill's base length (leaving ≥8 min per remaining
+    // aim for the drill's base length (leaving ≥minDrill per remaining
     // slot), then clamp to the realistic range for this age group —
     // young squads get more, shorter drills instead of marathon ones
     const range = drillDurationRange(drill, ctx.ageGroup)
-    let len = slots > 1 ? Math.min(Math.max(8, drill.baseDuration), mainBudget - (slots - 1) * 8) : mainBudget
+    let len = slots > 1 ? Math.min(Math.max(minDrill, drill.baseDuration), mainBudget - (slots - 1) * minDrill) : mainBudget
     len = Math.max(Math.min(len, range.max), Math.min(range.min, mainBudget))
     len = Math.round(Math.min(len, mainBudget))
     fixedBlocks.push({ type: 'drill', drillId: drill.id, title: drill.name, emoji: drill.emoji, duration: len, blurb: drill.blurb })
     mainBudget -= len
     slots = Math.max(1, slots - 1)
+    placed += 1
+    // mid-session game to separate the main drills (youngest squads)
+    if (placed === splitAfter) {
+      const mg = pickGame()
+      if (mg) {
+        fixedBlocks.push({ type: 'game', drillId: mg.id, title: mg.name, emoji: mg.emoji, duration: midLen, blurb: mg.blurb })
+      }
+    }
   }
 
-  // ---- game ----
+  // ---- closing game (absorbs the session's remaining time) ----
   let gameChoice = null
   if (wantGame) {
-    const games = DRILLS.filter((d) => d.category === 'game')
-    const game = pickBest(games, ctx, usedFocus, picked, usedFamily) || games[0]
-    picked.add(game.id)
-    usedFamily.add(game.family)
-    gameChoice = { drillId: game.id, title: game.name, emoji: game.emoji, blurb: game.blurb }
+    const game = pickGame()
+    if (game) {
+      gameChoice = { drillId: game.id, title: game.name, emoji: game.emoji, blurb: game.blurb }
+    }
   }
 
   // ---- cool-down ----
@@ -207,3 +344,4 @@ export const BLOCK_STYLE = {
   break: { bg: 'var(--blue-100)', label: 'Break' },
   cooldown: { bg: 'var(--blue-100)', label: 'Cool-down' },
 }
+// end sessionBuilder

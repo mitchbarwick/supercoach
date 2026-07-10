@@ -317,7 +317,7 @@ export default function PitchAnimation({ diagram }) {
 
       {/* Safe zone: captions, area label and controls never overlap the pitch */}
       <div className="pitch-bar">
-        <div className="phase-banner">{phase || ' '}</div>
+        <div className="phase-banner">{phase || ' '}</div>
         {diagram.areaLabel && <span className="area-tag">{diagram.areaLabel}</span>}
         <div className="pitch-controls">
           <button onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>{playing ? '⏸' : '▶️'}</button>

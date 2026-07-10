@@ -21,22 +21,24 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString()
 }
 
-function ProgramCard({ p, onRun, onEdit }) {
+function ProgramCard({ p, onRun, onEdit, inProgress = false, primaryLabel = '▶ Run again', meta = null }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const drills = p.session.blocks.filter((b) => b.drillId).length
   return (
-    <div className="program-card">
+    <div className={`program-card${inProgress ? ' in-progress' : ''}`}>
       <div className="program-main">
         <div className="row" style={{ gap: 8 }}>
           <strong className="program-name">{p.name}</strong>
-          {p.runs > 1 && <span className="tag grey">×{p.runs}</span>}
+          {inProgress
+            ? <span className="tag inprogress">⏱ In progress</span>
+            : p.runs > 1 && <span className="tag grey">×{p.runs}</span>}
         </div>
         <p className="muted program-meta">
-          {drills} drills · {p.session.request.duration} min · last used {timeAgo(p.lastRunAt)}
+          {meta || `${drills} drills · ${p.session.request.duration} min · last used ${timeAgo(p.lastRunAt)}`}
         </p>
       </div>
       <div className="program-actions">
-        <button className="btn btn-primary btn-sm" onClick={onRun}>▶ Run again</button>
+        <button className="btn btn-primary btn-sm" onClick={onRun}>{primaryLabel}</button>
         <button className="btn btn-ghost btn-sm" onClick={onEdit}>✎ Edit</button>
         <button
           className="icon-btn sm"
@@ -63,6 +65,7 @@ export default function Home() {
   const favourites = useStore((s) => s.favourites)
   const session = useStore((s) => s.session)
   const ticks = useStore((s) => s.ticks)
+  const currentProgramId = useStore((s) => s.currentProgramId)
   const guestEntered = useStore((s) => s.guestEntered)
 
   useEffect(() => { actions.refresh() }, [])
@@ -80,14 +83,21 @@ export default function Home() {
     return <Navigate to="/new" replace />
   }
 
-  const saved = programs.filter((p) => p.saved)
-  const recent = programs.filter((p) => !p.saved).slice(0, 5)
-  const favDrills = favourites.map(getDrill).filter(Boolean)
-  const firstName = auth?.user?.name?.split(' ')[0]
-
   const liveBlocks = session?.blocks || []
   const liveDone = liveBlocks.filter((b) => ticks[b.id]).length
   const sessionInProgress = liveBlocks.length > 0 && liveDone > 0 && liveDone < liveBlocks.length
+
+  const saved = programs.filter((p) => p.saved)
+  // The in-progress session gets its own "resume" card at the top of the
+  // recent list, so drop it from the cards below to avoid showing it twice.
+  const recent = programs
+    .filter((p) => !p.saved && !(sessionInProgress && p.id === currentProgramId))
+    .slice(0, 5)
+  // The live, partly-done session — shown as a normal (but highlighted)
+  // recent card with a "Continue" action instead of "Run again".
+  const inProgressProgram = sessionInProgress ? programs.find((p) => p.id === currentProgramId) : null
+  const favDrills = favourites.map(getDrill).filter(Boolean)
+  const firstName = auth?.user?.name?.split(' ')[0]
 
   const run = (id) => { actions.runProgram(id); navigate('/plan') }
   const edit = (id) => { actions.runProgram(id); navigate('/plan?edit=1') }
@@ -99,17 +109,6 @@ export default function Home() {
         <p>Pick up where you left off, or build tonight's session from scratch.</p>
       </div>
 
-      {sessionInProgress && (
-        <button className="card resume-card" onClick={() => navigate('/plan')}>
-          <span className="emoji-badge" style={{ background: 'var(--green-100)' }}>⏱</span>
-          <span style={{ flex: 1, textAlign: 'left' }}>
-            <strong>Session in progress</strong>
-            <span className="muted" style={{ display: 'block', fontSize: 13.5 }}>{liveDone} of {liveBlocks.length} done — jump back in</span>
-          </span>
-          <span aria-hidden="true">→</span>
-        </button>
-      )}
-
       <Link to="/new" className="card new-session-card">
         <span className="emoji-badge" style={{ background: 'var(--green-100)', fontSize: 24 }}>⚽</span>
         <span style={{ flex: 1 }}>
@@ -119,9 +118,19 @@ export default function Home() {
         <span aria-hidden="true">→</span>
       </Link>
 
-      {recent.length > 0 && (
+      {(inProgressProgram || recent.length > 0) && (
         <section style={{ marginTop: 26 }}>
           <h2 className="home-h">🕐 Recent sessions</h2>
+          {inProgressProgram && (
+            <ProgramCard
+              p={inProgressProgram}
+              inProgress
+              primaryLabel="▶ Continue"
+              meta={`${liveDone} of ${liveBlocks.length} done · ${inProgressProgram.session.request.duration} min`}
+              onRun={() => navigate('/plan')}
+              onEdit={() => navigate('/plan?edit=1')}
+            />
+          )}
           {recent.map((p) => <ProgramCard key={p.id} p={p} onRun={() => run(p.id)} onEdit={() => edit(p.id)} />)}
         </section>
       )}

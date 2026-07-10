@@ -35,7 +35,7 @@ function FeedbackItem({ f }) {
       <p style={{ fontSize: 15, marginBottom: 8 }}>"{f.text}"</p>
       <div className="chip-row" style={{ gap: 6 }}>
         {age && <span className="tag grey">👶 {age}</span>}
-        {f.players && <span className="tag grey">👥 {f.players} kids</span>}
+        {f.players && <span className="tag grey">👥 {f.players} players</span>}
         {f.duration && <span className="tag grey">⏱ {f.duration} min</span>}
         {focus && <span className="tag grey">🎯 {focus}</span>}
         {f.source && <span className="tag grey">{f.source === 'plan' ? '📋 from a plan' : '📚 from the library'}</span>}

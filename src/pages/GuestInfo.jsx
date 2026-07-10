@@ -19,7 +19,7 @@ const SIGNED_IN_POINTS = [
   'Unlimited plans, kept in your history',
   'Favourite drills — picked first when building sessions',
   'Edit any plan — swap drills that don’t fit',
-  'Full drill library, including "say this to the kids" scripts',
+  'Full drill library, including "say this to the players" scripts',
   'Emergency injury support',
   'Synced across every device',
 ]

@@ -68,6 +68,10 @@ export default function DrillDetail() {
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 1800) }
 
+  const ageBand = (session?.request?.ageGroup) || 'U9-U11'
+  const isYoung = ageBand === 'U6-U8' || ageBand === 'U9-U11'
+  const coachingPointsForAge = isYoung && drill.coachingPointsYoung?.length ? drill.coachingPointsYoung : drill.coachingPoints
+
   return (
     <div>
       {inPlan && (
@@ -117,11 +121,20 @@ export default function DrillDetail() {
         </div>
       )}
 
+      {!inPlan && drill.good && (
+        <div className="chip-row" style={{ marginBottom: 16 }}>
+          <span className={`tag ${drill.good.goals ? 'green' : 'grey'}`}>{drill.good.goals ? '✓' : '✗'} Goals</span>
+          <span className={`tag ${drill.good.opponent ? 'green' : 'grey'}`}>{drill.good.opponent ? '✓' : '✗'} Opponent</span>
+          <span className={`tag ${drill.good.opportunities ? 'green' : 'grey'}`}>{drill.good.opportunities ? '✓' : '✗'} Opportunities</span>
+          <span className={`tag ${drill.good.directional ? 'green' : 'grey'}`}>{drill.good.directional ? '✓' : '✗'} Directional</span>
+        </div>
+      )}
+
       <div style={{ marginBottom: 14 }}>
         <PitchAnimation diagram={drill.diagram} />
       </div>
 
-      <Section icon="🗣️" title="Say this to the kids">
+      <Section icon="🗣️" title="Say this to the players">
         {guest ? (
           <div className="locked-content">
             <p className="locked-content-body" style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>
@@ -169,9 +182,15 @@ export default function DrillDetail() {
         </ul>
       </Section>
 
+      {drill.yourRole && (
+        <Section icon="🧑‍🏫" title="Your job during this drill">
+          <p style={{ fontSize: 15, color: 'var(--ink-700)' }}>{drill.yourRole}</p>
+        </Section>
+      )}
+
       <Section icon="🎯" title="What to coach">
         <ul className="nice-list">
-          {drill.coachingPoints.map((s, i) => <li key={i}><span className="dot">✓</span><span>{s}</span></li>)}
+          {coachingPointsForAge.map((s, i) => <li key={i}><span className="dot">✓</span><span>{s}</span></li>)}
         </ul>
         {aiTips && (
           <div className="ai-note" style={{ marginTop: 14 }}>

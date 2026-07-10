@@ -1,6 +1,6 @@
 // "Something not quite right?" — free-text feedback at the bottom of
 // every drill page. Sends the coach's words plus telemetry (which
-// drill, what age group, how many kids...) so the app creator can
+// drill, what age group, how many players...) so the app creator can
 // tune the drill. Works for guests too; hidden until the API exists.
 import { useState } from 'react'
 import { apiEnabled, APP_VERSION } from '../config.js'
@@ -67,7 +67,7 @@ export default function DrillFeedback({ drill, source }) {
           <textarea
             className="note-input"
             autoFocus
-            placeholder="What didn't make sense, or what didn't work for your kids?"
+            placeholder="What didn't make sense, or what didn't work for your players?"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
