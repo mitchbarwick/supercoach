@@ -5,7 +5,7 @@
 // with drink breaks factored in.
 // Favourited drills are preferred whenever they fit.
 // ============================================================
-import { DRILLS, FOCUS_AREAS, AGE_BLOCK_CAPS, drillDurationRange, drillSuitsAge } from '../data/drills.js'
+import { DRILLS, FOCUS_AREAS, AGE_BLOCK_CAPS, drillDurationRange, drillSuitsAge, drillsClash, getDrill } from '../data/drills.js'
 
 const BREAK_EVERY_MIN = 18 // activity minutes between drink breaks
 const BREAK_LEN = 3
@@ -45,7 +45,11 @@ export function buildCtx(opts) {
 export function computeSkeleton(total, players, ageGroup) {
   const caps = AGE_BLOCK_CAPS[ageGroup] || AGE_BLOCK_CAPS['U9-U11']
   const young = ageGroup === 'U6-U8' || ageGroup === 'U9-U11'
-  const coolLen = Math.min(total <= 45 ? 5 : 6, caps.cooldown)
+  // When time is tight the warm-up wins over the cool-down: short sessions
+  // trim the cool-down to its 3-minute floor so the injury-prevention
+  // warm-up always keeps its slot — cold muscles at kick-off are a bigger
+  // risk than a brisk wind-down at the end.
+  const coolLen = Math.min(total < 35 ? 3 : total <= 45 ? 5 : 6, caps.cooldown)
 
   // Relaxed game gate. The Gamesology framework (good-training-session.md)
   // wants games to bookend every session — yet the old gate (>=35 min AND
@@ -62,6 +66,12 @@ export function computeSkeleton(total, players, ageGroup) {
   const shortBlock = Math.min(caps.game, Math.max(6, Math.round(total * 0.15)))
   const warmLen = Math.min(total <= 45 ? Math.max(6, Math.round(total * 0.15)) : 10, caps.warmup)
   const arrivalLen = openWithGame ? shortBlock : 0
+  // Game-open sessions always open on a short movement-prep block (a
+  // lightened FIFA 11+-style warm-up) BEFORE the arrival game —
+  // injury-prevention work comes first, every time, then the kids get their
+  // game. Short sessions shorten the prep rather than dropping it: the
+  // warm-up outranks the cool-down when minutes are scarce.
+  const prepLen = openWithGame ? Math.min(total < 35 ? 4 : 5, caps.warmup) : 0
   const gameMax = caps.game
 
   // The closing game absorbs the session's remainder in assembleTimeline, but
@@ -69,7 +79,7 @@ export function computeSkeleton(total, players, ageGroup) {
   const closingReserve = wantGame
     ? (young ? Math.max(8, shortBlock) : Math.min(gameMax, Math.max(10, Math.round(total * 0.25))))
     : 0
-  const openLen = openWithGame ? arrivalLen : (warmup ? warmLen : 0)
+  const openLen = openWithGame ? arrivalLen + prepLen : (warmup ? warmLen : 0)
 
   // Mid-session game (youngest only) — only kept if there are >=2 drills for
   // it to separate; otherwise its minutes go back to the main drills.
@@ -108,21 +118,24 @@ export function computeSkeleton(total, players, ageGroup) {
 
   return {
     warmLen, coolLen, wantGame, openWithGame, midGame, warmup,
-    arrivalLen, midLen, gameLen: closingReserve, mainBudget,
+    arrivalLen, prepLen, midLen, gameLen: closingReserve, mainBudget,
     targetDrillCount, gameMax, drillMax: caps.drill, minDrill,
   }
 }
 
 // The ordered block roles a session should contain, e.g.
-// ['game','drill','drill','game','cooldown'] for a young squad or
+// ['warmup','game','drill','drill','game','cooldown'] for a young squad or
 // ['warmup','drill','drill','game','cooldown'] for an older one.
 // The single source of truth for block sequence, shared by the rule-based
 // builder, the AI designer's prompt, and its validator so all three agree.
-// A leading 'game' is the arrival game; a 'game' immediately before the
-// final 'cooldown' is the closing game (the one that absorbs remainder);
-// any other mid-list 'game' is the mid-session game.
+// For a game-open session, a leading 'warmup' is the short injury-prevention
+// movement prep and the first 'game' is the arrival game; a 'game'
+// immediately before the final 'cooldown' is the closing game (the one that
+// absorbs remainder); any other mid-list 'game' is the mid-session game.
 export function sessionRoles(skeleton) {
-  const roles = [skeleton.openWithGame ? 'game' : 'warmup']
+  const roles = []
+  if (skeleton.openWithGame && skeleton.prepLen > 0) roles.push('warmup')
+  roles.push(skeleton.openWithGame ? 'game' : 'warmup')
   const n = skeleton.targetDrillCount
   const splitAt = skeleton.midGame && n >= 2 ? Math.ceil(n / 2) : -1
   for (let i = 0; i < n; i++) {
@@ -138,13 +151,16 @@ export function sessionRoles(skeleton) {
 // actually supply (distinct games). Drops the mid game first, then the
 // arrival game (reverting to a warm-up open), then the closing game — so a
 // setup with few or no games still yields a valid, buildable session.
-export function resolveShape(sk, gamesAvailable) {
-  let { openWithGame, midGame, wantGame, warmup, arrivalLen, midLen } = sk
+// `warmupsAvailable` likewise drops the post-arrival-game prep block when
+// no warm-up drill fits today's setup (its minutes flow to the closing game).
+export function resolveShape(sk, gamesAvailable, warmupsAvailable = 1) {
+  let { openWithGame, midGame, wantGame, warmup, arrivalLen, prepLen, midLen } = sk
   const need = () => (openWithGame ? 1 : 0) + (midGame ? 1 : 0) + (wantGame ? 1 : 0)
   if (gamesAvailable < need() && midGame) { midGame = false; midLen = 0 }
-  if (gamesAvailable < need() && openWithGame) { openWithGame = false; warmup = true; arrivalLen = 0 }
+  if (gamesAvailable < need() && openWithGame) { openWithGame = false; warmup = true; arrivalLen = 0; prepLen = 0 }
   if (gamesAvailable < need() && wantGame) { wantGame = false }
-  return { ...sk, openWithGame, midGame, wantGame, warmup, arrivalLen, midLen }
+  if (openWithGame && warmupsAvailable < 1) { prepLen = 0 }
+  return { ...sk, openWithGame, midGame, wantGame, warmup, arrivalLen, prepLen, midLen }
 }
 
 /**
@@ -189,7 +205,9 @@ export function assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, total,
     push({ type: 'game', duration: len, ...gameChoice })
   }
 
-  const coolActual = Math.max(4, total - cursor)
+  // 3-minute floor: short sessions deliberately run a trimmed cool-down so
+  // the warm-up keeps its minutes (warm-up > cool-down under time pressure).
+  const coolActual = Math.max(3, total - cursor)
   push({ type: 'cooldown', duration: coolActual, ...cooldownChoice })
 
   return { blocks, totalPlanned: cursor }
@@ -207,6 +225,12 @@ function scoreDrill(drill, ctx, usedFocus, usedFamily) {
   let s = Math.min(focusScore, 14)
   const fav = ctx.favourites.includes(drill.id)
   if (fav) s += 6
+  // Injury-prevention (FIFA 11+-style) warm-ups are the squad's *standard*
+  // warm-up: the bonus outweighs any focus match (capped at 14) so they win
+  // the warm-up slot regardless of the session's chosen focus, while staying
+  // below a focus-matched favourite (14+6) so a favourited warm-up can still
+  // rotate in occasionally.
+  if (drill.injuryPrevention) s += 18
   // Similarity: a drill from a family we've already used this session is
   // a repeat of the same challenge — nudge towards something different so
   // the session stays varied. Soft penalty (never a hard filter), so it
@@ -217,9 +241,11 @@ function scoreDrill(drill, ctx, usedFocus, usedFamily) {
   // loses up to 20 points — more than any drill's positive score — so it
   // reliably steps aside for a fresher option, easing back in as the
   // penalty fades. Favourites lose only up to 4, because favouriting is the
-  // coach's explicit "show me this one more often" signal.
+  // coach's explicit "show me this one more often" signal — and the standard
+  // injury-prevention warm-up gets the same light touch, since a prevention
+  // routine only works when it's repeated session after session.
   const rec = ctx.recency?.[drill.id] || 0 // 0..1, 1 = used most recently
-  s -= rec * (fav ? 4 : 20)
+  s -= rec * (fav || drill.injuryPrevention ? 4 : 20)
   if (ctx.players > drill.players.max) s -= 3 // usable via multiple groups, slightly penalised
   // GOOD-principle bonus for young squads: complete-GOOD drills (goals,
   // opponent, opportunities for all, directional) give young players more
@@ -235,7 +261,12 @@ function scoreDrill(drill, ctx, usedFocus, usedFamily) {
 }
 
 function pickBest(pool, ctx, usedFocus, picked, usedFamily) {
-  const candidates = pool.filter((d) => !picked.has(d.id) && fits(d, ctx))
+  // Hard rule: never pair drills that declare each other in `avoidWith` —
+  // they're the same game under different names (Sharks & Minnows vs King
+  // of the Ring), so one plan should only ever contain one of them.
+  const pickedDrills = [...picked].map(getDrill).filter(Boolean)
+  const candidates = pool.filter((d) =>
+    !picked.has(d.id) && fits(d, ctx) && !pickedDrills.some((p) => drillsClash(p, d)))
   if (!candidates.length) return null
   candidates.sort((a, b) => scoreDrill(b, ctx, usedFocus, usedFamily) - scoreDrill(a, ctx, usedFocus, usedFamily))
   return candidates[0]
@@ -251,8 +282,9 @@ export function buildSession(opts) {
   const ctx = buildCtx(opts)
   const total = opts.duration
   const games = DRILLS.filter((d) => d.category === 'game' && fits(d, ctx))
-  const sk = resolveShape(computeSkeleton(total, ctx.players, ctx.ageGroup), games.length)
-  const { warmLen, coolLen, wantGame, openWithGame, midGame, arrivalLen, midLen, mainBudget: initialBudget, targetDrillCount, gameMax, minDrill } = sk
+  const warmupsAvailable = DRILLS.filter((d) => d.category === 'warmup' && fits(d, ctx)).length
+  const sk = resolveShape(computeSkeleton(total, ctx.players, ctx.ageGroup), games.length, warmupsAvailable)
+  const { warmLen, coolLen, wantGame, openWithGame, midGame, arrivalLen, prepLen, midLen, mainBudget: initialBudget, targetDrillCount, gameMax, minDrill } = sk
 
   const usedFocus = {}
   const usedFamily = new Set()
@@ -271,6 +303,18 @@ export function buildSession(opts) {
   // The Gamesology framework bookends the session with games; young squads
   // therefore open on a short small-sided game instead of a technical drill.
   if (openWithGame) {
+    // Short movement-prep block opens the session — the young squad's dose
+    // of the FIFA 11+-style routine (the injuryPrevention score bonus means
+    // that's what usually gets picked here) — then the arrival game.
+    if (prepLen > 0) {
+      const warmups = DRILLS.filter((d) => d.category === 'warmup')
+      const prep = pickBest(warmups, ctx, usedFocus, picked, usedFamily)
+      if (prep) {
+        picked.add(prep.id)
+        usedFamily.add(prep.family)
+        fixedBlocks.push({ type: 'warmup', drillId: prep.id, title: prep.name, emoji: prep.emoji, duration: prepLen, blurb: prep.blurb })
+      }
+    }
     const ag = pickGame()
     if (ag) {
       fixedBlocks.push({ type: 'game', drillId: ag.id, title: ag.name, emoji: ag.emoji, duration: arrivalLen, blurb: ag.blurb })

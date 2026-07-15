@@ -45,6 +45,14 @@ export default function DrillDetail() {
   const inPlan = blockIndex !== -1
   const prevBlock = inPlan && blockIndex > 0 ? drillableBlocks[blockIndex - 1] : null
   const nextBlock = inPlan && blockIndex < drillableBlocks.length - 1 ? drillableBlocks[blockIndex + 1] : null
+
+  // Non-drillable blocks (drink breaks) sit between drills in the plan but
+  // are skipped by prev/next navigation — so stepping over one should tick
+  // (or, going backwards, untick) it too, keeping plan progress honest.
+  const planIndexOf = (b) => planBlocks.findIndex((p) => p.id === b?.id)
+  const setTicksBetween = (fromIdx, toIdx, done) => {
+    planBlocks.slice(fromIdx, toIdx).forEach((b) => { if (!b.drillId) actions.setTick(b.id, done) })
+  }
   const done = planBlocks.filter((b) => ticks[b.id]).length
   const pct = planBlocks.length ? Math.round((done / planBlocks.length) * 100) : 0
   const minsLeft = planBlocks.filter((b) => !ticks[b.id]).reduce((sum, b) => sum + b.duration, 0)
@@ -262,6 +270,8 @@ export default function DrillDetail() {
                 aria-label="Previous drill"
                 onClick={() => {
                   actions.setTick(blockId, false)
+                  // stepping back over a drink break un-ticks it again
+                  setTicksBetween(planIndexOf(prevBlock) + 1, planIndexOf({ id: blockId }), false)
                   navigate(`/drill/${prevBlock.drillId}?block=${prevBlock.id}`)
                 }}
               >
@@ -272,6 +282,10 @@ export default function DrillDetail() {
               className="btn btn-primary btn-block"
               onClick={() => {
                 actions.setTick(blockId, true)
+                // advancing past a drink break checks it off too; finishing
+                // the session sweeps up any trailing non-drill blocks
+                const curIdx = planIndexOf({ id: blockId })
+                setTicksBetween(curIdx + 1, nextBlock ? planIndexOf(nextBlock) : planBlocks.length, true)
                 navigate(nextBlock ? `/drill/${nextBlock.drillId}?block=${nextBlock.id}` : '/plan')
               }}
             >

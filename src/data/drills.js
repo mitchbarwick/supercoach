@@ -128,6 +128,215 @@ const still = (x, y) => [{ t: 0, x, y }, { t: 1, x, y }];
 
 export const DRILLS = [
   // ================= WARM-UPS =================
+  // The three `injuryPrevention` warm-ups below are lightened, age-graded
+  // takes on the FIFA 11+ programme (MiniRoos style for the littlest legs,
+  // building to the fuller routine for seniors): a cone lane, a sequence of
+  // movement exercises, then a graded speed build. They're flagged so the
+  // session builder treats them as the squad's *standard* warm-up: strongly
+  // preferred for any warm-up slot, and largely exempt from the recency
+  // rotation because an injury-prevention routine is meant to repeat every
+  // session.
+  {
+    id: 'eleven-plus-kids-prep',
+    name: 'FIFA 11+ MiniRoos',
+    emoji: '🦘',
+    category: 'warmup',
+    focus: ['fitness'],
+    equipment: ['cones'],
+    players: { min: 4, max: 30 },
+    ages: ['U6-U8', 'U6-U8'], // youngest band only — U9+ graduates to FIFA 11+ Lite
+    family: 'injury-prevention',
+    injuryPrevention: true,
+    good: { goals: false, opponent: false, opportunities: true, directional: true },
+    baseDuration: 6,
+    blurb: 'The MiniRoos take on the FIFA 11+ warm-up — a lap of fun movements from kangaroo hops to feeding the chickens, ending in a full-speed run.',
+    setup: [
+      'Set up two cones about 15 steps apart (or 4 cones making two lanes if the group is 6 or more).',
+      'No balls needed — players line up behind the first cone.',
+    ],
+    howToPlay: [
+      'Run the lane one exercise at a time, jogging back to the start between each:',
+      '1. Slow jog.',
+      '2. High knees.',
+      '3. Heels back — kick your own butt!',
+      '4. Kangaroo hops — two-footed bounces, soft landings.',
+      '5. "Feed the chickens" — take a few steps, touch the grass with both hands, repeat.',
+      '6. Run at 50% speed.',
+      '7. Full speed!',
+      '8. Slow jog to finish.',
+    ],
+    coachingPoints: [
+      'Soft, quiet landings on the kangaroo hops — bent knees, no thuds.',
+      'High knees and heels back should be quick little contacts, not big slow strides.',
+      'Keep the queue moving — short lane, fast turnover, everyone stays warm.',
+    ],
+    coachingPointsYoung: [
+      'Sell the actions — bounce like a kangaroo, really scatter that chicken feed.',
+      'Praise the quietest landing, not the biggest jump.',
+      'Do each exercise with them the first time so nobody has to guess.',
+    ],
+    yourRole: 'Lead from the front and call each exercise — you\'re checking knees land soft and everyone finishes the full lap, disguised as a game of follow-the-leader.',
+    kidExplanation: {
+      'U6-U8': 'Follow the lap! Jog, march with giant knees, kick your own bottom, bounce like a kangaroo, feed the chickens, then finish with your fastest run ever!',
+      'U9-U11': 'A lap of warm-up moves — high knees, heels back, kangaroo hops, feed the chickens — building up from a jog to a flat-out run.',
+      'U12-U14': 'Movement-prep lap: running mechanics, hop-landing control and ground touches, building through 50% to full speed.',
+      'U15+': 'MiniRoos version of the 11+ running block — mechanics first, graded speed build to finish.',
+    },
+    adaptations: {
+      easier: ['Shorter lane.', 'Skip the full-speed run and finish at 50%.'],
+      harder: ['Add a second lap.', 'Kangaroo hops on one foot for the last few steps.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Cone lane, 15 steps',
+      cones: [{ x: 18, y: 20 }, { x: 82, y: 20 }, { x: 18, y: 44 }, { x: 82, y: 44 }],
+      phases: [
+        { t: 0, label: 'High knees down the lane…' },
+        { t: 0.5, label: 'Feed the chickens!' },
+        { t: 0.8, label: 'Full speed home!' },
+      ],
+      entities: [
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 20, y: 20 }, { t: 0.45, x: 78, y: 20 }, { t: 0.7, x: 78, y: 20 }, { t: 1, x: 22, y: 20 }] },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 20, y: 44 }, { t: 0.5, x: 78, y: 44 }, { t: 0.75, x: 78, y: 44 }, { t: 1, x: 22, y: 44 }] },
+        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
+      ],
+    },
+  },
+  {
+    id: 'eleven-plus-lite',
+    name: 'FIFA 11+ Lite',
+    emoji: '🛡️',
+    category: 'warmup',
+    focus: ['fitness'],
+    equipment: ['cones'],
+    players: { min: 4, max: 30 },
+    ages: ['U9-U11', 'U12-U14'], // 9-14; U15+ gets the fuller senior version
+    family: 'injury-prevention',
+    injuryPrevention: true,
+    good: { goals: false, opponent: false, opportunities: true, directional: true },
+    baseDuration: 8,
+    blurb: 'The 9-14 version of the FIFA 11+ warm-up lap — running mechanics, gates, header jumps and air kicks, building to full speed.',
+    setup: [
+      'Set up two cones about 20 steps apart (or 4 cones making two lanes if the group is 6 or more).',
+      'No balls needed — players line up behind the first cone.',
+    ],
+    howToPlay: [
+      'Run the lane one exercise at a time, jogging back to the start between each:',
+      '1. Slow jog.',
+      '2. High knees.',
+      '3. Heels back — kick your own butt.',
+      '4. "Open the gates" — lift the knee and swing the hip out with each step.',
+      '5. "Close the gates" — lift the knee and swing the hip in.',
+      '6. Jump up for headers — jog a few steps, leap for an imaginary header, land soft.',
+      '7. Air kicks — swing each leg up to meet an imaginary volley.',
+      '8. "Feed the chickens" — take a few steps, touch the grass with both hands, repeat.',
+      '9. Run at 50% speed.',
+      '10. Full speed!',
+      '11. Slow jog to finish.',
+    ],
+    coachingPoints: [
+      'Every jump and landing: knees bent, knee tracking over the toes, never collapsing inwards.',
+      'Gates should be slow and deliberate — full circle with the hip, tall posture.',
+      'The speed build is graded on purpose: nobody hits full pace on cold legs.',
+    ],
+    coachingPointsYoung: [
+      'Name the moves out loud — "open the gates!" — and do the first rep with them.',
+      'Praise soft, quiet landings on the header jumps.',
+      'Keep the queue short so nobody stands still long enough to cool off.',
+    ],
+    yourRole: 'Call each exercise and watch the landings — this routine only prevents injuries if the shapes are right, so fix form, not speed.',
+    kidExplanation: {
+      'U6-U8': 'A lap of moves — high knees, gate swings, jumps and chicken feeding — finishing with your fastest run!',
+      'U9-U11': 'The pro warm-up lap: high knees, heels back, open and close the gates, leap for headers, air kicks, feed the chickens — then build up to full speed.',
+      'U12-U14': 'The FIFA 11+ running block: mechanics, hip mobility gates, jump-landing control, then a graded build from 50% to full pace.',
+      'U15+': 'The 11+ running sequence — mechanics, gates, jumps and a graded speed build.',
+    },
+    adaptations: {
+      easier: ['Shorter lane.', 'Skip the air kicks and header jumps for tired groups.'],
+      harder: ['Add a second lap.', 'Header jumps off one foot, alternating each rep.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Cone lane, 20 steps',
+      cones: [{ x: 15, y: 20 }, { x: 85, y: 20 }, { x: 15, y: 44 }, { x: 85, y: 44 }],
+      phases: [
+        { t: 0, label: 'Open the gates…' },
+        { t: 0.45, label: 'Jump for the header!' },
+        { t: 0.8, label: 'Full speed home!' },
+      ],
+      entities: [
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 17, y: 20 }, { t: 0.45, x: 83, y: 20 }, { t: 0.65, x: 83, y: 20 }, { t: 1, x: 19, y: 20 }] },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 17, y: 44 }, { t: 0.5, x: 83, y: 44 }, { t: 0.7, x: 83, y: 44 }, { t: 1, x: 19, y: 44 }] },
+        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
+      ],
+    },
+  },
+  {
+    id: 'eleven-plus-senior',
+    name: 'FIFA 11+ Senior',
+    emoji: '💪',
+    category: 'warmup',
+    focus: ['fitness'],
+    equipment: ['cones'],
+    players: { min: 4, max: 30 },
+    ages: ['U15+', 'U15+'],
+    family: 'injury-prevention',
+    injuryPrevention: true,
+    good: { goals: false, opponent: false, opportunities: true, directional: true },
+    baseDuration: 10,
+    blurb: 'The full-length FIFA 11+ warm-up lap for senior legs — mechanics, gates, jumps, lunges and a three-step speed build.',
+    setup: [
+      'Set up two cones about 25 steps apart (or 4 cones making two lanes if the group is 6 or more).',
+      'No balls needed — players line up behind the first cone.',
+    ],
+    howToPlay: [
+      'Run the lane one exercise at a time, jogging back to the start between each:',
+      '1. Slow jog.',
+      '2. High knees.',
+      '3. Heels back — kick your own butt.',
+      '4. "Open the gates" — lift the knee and swing the hip out with each step.',
+      '5. "Close the gates" — lift the knee and swing the hip in.',
+      '6. Jump up for headers — jog a few steps, leap for an imaginary header, land soft.',
+      '7. Air kicks — swing each leg up to meet an imaginary volley.',
+      '8. Lunges — long, controlled steps, back knee kissing the grass.',
+      '9. "Feed the chickens" — take a few steps, touch the grass with both hands, repeat.',
+      '10. Run at 50% speed.',
+      '11. Run at 75% speed.',
+      '12. Full speed!',
+      '13. Slow jog to finish.',
+    ],
+    coachingPoints: [
+      'Lunges: front knee over the toes, torso tall, no wobble at the bottom — this is the injury-prevention money exercise.',
+      'Every jump lands with bent knees, never collapsing inwards.',
+      'Respect the 50/75/100 build — the graded steps are what make full pace safe.',
+    ],
+    yourRole: 'Call the sequence and police the lunge and landing shapes — senior legs get hurt when form slips, so fix shapes before speed.',
+    kidExplanation: {
+      'U6-U8': 'The grown-up warm-up lap — moves, jumps and lunges, then faster and faster runs.',
+      'U9-U11': 'The senior warm-up lap — like yours but with lunges and an extra speed step.',
+      'U12-U14': 'The full 11+ running block with lunges and a three-step speed build — what you graduate to at 15.',
+      'U15+': 'The full 11+ running sequence: mechanics, hip gates, jump-landing control, lunges, then 50% → 75% → full pace. Done properly, this routine measurably cuts injury risk — every session, no shortcuts.',
+    },
+    adaptations: {
+      easier: ['Shorten the lane.', 'Drop to one speed step (50% then full).'],
+      harder: ['Add walking Nordics or partner hamstring lowers after the lunges.', 'Second lap with a ball at feet for the jog sections.'],
+    },
+    diagram: {
+      duration: 8,
+      areaLabel: 'Cone lane, 25 steps',
+      cones: [{ x: 12, y: 20 }, { x: 88, y: 20 }, { x: 12, y: 44 }, { x: 88, y: 44 }],
+      phases: [
+        { t: 0, label: 'Gates and lunges…' },
+        { t: 0.45, label: '75% pace…' },
+        { t: 0.8, label: 'Full speed!' },
+      ],
+      entities: [
+        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 14, y: 20 }, { t: 0.45, x: 86, y: 20 }, { t: 0.62, x: 86, y: 20 }, { t: 1, x: 16, y: 20 }] },
+        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 14, y: 44 }, { t: 0.5, x: 86, y: 44 }, { t: 0.68, x: 86, y: 44 }, { t: 1, x: 16, y: 44 }] },
+        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
+      ],
+    },
+  },
   {
     id: 'traffic-lights',
     name: 'Traffic Lights',
@@ -262,6 +471,7 @@ export const DRILLS = [
     players: { min: 4, max: 24 },
     ages: ['U6-U8', 'U12-U14'],
     family: 'tag-evasion',
+    avoidWith: ['king-of-the-ring'], // same core game — never plan both together
     good: { goals: true, opponent: true, opportunities: true, directional: true },
     baseDuration: 8,
     blurb: 'Dribblers try to cross the square without a shark stealing their ball.',
@@ -2847,6 +3057,7 @@ export const DRILLS = [
     players: { min: 4, max: 20 },
     ages: ['U6-U8', 'U15+'],
     family: 'tag-evasion',
+    avoidWith: ['sharks-minnows'], // same core game — never plan both together
     good: { goals: true, opponent: true, opportunities: true, directional: false },
     baseDuration: 10,
     blurb: 'Everyone dribbles inside the ring — protect your ball, kick everyone else\'s out.',
@@ -4074,6 +4285,16 @@ export const DRILLS = [
 // Look up a single drill by id — returns undefined if it doesn't exist.
 export function getDrill(id) {
   return DRILLS.find((d) => d.id === id);
+}
+
+// Some drills are near-identical games under different names (e.g. Sharks &
+// Minnows vs King of the Ring — both "protect your ball / kick theirs out").
+// Those drills declare `avoidWith: [drillId, ...]`, and this checks the clash
+// in either direction so tagging one side is enough. Unlike the soft `family`
+// penalty, a clash is a hard rule: the pair never appears in the same plan.
+export function drillsClash(a, b) {
+  if (!a || !b || a.id === b.id) return false;
+  return (a.avoidWith || []).includes(b.id) || (b.avoidWith || []).includes(a.id);
 }
 
 // The age-appropriate script for a drill: falls back to the closest
