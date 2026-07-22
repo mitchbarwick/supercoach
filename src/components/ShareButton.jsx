@@ -15,6 +15,7 @@ export default function ShareButton({
   const [toast, setToast] = useState('')
 
   const onClick = async () => {
+    if (!url) return
     const result = await shareLink({ title, text, url })
     if (result === 'copied') setToast('Link copied — paste it into a message or email')
     else if (result === 'failed') setToast('Couldn’t copy — long-press the address bar to share')
@@ -24,7 +25,7 @@ export default function ShareButton({
 
   return (
     <>
-      <button type="button" className={className} onClick={onClick}>
+      <button type="button" className={className} onClick={onClick} disabled={!url}>
         <span aria-hidden="true">{icon}</span> {label}
       </button>
       {toast && <div className="toast">{toast}</div>}

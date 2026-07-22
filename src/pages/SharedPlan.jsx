@@ -2,7 +2,7 @@
 // read-only preview of someone else's plan, then lets the recipient
 // copy it into their own SuperCoach — as a NEW plan, so nothing they
 // already had is overwritten.
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { actions } from '../store/useStore.js'
 import { BLOCK_STYLE } from '../engine/sessionBuilder.js'
@@ -15,8 +15,18 @@ export default function SharedPlan() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const payload = searchParams.get('p') || ''
-  const session = useMemo(() => decodeSession(payload), [payload])
+  const [session, setSession] = useState(undefined) // undefined = decoding, null = bad link
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    decodeSession(payload).then((s) => { if (live) setSession(s) })
+    return () => { live = false }
+  }, [payload])
+
+  if (session === undefined) {
+    return <div className="empty-state"><div className="big">🔗</div><h2>Opening shared session…</h2></div>
+  }
 
   if (!session) {
     return (

@@ -1,7 +1,7 @@
 // The overview plan — designed to live on a phone at the pitch.
 // ?edit=1 (or the ✎ button) opens edit mode: swap any drill for an
 // alternative that fits tonight's squad and kit.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore, actions } from '../store/useStore.js'
 import { BLOCK_STYLE, fits, buildCtx } from '../engine/sessionBuilder.js'
@@ -58,6 +58,16 @@ export default function PlanView() {
   const editing = searchParams.get('edit') === '1' && !guest
   const [swapBlock, setSwapBlock] = useState(null)
   const [toast, setToast] = useState('')
+  // Compress the plan into a share link ahead of the click, so tapping
+  // Share fires the native share sheet synchronously (mobile browsers
+  // require that within the user gesture).
+  const [shareUrl, setShareUrl] = useState('')
+  useEffect(() => {
+    let live = true
+    if (!session) { setShareUrl(''); return }
+    sessionShareUrl(session).then((u) => { if (live) setShareUrl(u) })
+    return () => { live = false }
+  }, [session])
 
   const setEditing = (on) => {
     setSwapBlock(null)
@@ -107,7 +117,7 @@ export default function PlanView() {
             </button>
           )}
           <ShareButton
-            url={sessionShareUrl(session)}
+            url={shareUrl}
             title="Tonight's session · SuperCoach"
             text="Here's the training session I planned — open it in SuperCoach:"
             label="Share"
