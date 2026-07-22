@@ -6,6 +6,7 @@ import SessionSetup from './pages/SessionSetup.jsx'
 import PlanView from './pages/PlanView.jsx'
 import DrillDetail from './pages/DrillDetail.jsx'
 import DrillLibrary from './pages/DrillLibrary.jsx'
+import SharedPlan from './pages/SharedPlan.jsx'
 import Settings from './pages/Settings.jsx'
 import Emergency from './pages/Emergency.jsx'
 import EmergencyGuide from './pages/EmergencyGuide.jsx'
@@ -120,6 +121,7 @@ export default function App() {
           <Route path="/guest" element={<GuestInfo />} />
           <Route path="/new" element={<SessionSetup />} />
           <Route path="/plan" element={<PlanView />} />
+          <Route path="/shared" element={<SharedPlan />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/drill/:id" element={<DrillDetail />} />
           <Route path="/library" element={<DrillLibrary />} />

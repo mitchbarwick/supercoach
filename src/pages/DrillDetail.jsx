@@ -6,6 +6,8 @@ import { getDrill, sayToKids, setsFor, drillDurationRange, ageRangeLabel, FOCUS_
 import PitchAnimation from '../components/PitchAnimation.jsx'
 import DrillFeedback from '../components/DrillFeedback.jsx'
 import AccountButton from '../components/AccountButton.jsx'
+import ShareButton from '../components/ShareButton.jsx'
+import { drillShareUrl } from '../share/share.js'
 import { useStore, actions } from '../store/useStore.js'
 import { accountsEnabled } from '../config.js'
 import { getCoachingTips, aiConfigured } from '../ai/azure.js'
@@ -96,18 +98,28 @@ export default function DrillDetail() {
 
       <div className="spread" style={{ marginBottom: 4 }}>
         <h1 style={{ fontSize: 26 }}>{drill.emoji} {drill.name}</h1>
-        <button
-          className="icon-btn"
-          style={isFav ? { background: 'var(--coral-100)', borderColor: 'var(--coral-600)' } : {}}
-          onClick={() => {
-            if (guest) { flash('Sign in to favourite drills'); return }
-            actions.toggleFavourite(id)
-            flash(isFav ? 'Removed from favourites' : '⭐ Saved to favourites — I\'ll pick it first next time')
-          }}
-          aria-label="Toggle favourite"
-        >
-          {isFav ? '❤️' : '🤍'}
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          <ShareButton
+            url={drillShareUrl(id)}
+            title={`${drill.name} · SuperCoach`}
+            text={`Check out this drill — ${drill.name}:`}
+            label=""
+            icon="🔗"
+            className="icon-btn"
+          />
+          <button
+            className="icon-btn"
+            style={isFav ? { background: 'var(--coral-100)', borderColor: 'var(--coral-600)' } : {}}
+            onClick={() => {
+              if (guest) { flash('Sign in to favourite drills'); return }
+              actions.toggleFavourite(id)
+              flash(isFav ? 'Removed from favourites' : '⭐ Saved to favourites — I\'ll pick it first next time')
+            }}
+            aria-label="Toggle favourite"
+          >
+            {isFav ? '❤️' : '🤍'}
+          </button>
+        </div>
       </div>
 
       {!inPlan && (

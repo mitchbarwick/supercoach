@@ -8,6 +8,8 @@ import { BLOCK_STYLE, fits, buildCtx } from '../engine/sessionBuilder.js'
 import { FOCUS_AREAS, DRILLS } from '../data/drills.js'
 import { accountsEnabled } from '../config.js'
 import SessionCelebration from '../components/SessionCelebration.jsx'
+import ShareButton from '../components/ShareButton.jsx'
+import { sessionShareUrl } from '../share/share.js'
 
 const fmtTime = (m) => `${m}'`
 
@@ -104,6 +106,12 @@ export default function PlanView() {
               {editing ? '✓ Done' : '✎ Edit'}
             </button>
           )}
+          <ShareButton
+            url={sessionShareUrl(session)}
+            title="Tonight's session · SuperCoach"
+            text="Here's the training session I planned — open it in SuperCoach:"
+            label="Share"
+          />
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/new')}>New plan</button>
         </div>
       </div>
