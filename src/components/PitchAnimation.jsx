@@ -69,27 +69,6 @@ export default function PitchAnimation({ diagram, freezeAt }) {
 
   if (!scene) return null
   const { t } = pb
-  const ff = Math.min(scene.n - 1, t * scene.fps)
-  const f = Math.floor(ff)
-  const f2 = Math.min(scene.n - 1, f + 1)
-  const u = ff - f
-
-  let alpha = 1
-  if (scene.fade) {
-    if (t < scene.fade.in) alpha = t / scene.fade.in
-    else if (t > scene.duration - scene.fade.out) alpha = Math.max(0, (scene.duration - t) / scene.fade.out)
-  }
-
-  const ripples = scene.field.goals.map((_, gi) => {
-    const e = scene.effects.find((q) => q.kind === 'goal' && q.goal === gi && t >= q.t && t <= q.t + 0.55)
-    return e ? (t - e.t) / 0.55 : 0
-  })
-  const pulses = scene.field.rebounders.map((r) => {
-    const e = scene.effects.find((q) => q.kind === 'bounce' && t >= q.t && t <= q.t + 0.25 && Math.hypot(q.x - r.x, q.y - r.y) < 8)
-    return e ? 1 - (t - e.t) / 0.25 : 0
-  })
-
-  const holders = new Set(scene.balls.map((b) => b.holder[f]).filter((h) => h >= 0))
   const beatIdx = scene.beats.findIndex((b) => t >= b.t0 && t < b.t1)
   const caption = scene.beats[beatIdx]?.say || scene.beats[scene.beats.length - 1]?.say || ' '
   const steps = groupSteps(scene.beats, scene.duration)
@@ -97,40 +76,7 @@ export default function PitchAnimation({ diagram, freezeAt }) {
   return (
     <div className="pitch-wrap" ref={pb.ref}>
       <div className="pitch-stage" style={{ aspectRatio: '100 / 64' }}>
-        <svg viewBox="0 0 100 64" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Drill animation: ${caption}`}>
-          <Defs />
-          <Pitch />
-          <FieldBase field={scene.field} />
-          <g opacity={alpha}>
-            {scene.trails && <Strokes strokes={scene.strokes} t={t} frame={f} mode={scene.trails} />}
-          </g>
-          <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
-          <g opacity={alpha}>
-            <Highlights highlights={scene.highlights} t={t} actors={scene.actors} frame={f} />
-            {scene.actors.map((a, i) =>
-              a.figure ? (
-                <StretchFigure key={a.id} actor={a} x={a.x[f]} y={a.y[f]} t={t} />
-              ) : (
-                <PlayerToken
-                  key={a.id}
-                  x={lerp(a.x[f], a.x[f2], u) + lerp(a.lx[f], a.lx[f2], u)}
-                  y={lerp(a.y[f], a.y[f2], u) + lerp(a.ly[f], a.ly[f2], u)}
-                  z={lerp(a.z[f], a.z[f2], u)}
-                  h={lerpAngle(a.h[f], a.h[f2], u)}
-                  team={a.team}
-                  label={a.label}
-                  dive={a.dive[f]}
-                  hasBall={holders.has(i)}
-                />
-              ),
-            )}
-            {scene.balls.map((b) => (
-              <BallToken key={b.id} x={lerp(b.x[f], b.x[f2], u)} y={lerp(b.y[f], b.y[f2], u)} z={lerp(b.z[f], b.z[f2], u)} rot={lerp(b.rot[f], b.rot[f2], u)} />
-            ))}
-            <Effects effects={scene.effects} t={t} goals={scene.field.goals} />
-            <Bubbles bubbles={scene.bubbles} t={t} actors={scene.actors} frame={f} />
-          </g>
-        </svg>
+        <PitchBoard scene={scene} t={t} role="img" aria-label={`Drill animation: ${caption}`} />
       </div>
 
       <div className="pitch-bar">
@@ -172,4 +118,68 @@ function groupSteps(beats, duration) {
   }
   if (out.length) out[out.length - 1].t1 = duration
   return out
+}
+
+// Draws one frame of a compiled scene. `viewBox` crops in on part of
+// the 100 x 64 pitch (the landing hero zooms on the middle); any other
+// props go on the <svg>.
+export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ...svgProps }) {
+  const ff = Math.min(scene.n - 1, t * scene.fps)
+  const f = Math.floor(ff)
+  const f2 = Math.min(scene.n - 1, f + 1)
+  const u = ff - f
+
+  let alpha = 1
+  if (scene.fade) {
+    if (t < scene.fade.in) alpha = t / scene.fade.in
+    else if (t > scene.duration - scene.fade.out) alpha = Math.max(0, (scene.duration - t) / scene.fade.out)
+  }
+
+  const ripples = scene.field.goals.map((_, gi) => {
+    const e = scene.effects.find((q) => q.kind === 'goal' && q.goal === gi && t >= q.t && t <= q.t + 0.55)
+    return e ? (t - e.t) / 0.55 : 0
+  })
+  const pulses = scene.field.rebounders.map((r) => {
+    const e = scene.effects.find((q) => q.kind === 'bounce' && t >= q.t && t <= q.t + 0.25 && Math.hypot(q.x - r.x, q.y - r.y) < 8)
+    return e ? 1 - (t - e.t) / 0.25 : 0
+  })
+
+  const holders = new Set(scene.balls.map((b) => b.holder[f]).filter((h) => h >= 0))
+
+  return (
+    <svg viewBox={viewBox} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" {...svgProps}>
+      <Defs />
+      <Pitch />
+      <FieldBase field={scene.field} />
+      <g opacity={alpha}>
+        {scene.trails && <Strokes strokes={scene.strokes} t={t} frame={f} mode={scene.trails} />}
+      </g>
+      <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
+      <g opacity={alpha}>
+        <Highlights highlights={scene.highlights} t={t} actors={scene.actors} frame={f} />
+        {scene.actors.map((a, i) =>
+          a.figure ? (
+            <StretchFigure key={a.id} actor={a} x={a.x[f]} y={a.y[f]} t={t} />
+          ) : (
+            <PlayerToken
+              key={a.id}
+              x={lerp(a.x[f], a.x[f2], u) + lerp(a.lx[f], a.lx[f2], u)}
+              y={lerp(a.y[f], a.y[f2], u) + lerp(a.ly[f], a.ly[f2], u)}
+              z={lerp(a.z[f], a.z[f2], u)}
+              h={lerpAngle(a.h[f], a.h[f2], u)}
+              team={a.team}
+              label={a.label}
+              dive={a.dive[f]}
+              hasBall={holders.has(i)}
+            />
+          ),
+        )}
+        {scene.balls.map((b) => (
+          <BallToken key={b.id} x={lerp(b.x[f], b.x[f2], u)} y={lerp(b.y[f], b.y[f2], u)} z={lerp(b.z[f], b.z[f2], u)} rot={lerp(b.rot[f], b.rot[f2], u)} />
+        ))}
+        <Effects effects={scene.effects} t={t} goals={scene.field.goals} />
+        <Bubbles bubbles={scene.bubbles} t={t} actors={scene.actors} frame={f} />
+      </g>
+    </svg>
+  )
 }

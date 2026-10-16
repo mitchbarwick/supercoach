@@ -4,11 +4,12 @@
 //   npm run check:scenes            all scenes
 //   npm run check:scenes rondo      just one
 import { SCENES } from '../src/data/scenes/index.js'
+import { HERO } from '../src/data/scenes/hero.js'
 import { compileScene } from '../src/anim/compile.js'
 
 const only = process.argv[2]
 let bad = 0
-for (const [id, s] of Object.entries(SCENES)) {
+for (const [id, s] of Object.entries({ ...SCENES, 'landing-hero': HERO })) {
   if (only && id !== only) continue
   let out
   try {
