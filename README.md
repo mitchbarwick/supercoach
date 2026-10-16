@@ -33,7 +33,7 @@ app runs guest-only, exactly as before.
 
 ## Drill animation system
 
-Every drill carries a declarative `diagram` spec (`src/data/drills.js`) rendered by `src/components/PitchAnimation.jsx`: a consistent 100×64 top-down pitch with cones, gates, goals, zones, and player/ball tokens that move along keyframe paths with phase captions. Add a new drill = add data, no new drawing code.
+Every drill's diagram is a **Drill Script** scene (`src/data/scenes/`): a short script of football events — run, dribble, pass, shoot, tackle, save — rather than hand-placed coordinates. The engine in `src/anim/` derives the ball's position from who has it, lands passes at the receiver's feet, turns players to watch the ball, and validates every scene (`npm run check:scenes`). Full authoring guide: [`docs/animation-system.md`](docs/animation-system.md). Dev gallery of all animations: `#/anim-lab`.
 
 ## AI layer (optional)
 
@@ -43,9 +43,11 @@ Every drill carries a declarative `diagram` spec (`src/data/drills.js`) rendered
 
 ```
 src/
-  data/drills.js            curated drill library + diagram specs
+  data/drills.js            curated drill library
+  data/scenes/              one animated scene per drill (Drill Script)
+  anim/                     animation engine + visual components
   engine/sessionBuilder.js  rule-based timed session assembler
-  components/PitchAnimation.jsx  SVG animation system
+  components/PitchAnimation.jsx  animation player (controls, step bar, slow-mo)
   store/useStore.js         localStorage-backed state
   ai/azure.js               Azure OpenAI integration (fails soft)
   pages/                    Setup wizard, Plan, Drill, Library, Settings

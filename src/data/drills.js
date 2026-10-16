@@ -1,24 +1,14 @@
 // ============================================================
 // SuperCoach curated drill library.
-// Every drill carries a `diagram` spec consumed by the
-// PitchAnimation system (top-down pitch, 100 x 64 unit space).
-// Teams: 'a' = coral, 'b' = blue, 'n' = amber (neutral/coach),
-// 'k' = keeper (purple). Paths are keyframes {t: 0..1, x, y}.
-//
-// Physics notes for path authors:
-// - Balls default to decelerating 'out' easing (a kick starts fast
-//   and slows). Author each kick/pass/shot as ONE segment — never
-//   split a single flight across keyframes or it will visibly
-//   stop and restart mid-air.
-// - Destination keyframes may carry `ease: 'linear'|'in'|'out'|'inout'`
-//   and `arc: <peak height in units>` for lofted balls (chips,
-//   shots over walls, juggling). Shadows shrink with arc height.
-// - Repeat identical coords across two keyframes to hold a ball still.
+// Each drill's animated diagram is a Drill Script scene in
+// src/data/scenes/ (attached below as `drill.diagram`) — see
+// docs/animation-system.md for how to write one.
 //
 // `kidExplanation` is keyed by age group so younger squads get a
 // simpler, more imaginative script and older squads get straight
 // football language. Use sayToKids(drill, ageGroup) to read it.
 // ============================================================
+import { SCENES } from './scenes/index.js';
 
 export const FOCUS_AREAS = [
   { id: 'fitness', label: 'Fitness & agility', emoji: '⚡' },
@@ -57,8 +47,13 @@ export const AGE_GROUPS = [
 // in minutes, per block category. Ten minutes of a passing drill is
 // unrealistic for 6-year-olds — but a 10-minute mini-game is fine,
 // which is why games get a higher ceiling than drills.
+// U6-U8 caps are deliberately tighter than U9-U11's — at that age a drill
+// with more than a few minutes of runway either overstays its welcome or
+// turns out to need more setup/explanation than a 6-8 year old's attention
+// span supports, so shorter caps here naturally squeeze out the more
+// involved, multi-step drills in favour of simpler, quicker ones.
 export const AGE_BLOCK_CAPS = {
-  'U6-U8': { warmup: 8, drill: 8, game: 12, cooldown: 6 },
+  'U6-U8': { warmup: 6, drill: 6, game: 10, cooldown: 6 },
   'U9-U11': { warmup: 10, drill: 12, game: 16, cooldown: 7 },
   'U12-U14': { warmup: 12, drill: 15, game: 20, cooldown: 8 },
   'U15+': { warmup: 12, drill: 18, game: 25, cooldown: 10 },
@@ -123,9 +118,6 @@ export function setsFor(drill, players) {
   return { count, size, spare, equipment };
 }
 
-// helper for a static entity
-const still = (x, y) => [{ t: 0, x, y }, { t: 1, x, y }];
-
 export const DRILLS = [
   // ================= WARM-UPS =================
   // The three `injuryPrevention` warm-ups below are lightened, age-graded
@@ -186,21 +178,6 @@ export const DRILLS = [
       easier: ['Shorter lane.', 'Skip the full-speed run and finish at 50%.'],
       harder: ['Add a second lap.', 'Kangaroo hops on one foot for the last few steps.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Cone lane, 15 steps',
-      cones: [{ x: 18, y: 20 }, { x: 82, y: 20 }, { x: 18, y: 44 }, { x: 82, y: 44 }],
-      phases: [
-        { t: 0, label: 'High knees down the lane…' },
-        { t: 0.5, label: 'Feed the chickens!' },
-        { t: 0.8, label: 'Full speed home!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 20, y: 20 }, { t: 0.45, x: 78, y: 20 }, { t: 0.7, x: 78, y: 20 }, { t: 1, x: 22, y: 20 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 20, y: 44 }, { t: 0.5, x: 78, y: 44 }, { t: 0.75, x: 78, y: 44 }, { t: 1, x: 22, y: 44 }] },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
-      ],
-    },
   },
   {
     id: 'eleven-plus-lite',
@@ -255,21 +232,6 @@ export const DRILLS = [
       easier: ['Shorter lane.', 'Skip the air kicks and header jumps for tired groups.'],
       harder: ['Add a second lap.', 'Header jumps off one foot, alternating each rep.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Cone lane, 20 steps',
-      cones: [{ x: 15, y: 20 }, { x: 85, y: 20 }, { x: 15, y: 44 }, { x: 85, y: 44 }],
-      phases: [
-        { t: 0, label: 'Open the gates…' },
-        { t: 0.45, label: 'Jump for the header!' },
-        { t: 0.8, label: 'Full speed home!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 17, y: 20 }, { t: 0.45, x: 83, y: 20 }, { t: 0.65, x: 83, y: 20 }, { t: 1, x: 19, y: 20 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 17, y: 44 }, { t: 0.5, x: 83, y: 44 }, { t: 0.7, x: 83, y: 44 }, { t: 1, x: 19, y: 44 }] },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
-      ],
-    },
   },
   {
     id: 'eleven-plus-senior',
@@ -321,21 +283,6 @@ export const DRILLS = [
       easier: ['Shorten the lane.', 'Drop to one speed step (50% then full).'],
       harder: ['Add walking Nordics or partner hamstring lowers after the lunges.', 'Second lap with a ball at feet for the jog sections.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Cone lane, 25 steps',
-      cones: [{ x: 12, y: 20 }, { x: 88, y: 20 }, { x: 12, y: 44 }, { x: 88, y: 44 }],
-      phases: [
-        { t: 0, label: 'Gates and lunges…' },
-        { t: 0.45, label: '75% pace…' },
-        { t: 0.8, label: 'Full speed!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 14, y: 20 }, { t: 0.45, x: 86, y: 20 }, { t: 0.62, x: 86, y: 20 }, { t: 1, x: 16, y: 20 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 14, y: 44 }, { t: 0.5, x: 86, y: 44 }, { t: 0.68, x: 86, y: 44 }, { t: 1, x: 16, y: 44 }] },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
-      ],
-    },
   },
   {
     id: 'traffic-lights',
@@ -382,25 +329,6 @@ export const DRILLS = [
       easier: ['Make the square bigger so there\'s more space.', 'Walk-pace only for the first two minutes.'],
       harder: ['Shrink the square.', 'Weak foot only.', 'Add "swap" — leave your ball and find a new one.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: '20 x 20 square',
-      cones: [{ x: 25, y: 12 }, { x: 75, y: 12 }, { x: 25, y: 52 }, { x: 75, y: 52 }],
-      phases: [
-        { t: 0, label: 'Green light — dribble!' },
-        { t: 0.45, label: 'Red light — stop the ball!' },
-        { t: 0.65, label: 'Green light — go again' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 35, y: 20 }, { t: 0.45, x: 60, y: 40 }, { t: 0.65, x: 60, y: 40 }, { t: 1, x: 40, y: 28 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 37, y: 22 }, { t: 0.45, x: 62, y: 42 }, { t: 0.65, x: 62, y: 42 }, { t: 1, x: 42, y: 30 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 65, y: 45 }, { t: 0.45, x: 40, y: 22 }, { t: 0.65, x: 40, y: 22 }, { t: 1, x: 66, y: 34 }] },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 63, y: 43 }, { t: 0.45, x: 38, y: 20 }, { t: 0.65, x: 38, y: 20 }, { t: 1, x: 64, y: 32 }] },
-        { id: 'p3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 50, y: 48 }, { t: 0.45, x: 52, y: 18 }, { t: 0.65, x: 52, y: 18 }, { t: 1, x: 34, y: 44 }] },
-        { id: 'b3', kind: 'ball', path: [{ t: 0, x: 52, y: 46 }, { t: 0.45, x: 54, y: 20 }, { t: 0.65, x: 54, y: 20 }, { t: 1, x: 36, y: 46 }] },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(14, 32) },
-      ],
-    },
   },
   {
     id: 'dynamic-warmup',
@@ -444,21 +372,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Shorten the distance to 10 steps.'],
       harder: ['Add a ball for the final runs — dribble at speed and stop it on the line.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: '15-step channel',
-      cones: [{ x: 20, y: 10 }, { x: 20, y: 24 }, { x: 20, y: 38 }, { x: 20, y: 52 }, { x: 80, y: 10 }, { x: 80, y: 24 }, { x: 80, y: 38 }, { x: 80, y: 52 }],
-      phases: [
-        { t: 0, label: 'High knees across' },
-        { t: 0.5, label: 'Jog back — listen for the next move' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 22, y: 14 }, { t: 0.45, x: 78, y: 14 }, { t: 0.55, x: 78, y: 14 }, { t: 1, x: 22, y: 14 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 22, y: 28 }, { t: 0.45, x: 78, y: 28 }, { t: 0.55, x: 78, y: 28 }, { t: 1, x: 22, y: 28 }] },
-        { id: 'p3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 22, y: 42 }, { t: 0.45, x: 78, y: 42 }, { t: 0.55, x: 78, y: 42 }, { t: 1, x: 22, y: 42 }] },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 58) },
-      ],
     },
   },
   {
@@ -507,22 +420,6 @@ export const DRILLS = [
       easier: ['One shark only.', 'Sharks walk for round one.'],
       harder: ['Add more sharks.', 'Minnows must dribble through a gate on the far line.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: '25 x 25 square',
-      cones: [{ x: 22, y: 8 }, { x: 78, y: 8 }, { x: 22, y: 56 }, { x: 78, y: 56 }],
-      phases: [
-        { t: 0, label: 'Swim, minnows!' },
-        { t: 0.55, label: 'Shark steals a ball!' },
-      ],
-      entities: [
-        { id: 'm1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 30, y: 12 }, { t: 0.6, x: 34, y: 38 }, { t: 1, x: 30, y: 52 }] },
-        { id: 'bm1', kind: 'ball', path: [{ t: 0, x: 32, y: 14 }, { t: 0.6, x: 36, y: 40 }, { t: 1, x: 32, y: 54 }] },
-        { id: 'm2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 55, y: 12 }, { t: 0.55, x: 58, y: 34 }, { t: 1, x: 62, y: 52 }] },
-        { id: 'bm2', kind: 'ball', path: [{ t: 0, x: 57, y: 14 }, { t: 0.55, x: 60, y: 36 }, { t: 0.85, x: 86, y: 24 }, { t: 1, x: 86, y: 24 }] },
-        { id: 's1', kind: 'player', team: 'b', label: 'S', path: [{ t: 0, x: 50, y: 32 }, { t: 0.55, x: 58, y: 35 }, { t: 0.75, x: 68, y: 31 }, { t: 1, x: 55, y: 30 }] },
-      ],
-    },
   },
 
   {
@@ -570,22 +467,6 @@ export const DRILLS = [
       easier: ['Walk instead of jog.', 'Stop the ball before every pass.'],
       harder: ['One-touch only both ways.', 'Add a second ball per pair.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: '20-step channel',
-      cones: [{ x: 20, y: 12 }, { x: 20, y: 52 }, { x: 80, y: 12 }, { x: 80, y: 52 }],
-      phases: [
-        { t: 0, label: 'Jog and pass down...' },
-        { t: 0.5, label: 'One-touch on the way back' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 22, y: 20 }, { t: 0.45, x: 78, y: 20 }, { t: 0.55, x: 78, y: 24 }, { t: 1, x: 22, y: 24 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 22, y: 32 }, { t: 0.45, x: 78, y: 32 }, { t: 0.55, x: 78, y: 28 }, { t: 1, x: 22, y: 28 }] },
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 22, y: 26 }, { t: 0.12, x: 22, y: 26 }, { t: 0.22, x: 35, y: 20 }, { t: 0.34, x: 50, y: 32 }, { t: 0.46, x: 65, y: 20 }, { t: 0.5, x: 78, y: 26 }, { t: 0.62, x: 65, y: 26 }, { t: 0.74, x: 50, y: 30 }, { t: 0.86, x: 35, y: 26 }, { t: 1, x: 22, y: 26 }] },
-        { id: 'p3', kind: 'player', team: 'b', label: '3', path: [{ t: 0, x: 22, y: 44 }, { t: 0.5, x: 78, y: 44 }, { t: 1, x: 22, y: 44 }] },
-        { id: 'p4', kind: 'player', team: 'b', label: '4', path: [{ t: 0, x: 22, y: 48 }, { t: 0.5, x: 78, y: 48 }, { t: 1, x: 22, y: 48 }] },
-      ],
-    },
   },
   {
     id: 'crab-attack',
@@ -630,21 +511,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Allow a standing low squat instead of full crab position.', 'Bigger square, slower pace.'],
       harder: ['Smaller square.', 'Only weak-side tags count.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: '15 x 15 square',
-      cones: [{ x: 30, y: 14 }, { x: 70, y: 14 }, { x: 30, y: 50 }, { x: 70, y: 50 }],
-      phases: [
-        { t: 0, label: 'Stay low, shuffle and tag!' },
-        { t: 0.55, label: 'Tagged — freeze!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 40, y: 24 }, { t: 0.5, x: 52, y: 34 }, { t: 0.6, x: 52, y: 34 }, { t: 1, x: 44, y: 28 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 60, y: 40 }, { t: 0.5, x: 48, y: 30 }, { t: 1, x: 58, y: 44 }] },
-        { id: 'p3', kind: 'player', team: 'b', label: '3', path: [{ t: 0, x: 38, y: 44 }, { t: 0.5, x: 44, y: 36 }, { t: 1, x: 36, y: 42 }] },
-        { id: 'p4', kind: 'player', team: 'b', label: '4', path: still(64, 22) },
-      ],
     },
   },
   {
@@ -691,21 +557,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Slow motion only.', 'Bigger movements, more time to react.'],
       harder: ['Add the ball straight away.', 'Followers try to steal the ball once confident.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Partner pairs',
-      cones: [],
-      phases: [
-        { t: 0, label: 'Leader moves...' },
-        { t: 0.5, label: '...mirror copies exactly!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: 'L', path: [{ t: 0, x: 40, y: 24 }, { t: 0.25, x: 48, y: 24 }, { t: 0.5, x: 40, y: 24 }, { t: 0.75, x: 32, y: 24 }, { t: 1, x: 40, y: 24 }] },
-        { id: 'p2', kind: 'player', team: 'b', label: 'F', path: [{ t: 0, x: 40, y: 34 }, { t: 0.25, x: 48, y: 34 }, { t: 0.5, x: 40, y: 34 }, { t: 0.75, x: 32, y: 34 }, { t: 1, x: 40, y: 34 }] },
-        { id: 'p3', kind: 'player', team: 'a', label: 'L', path: [{ t: 0, x: 65, y: 44 }, { t: 0.3, x: 70, y: 38 }, { t: 0.6, x: 60, y: 44 }, { t: 1, x: 65, y: 44 }] },
-        { id: 'p4', kind: 'player', team: 'b', label: 'F', path: [{ t: 0, x: 65, y: 54 }, { t: 0.3, x: 70, y: 48 }, { t: 0.6, x: 60, y: 54 }, { t: 1, x: 65, y: 54 }] },
-      ],
     },
   },
 
@@ -754,24 +605,6 @@ export const DRILLS = [
       easier: ['Walk each pattern through once before going at speed.'],
       harder: ['Race two queues.', 'Coach points left or right as they exit — sprint to that side.'],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Ladder lane',
-      ladders: [{ x: 30, y: 32, len: 32 }],
-      cones: [{ x: 22, y: 32 }, { x: 78, y: 32 }],
-      phases: [
-        { t: 0, label: 'Quick feet through the ladder…' },
-        { t: 0.5, label: '…explode out and sprint!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 23, y: 32 }, { t: 0.1, x: 30, y: 32, ease: 'in' }, { t: 0.5, x: 62, y: 32, ease: 'linear' }, { t: 0.62, x: 78, y: 32, ease: 'out' }, { t: 0.78, x: 70, y: 44 }, { t: 1, x: 28, y: 44 }],
-        },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(17, 32) },
-        { id: 'q2', kind: 'player', team: 'a', label: '3', path: still(12, 32) },
-      ],
-    },
   },
   {
     id: 'follow-the-leader',
@@ -817,33 +650,6 @@ export const DRILLS = [
       easier: ['Follower without a ball for round one.'],
       harder: ['Follower must stay within 2 steps.', 'Leader calls a sudden "swap!" and roles flip instantly.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: 'Open area',
-      cones: [],
-      phases: [
-        { t: 0, label: 'Leader invents the route…' },
-        { t: 0.5, label: '…duckling copies everything!' },
-      ],
-      entities: [
-        {
-          id: 'lead', kind: 'player', team: 'a', label: 'L',
-          path: [{ t: 0, x: 25, y: 20 }, { t: 0.25, x: 45, y: 28 }, { t: 0.45, x: 40, y: 44 }, { t: 0.7, x: 62, y: 48 }, { t: 0.85, x: 72, y: 34 }, { t: 1, x: 66, y: 22 }],
-        },
-        {
-          id: 'lb', kind: 'ball',
-          path: [{ t: 0, x: 27, y: 22 }, { t: 0.25, x: 47, y: 30 }, { t: 0.45, x: 42, y: 46 }, { t: 0.7, x: 64, y: 50 }, { t: 0.85, x: 74, y: 36 }, { t: 1, x: 68, y: 24 }],
-        },
-        {
-          id: 'fol', kind: 'player', team: 'b', label: 'F',
-          path: [{ t: 0, x: 18, y: 16 }, { t: 0.25, x: 36, y: 24 }, { t: 0.45, x: 36, y: 38 }, { t: 0.7, x: 54, y: 46 }, { t: 0.85, x: 66, y: 40 }, { t: 1, x: 62, y: 28 }],
-        },
-        {
-          id: 'fb', kind: 'ball',
-          path: [{ t: 0, x: 20, y: 18 }, { t: 0.25, x: 38, y: 26 }, { t: 0.45, x: 38, y: 40 }, { t: 0.7, x: 56, y: 48 }, { t: 0.85, x: 68, y: 42 }, { t: 1, x: 64, y: 30 }],
-        },
-      ],
-    },
   },
   {
     id: 'gate-hunters',
@@ -888,40 +694,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Wider gates, longer round.', 'Walk-pace round to learn the map.'],
       harder: ['Weak foot only.', 'Remove two gates each round so it gets more crowded.'],
-    },
-    diagram: {
-      duration: 7,
-      areaLabel: 'Gate maze',
-      gates: [
-        [{ x: 25, y: 15 }, { x: 25, y: 23 }],
-        [{ x: 48, y: 32 }, { x: 56, y: 32 }],
-        [{ x: 72, y: 14 }, { x: 72, y: 22 }],
-        [{ x: 30, y: 46 }, { x: 38, y: 46 }],
-        [{ x: 70, y: 44 }, { x: 70, y: 52 }],
-      ],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Hunt the gates!' },
-        { t: 0.5, label: 'Heads up — plan the next one' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 18, y: 19 }, { t: 0.2, x: 30, y: 19 }, { t: 0.45, x: 50, y: 28 }, { t: 0.55, x: 52, y: 36 }, { t: 0.8, x: 66, y: 48 }, { t: 1, x: 78, y: 48 }],
-        },
-        {
-          id: 'b1', kind: 'ball',
-          path: [{ t: 0, x: 20, y: 19 }, { t: 0.2, x: 32, y: 19 }, { t: 0.45, x: 52, y: 30 }, { t: 0.55, x: 52, y: 38 }, { t: 0.8, x: 68, y: 48 }, { t: 1, x: 80, y: 48 }],
-        },
-        {
-          id: 'p2', kind: 'player', team: 'a', label: '2',
-          path: [{ t: 0, x: 76, y: 26 }, { t: 0.3, x: 72, y: 16 }, { t: 0.6, x: 52, y: 20 }, { t: 1, x: 34, y: 40 }],
-        },
-        {
-          id: 'b2', kind: 'ball',
-          path: [{ t: 0, x: 74, y: 24 }, { t: 0.3, x: 70, y: 18 }, { t: 0.6, x: 50, y: 22 }, { t: 1, x: 32, y: 42 }],
-        },
-      ],
     },
   },
 
@@ -972,23 +744,6 @@ export const DRILLS = [
       easier: ['Shorten the lanes.', 'All runs are jogs.'],
       harder: ['Two turn cones per lane.', 'Dribble a ball and stop it dead on the line for the handover.'],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: '20-step lanes',
-      cones: [{ x: 20, y: 16 }, { x: 80, y: 16 }, { x: 20, y: 32 }, { x: 80, y: 32 }, { x: 20, y: 48 }, { x: 80, y: 48 }],
-      phases: [
-        { t: 0, label: 'Sprint to the cone…' },
-        { t: 0.5, label: '…round it and race home!' },
-      ],
-      entities: [
-        { id: 'r1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 20, y: 12 }, { t: 0.45, x: 80, y: 12 }, { t: 0.55, x: 80, y: 20 }, { t: 1, x: 20, y: 20 }] },
-        { id: 'r2', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 20, y: 28 }, { t: 0.5, x: 80, y: 28 }, { t: 0.6, x: 80, y: 36 }, { t: 1, x: 22, y: 36 }] },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(14, 16) },
-        { id: 'q2', kind: 'player', team: 'b', label: '2', path: still(14, 32) },
-        { id: 'r3', kind: 'player', team: 'n', label: '1', path: [{ t: 0, x: 20, y: 44 }, { t: 0.48, x: 80, y: 44 }, { t: 0.58, x: 80, y: 52 }, { t: 1, x: 21, y: 52 }] },
-        { id: 'q3', kind: 'player', team: 'n', label: '2', path: still(14, 48) },
-      ],
-    },
   },
   {
     id: 'slalom-circuit',
@@ -1035,43 +790,6 @@ export const DRILLS = [
       easier: ['Untimed solo laps first so everyone learns the route before racing.', 'Space cones 3–4 steps apart.'],
       harder: ['Weak foot only.', 'Cones 1 step apart.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: 'Slalom lines',
-      cones: [{ x: 30, y: 22 }, { x: 40, y: 22 }, { x: 50, y: 22 }, { x: 60, y: 22 }, { x: 70, y: 22 }, { x: 30, y: 44 }, { x: 40, y: 44 }, { x: 50, y: 44 }, { x: 60, y: 44 }, { x: 70, y: 44 }],
-      phases: [
-        { t: 0, label: 'Go — race the other line!' },
-        { t: 0.6, label: 'Turn and sprint it home!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [
-            { t: 0, x: 22, y: 22 }, { t: 0.1, x: 30, y: 18 }, { t: 0.2, x: 40, y: 26 }, { t: 0.3, x: 50, y: 18 }, { t: 0.4, x: 60, y: 26 }, { t: 0.5, x: 70, y: 18 }, { t: 0.6, x: 78, y: 22 }, { t: 1, x: 22, y: 14 },
-          ],
-        },
-        {
-          id: 'b1', kind: 'ball',
-          path: [
-            { t: 0, x: 24, y: 22 }, { t: 0.1, x: 32, y: 18 }, { t: 0.2, x: 42, y: 26 }, { t: 0.3, x: 52, y: 18 }, { t: 0.4, x: 62, y: 26 }, { t: 0.5, x: 72, y: 18 }, { t: 0.6, x: 80, y: 22 }, { t: 1, x: 24, y: 14 },
-          ],
-        },
-        {
-          id: 'p2', kind: 'player', team: 'b', label: '1',
-          path: [
-            { t: 0, x: 22, y: 44 }, { t: 0.12, x: 30, y: 40 }, { t: 0.24, x: 40, y: 48 }, { t: 0.36, x: 50, y: 40 }, { t: 0.48, x: 60, y: 48 }, { t: 0.6, x: 70, y: 40 }, { t: 0.7, x: 78, y: 44 }, { t: 1, x: 22, y: 36 },
-          ],
-        },
-        {
-          id: 'b2', kind: 'ball',
-          path: [
-            { t: 0, x: 24, y: 44 }, { t: 0.12, x: 32, y: 40 }, { t: 0.24, x: 42, y: 48 }, { t: 0.36, x: 52, y: 40 }, { t: 0.48, x: 62, y: 48 }, { t: 0.6, x: 72, y: 40 }, { t: 0.7, x: 80, y: 44 }, { t: 1, x: 24, y: 36 },
-          ],
-        },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(16, 22) },
-        { id: 'q2', kind: 'player', team: 'b', label: '2', path: still(16, 44) },
-      ],
-    },
   },
   {
     id: 'ball-tag',
@@ -1115,22 +833,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Taggers roll the ball by hand to start.', 'Bigger square.'],
       harder: ['Runners also dribble a ball while escaping.', 'Smaller square.'],
-    },
-    diagram: {
-      duration: 7,
-      areaLabel: '25 x 25 square',
-      cones: [{ x: 22, y: 8 }, { x: 78, y: 8 }, { x: 22, y: 56 }, { x: 78, y: 56 }],
-      phases: [
-        { t: 0, label: 'Taggers hunt with the ball' },
-        { t: 0.6, label: 'Tag! Pass hits below the knee' },
-      ],
-      entities: [
-        { id: 't1', kind: 'player', team: 'b', label: 'T', path: [{ t: 0, x: 35, y: 30 }, { t: 0.5, x: 52, y: 38 }, { t: 0.62, x: 55, y: 40 }, { t: 1, x: 45, y: 26 }] },
-        { id: 'tb', kind: 'ball', path: [{ t: 0, x: 37, y: 32 }, { t: 0.5, x: 54, y: 40 }, { t: 0.62, x: 64, y: 44 }, { t: 0.75, x: 64, y: 44 }, { t: 1, x: 47, y: 28 }] },
-        { id: 'r1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 60, y: 42 }, { t: 0.62, x: 66, y: 45 }, { t: 1, x: 70, y: 20 }] },
-        { id: 'r2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 44, y: 16 }, { t: 0.5, x: 30, y: 46 }, { t: 1, x: 38, y: 14 }] },
-        { id: 'r3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 68, y: 14 }, { t: 0.5, x: 72, y: 34 }, { t: 1, x: 56, y: 16 }] },
-      ],
     },
   },
 
@@ -1181,34 +883,6 @@ export const DRILLS = [
       easier: ['Make the gates 4 steps wide.', 'Defender walks only.'],
       harder: ['One gate only.', 'Defender starts closer.', 'Winner stays on.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: '15 x 15 duel square',
-      cones: [{ x: 30, y: 10 }, { x: 70, y: 10 }, { x: 30, y: 54 }, { x: 70, y: 54 }],
-      gates: [
-        [{ x: 24, y: 24 }, { x: 24, y: 38 }],
-        [{ x: 76, y: 24 }, { x: 76, y: 38 }],
-      ],
-      phases: [
-        { t: 0, label: 'Attacker takes on the defender' },
-        { t: 0.4, label: 'Fake left…' },
-        { t: 0.6, label: '…explode right through the gate!' },
-      ],
-      entities: [
-        {
-          id: 'att', kind: 'player', team: 'a', label: 'A',
-          path: [{ t: 0, x: 50, y: 14 }, { t: 0.4, x: 44, y: 30 }, { t: 0.5, x: 40, y: 33 }, { t: 0.62, x: 56, y: 36 }, { t: 0.85, x: 74, y: 31 }, { t: 1, x: 80, y: 31 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 52, y: 16 }, { t: 0.4, x: 46, y: 32 }, { t: 0.5, x: 42, y: 35 }, { t: 0.62, x: 58, y: 38 }, { t: 0.85, x: 76, y: 31 }, { t: 1, x: 82, y: 31 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 50, y: 44 }, { t: 0.4, x: 46, y: 38 }, { t: 0.55, x: 38, y: 38 }, { t: 0.8, x: 52, y: 40 }, { t: 1, x: 58, y: 40 }],
-        },
-      ],
-    },
   },
   {
     id: '1v1-channel',
@@ -1255,31 +929,6 @@ export const DRILLS = [
       easier: ['Widen the channel.', 'Defender can\'t leave the end zone.'],
       harder: ['Narrow the channel.', 'Add a second defender halfway.'],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: '10 x 20 channel',
-      cones: [{ x: 18, y: 18 }, { x: 18, y: 46 }, { x: 82, y: 18 }, { x: 82, y: 46 }, { x: 70, y: 18 }, { x: 70, y: 46 }],
-      zones: [{ x: 70, y: 18, w: 12, h: 28 }],
-      phases: [
-        { t: 0, label: 'Drive at the defender' },
-        { t: 0.55, label: 'Cut past!' },
-        { t: 0.85, label: 'Stop it in the zone — score!' },
-      ],
-      entities: [
-        {
-          id: 'att', kind: 'player', team: 'a', label: 'A',
-          path: [{ t: 0, x: 22, y: 32 }, { t: 0.45, x: 48, y: 32 }, { t: 0.6, x: 56, y: 24 }, { t: 0.85, x: 74, y: 22 }, { t: 1, x: 75, y: 22 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 24, y: 32 }, { t: 0.45, x: 50, y: 32 }, { t: 0.6, x: 58, y: 24 }, { t: 0.85, x: 76, y: 22 }, { t: 1, x: 76, y: 22 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 66, y: 32 }, { t: 0.45, x: 56, y: 33 }, { t: 0.6, x: 54, y: 34 }, { t: 0.85, x: 66, y: 30 }, { t: 1, x: 68, y: 28 }],
-        },
-      ],
-    },
   },
   {
     id: 'defend-the-castle',
@@ -1324,30 +973,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Bigger circle, two castles.', 'More defenders.'],
       harder: ['Two balls at once.', 'Attackers limited to two touches.'],
-    },
-    diagram: {
-      duration: 7,
-      areaLabel: '15-step circle',
-      cones: [{ x: 50, y: 32 }],
-      circleRadius: 20,
-      phases: [
-        { t: 0, label: 'Pass around the outside' },
-        { t: 0.55, label: 'Gap! Shoot at the castle!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: still(24, 18) },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: still(74, 16) },
-        { id: 'a3', kind: 'player', team: 'a', label: '3', path: still(78, 46) },
-        { id: 'a4', kind: 'player', team: 'a', label: '4', path: still(26, 48) },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 26, y: 20 }, { t: 0.25, x: 72, y: 18 }, { t: 0.5, x: 76, y: 44 }, { t: 0.62, x: 76, y: 44 }, { t: 0.8, x: 52, y: 34 }, { t: 1, x: 30, y: 46 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 44, y: 26 }, { t: 0.25, x: 56, y: 26 }, { t: 0.5, x: 58, y: 36 }, { t: 0.8, x: 52, y: 38 }, { t: 1, x: 44, y: 36 }],
-        },
-      ],
     },
   },
   // ================= PASSING / TRIANGLES =================
@@ -1396,34 +1021,6 @@ export const DRILLS = [
       easier: ['Keep the defender passive (shadowing only) the whole time — no live pressure yet.', 'Smaller triangle so passes are shorter and safer.'],
       harder: ['One touch only once the defender goes live.', 'Two defenders live at once in a bigger group.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: '8-step triangle',
-      cones: [{ x: 50, y: 12 }, { x: 28, y: 48 }, { x: 72, y: 48 }],
-      phases: [
-        { t: 0, label: 'Shadow — don\'t press yet' },
-        { t: 0.5, label: 'Go — press for real!' },
-        { t: 0.85, label: 'Won it — swap!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 50, y: 16 }, { t: 0.25, x: 50, y: 16 }, { t: 0.55, x: 32, y: 46 }, { t: 1, x: 32, y: 46 }],
-        },
-        {
-          id: 'p2', kind: 'player', team: 'a', label: '2',
-          path: [{ t: 0, x: 32, y: 46 }, { t: 0.5, x: 32, y: 46 }, { t: 1, x: 32, y: 46 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 60, y: 34 }, { t: 0.5, x: 55, y: 32 }, { t: 0.85, x: 34, y: 44 }, { t: 1, x: 60, y: 34 } ],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 52, y: 18 }, { t: 0.25, x: 52, y: 18 }, { t: 0.5, x: 34, y: 48, ease: 'out' }, { t: 0.85, x: 36, y: 44, ease: 'out' }, { t: 1, x: 55, y: 32 }],
-        },
-      ],
-    },
   },
   {
     id: 'rondo',
@@ -1469,31 +1066,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Bigger circle, unlimited touches, one piggy.'],
       harder: ['Two-touch max.', 'Two piggies who can pass to each other to escape.'],
-    },
-    diagram: {
-      duration: 7,
-      areaLabel: '10-step rondo circle',
-      circleRadius: 21,
-      cones: [],
-      phases: [
-        { t: 0, label: 'Zip it around — keep it moving' },
-        { t: 0.5, label: 'Piggy closes in… switch it!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(50, 9) },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(75, 25) },
-        { id: 'p3', kind: 'player', team: 'a', label: '3', path: still(68, 52) },
-        { id: 'p4', kind: 'player', team: 'a', label: '4', path: still(32, 52) },
-        { id: 'p5', kind: 'player', team: 'a', label: '5', path: still(25, 25) },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 52, y: 11 }, { t: 0.18, x: 74, y: 26 }, { t: 0.36, x: 67, y: 51 }, { t: 0.55, x: 34, y: 51 }, { t: 0.75, x: 27, y: 26 }, { t: 1, x: 52, y: 11 }],
-        },
-        {
-          id: 'pig', kind: 'player', team: 'b', label: 'P',
-          path: [{ t: 0, x: 56, y: 26 }, { t: 0.25, x: 64, y: 34 }, { t: 0.5, x: 50, y: 44 }, { t: 0.75, x: 38, y: 32 }, { t: 1, x: 50, y: 24 }],
-        },
-      ],
     },
   },
   {
@@ -1541,33 +1113,6 @@ export const DRILLS = [
       easier: ['Walk pace first trip.', 'No defender.'],
       harder: ['Two-touch max.', 'Two defenders hunting all groups.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: '15-step channel',
-      cones: [{ x: 10, y: 10 }, { x: 10, y: 54 }, { x: 90, y: 10 }, { x: 90, y: 54 }],
-      phases: [
-        { t: 0, label: 'Pass and move up the channel' },
-        { t: 0.5, label: 'Keep the triangle shape!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 16, y: 20 }, { t: 0.3, x: 36, y: 28 }, { t: 0.6, x: 58, y: 20 }, { t: 1, x: 82, y: 26 }],
-        },
-        {
-          id: 'p2', kind: 'player', team: 'a', label: '2',
-          path: [{ t: 0, x: 14, y: 40 }, { t: 0.3, x: 34, y: 46 }, { t: 0.6, x: 56, y: 42 }, { t: 1, x: 78, y: 44 }],
-        },
-        {
-          id: 'p3', kind: 'player', team: 'a', label: '3',
-          path: [{ t: 0, x: 24, y: 30 }, { t: 0.3, x: 46, y: 36 }, { t: 0.6, x: 68, y: 32 }, { t: 1, x: 88, y: 34 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 18, y: 22 }, { t: 0.15, x: 26, y: 31 }, { t: 0.3, x: 36, y: 47 }, { t: 0.45, x: 48, y: 37 }, { t: 0.6, x: 60, y: 22 }, { t: 0.78, x: 70, y: 33 }, { t: 1, x: 80, y: 45 }],
-        },
-      ],
-    },
   },
   {
     id: 'rebounder-returns',
@@ -1613,22 +1158,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Stand closer to the net.', 'Allow two touches before returning.'],
       harder: ['One-touch only.', 'Weak-foot passes only.', 'Time challenge: most clean touches in 30 seconds.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Rebounder net',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 40, y: 14 }, { x: 40, y: 50 }],
-      phases: [
-        { t: 0, label: 'Pass into the net...' },
-        { t: 0.5, label: '...control and go again!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(36, 32) },
-        // The net fires the ball straight back — no pause at the rebounder.
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 38, y: 32 }, { t: 0.08, x: 38, y: 32 }, { t: 0.42, x: 84, y: 31, ease: 'linear' }, { t: 0.82, x: 40, y: 32 }, { t: 1, x: 40, y: 32 }] },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(20, 20) },
-      ],
     },
   },
 
@@ -1678,31 +1207,6 @@ export const DRILLS = [
       easier: ['Shoot a stationary ball first.', 'Move the line closer.'],
       harder: ['One-touch finish only.', 'Server\'s pass is bounced or lofted.'],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Shooting zone',
-      goals: [{ x: 92, y: 32 }],
-      cones: [{ x: 40, y: 14 }, { x: 40, y: 50 }],
-      phases: [
-        { t: 0, label: 'Pass to the server…' },
-        { t: 0.35, label: '…sprint onto the return…' },
-        { t: 0.7, label: 'SHOOT! Then follow in' },
-      ],
-      entities: [
-        {
-          id: 'sh', kind: 'player', team: 'a', label: 'S',
-          path: [{ t: 0, x: 36, y: 32 }, { t: 0.35, x: 52, y: 28 }, { t: 0.65, x: 64, y: 30 }, { t: 1, x: 80, y: 30 }],
-        },
-        { id: 'srv', kind: 'player', team: 'n', label: 'C', path: still(58, 14) },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 38, y: 32 }, { t: 0.3, x: 58, y: 17 }, { t: 0.42, x: 58, y: 17 }, { t: 0.62, x: 63, y: 31 }, { t: 0.72, x: 66, y: 31 }, { t: 1, x: 90, y: 26 }],
-        },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 32 }, { t: 0.7, x: 89, y: 30 }, { t: 1, x: 89, y: 37 }] },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(28, 38) },
-        { id: 'q2', kind: 'player', team: 'a', label: '3', path: still(22, 42) },
-      ],
-    },
   },
   {
     id: 'gate-finish',
@@ -1748,33 +1252,6 @@ export const DRILLS = [
       easier: ['Wider gates, shorter run.'],
       harder: ['Weak foot finishes.', 'Time limit: 5 seconds from first touch.'],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Gate finishing zone',
-      gates: [
-        [{ x: 80, y: 12 }, { x: 80, y: 20 }],
-        [{ x: 84, y: 28 }, { x: 84, y: 36 }],
-        [{ x: 80, y: 44 }, { x: 80, y: 52 }],
-      ],
-      cones: [{ x: 30, y: 12 }, { x: 30, y: 52 }],
-      phases: [
-        { t: 0, label: 'Dribble at speed' },
-        { t: 0.55, label: 'Eyes up, pick a gate…' },
-        { t: 0.75, label: 'Finish through it!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 26, y: 32 }, { t: 0.55, x: 56, y: 30 }, { t: 0.75, x: 64, y: 26 }, { t: 1, x: 66, y: 24 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 28, y: 32 }, { t: 0.55, x: 58, y: 30 }, { t: 0.72, x: 62, y: 26 }, { t: 1, x: 86, y: 16 }],
-        },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(20, 38) },
-        { id: 'q2', kind: 'player', team: 'a', label: '3', path: still(15, 42) },
-      ],
-    },
   },
   {
     id: 'free-kick-wall',
@@ -1819,25 +1296,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Move the wall closer to the taker, further from goal.', 'No wall for the first few kicks.'],
       harder: ['Two mannequins in the wall.', 'Must score top corner only.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Free-kick wall',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 35, y: 14 }, { x: 35, y: 50 }],
-      phases: [
-        { t: 0, label: 'Run up...' },
-        { t: 0.5, label: 'Bend it over the wall!' },
-      ],
-      entities: [
-        { id: 'k1', kind: 'player', team: 'a', label: 'K', path: [{ t: 0, x: 30, y: 36 }, { t: 0.4, x: 34, y: 33 }, { t: 1, x: 36, y: 31 }] },
-        // Ball waits for the run-up, then one flighted strike up and over the wall.
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 36, y: 33 }, { t: 0.4, x: 36, y: 33 }, { t: 0.85, x: 88, y: 26, arc: 7 }, { t: 1, x: 88, y: 26 }] },
-        { id: 'w1', kind: 'player', team: 'n', label: 'W', path: still(55, 28) },
-        { id: 'w2', kind: 'player', team: 'n', label: 'W', path: still(58, 32) },
-        { id: 'w3', kind: 'player', team: 'n', label: 'W', path: still(61, 36) },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 32 }, { t: 0.6, x: 89, y: 22 }, { t: 1, x: 89, y: 24 }] },
-      ],
     },
   },
 
@@ -1895,25 +1353,6 @@ export const DRILLS = [
         'Spare players play 2-touch keep-ball beside the arena and swap in as challengers each round.',
       ],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Keeper duel arena',
-      goals: [{ x: 10, y: 32, facing: 'right' }, { x: 90, y: 32, facing: 'left' }],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Keeper 1 attacks…' },
-        { t: 0.4, label: 'Save!' },
-        { t: 0.55, label: 'Instant counter-attack!' },
-      ],
-      entities: [
-        { id: 'k1', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 16, y: 32 }, { t: 0.15, x: 20, y: 32 }, { t: 1, x: 14, y: 30 }] },
-        { id: 'k2', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 86, y: 32 }, { t: 0.4, x: 85, y: 26 }, { t: 0.55, x: 84, y: 30 }, { t: 1, x: 86, y: 32 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 19, y: 32 }, { t: 0.05, x: 19, y: 32 }, { t: 0.38, x: 84, y: 27, arc: 3 }, { t: 0.48, x: 80, y: 30 }, { t: 0.58, x: 82, y: 31 }, { t: 0.62, x: 82, y: 31 }, { t: 0.95, x: 16, y: 36, arc: 4 }, { t: 1, x: 16, y: 36 }],
-        },
-      ],
-    },
   },
 
   {
@@ -1960,30 +1399,6 @@ export const DRILLS = [
       easier: ['Step over hurdles instead of jumping.', 'Shorter sprint.'],
       harder: ['Single-leg hops.', 'Race two circuits side by side.'],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Speed circuit',
-      ladders: [{ x: 18, y: 32, len: 20 }],
-      hurdles: [{ x: 46, y: 32 }, { x: 54, y: 32 }, { x: 62, y: 32 }],
-      cones: [{ x: 12, y: 32 }, { x: 80, y: 32 }],
-      phases: [
-        { t: 0, label: 'Quick feet…' },
-        { t: 0.3, label: '…spring over the hurdles…' },
-        { t: 0.6, label: '…and SPRINT!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [
-            { t: 0, x: 13, y: 32 }, { t: 0.28, x: 42, y: 32, ease: 'linear' },
-            { t: 0.38, x: 50, y: 32, arc: 2 }, { t: 0.48, x: 58, y: 32, arc: 2 }, { t: 0.58, x: 66, y: 32, arc: 2 },
-            { t: 0.72, x: 80, y: 32, ease: 'out' }, { t: 0.85, x: 74, y: 44 }, { t: 1, x: 30, y: 44 },
-          ],
-        },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(8, 38) },
-        { id: 'q2', kind: 'player', team: 'a', label: '3', path: still(8, 44) },
-      ],
-    },
   },
   {
     id: 'turn-and-burn',
@@ -2028,28 +1443,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Walk-through each new turn first.', 'Shorter lane.'],
       harder: ['Weak foot turns.', 'Defender jogs in from the side after the turn to chase them home.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Turning lanes',
-      cones: [{ x: 25, y: 32 }, { x: 75, y: 32 }],
-      phases: [
-        { t: 0, label: 'Cruise out…' },
-        { t: 0.45, label: '…snap the turn…' },
-        { t: 0.6, label: '…and BURN home!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 26, y: 30 }, { t: 0.45, x: 72, y: 30 }, { t: 0.56, x: 74, y: 34 }, { t: 0.88, x: 27, y: 34, ease: 'out' }, { t: 1, x: 26, y: 34 }],
-        },
-        {
-          id: 'b1', kind: 'ball',
-          path: [{ t: 0, x: 28, y: 30 }, { t: 0.45, x: 74, y: 30 }, { t: 0.56, x: 72, y: 34 }, { t: 0.86, x: 26, y: 34 }, { t: 1, x: 26, y: 34 }],
-        },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(19, 32) },
-        { id: 'q2', kind: 'player', team: 'a', label: '3', path: still(13, 32) },
-      ],
     },
   },
   {
@@ -2096,32 +1489,6 @@ export const DRILLS = [
       easier: ['Defender starts further away.', 'No keeper, bigger goal.'],
       harder: ['Touch limit: beat them within 4 touches.', 'Second defender recovers after 3 seconds.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: '1v1 to goal',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 30, y: 16 }, { x: 30, y: 48 }],
-      phases: [
-        { t: 0, label: 'Defender serves and closes…' },
-        { t: 0.45, label: 'Take them on!' },
-        { t: 0.75, label: 'Beaten — finish!' },
-      ],
-      entities: [
-        {
-          id: 'att', kind: 'player', team: 'a', label: 'A',
-          path: [{ t: 0, x: 30, y: 32 }, { t: 0.25, x: 30, y: 32 }, { t: 0.5, x: 52, y: 30 }, { t: 0.62, x: 58, y: 24 }, { t: 0.78, x: 68, y: 26 }, { t: 1, x: 72, y: 26 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 68, y: 34 }, { t: 0.05, x: 68, y: 34 }, { t: 0.22, x: 32, y: 32 }, { t: 0.5, x: 54, y: 30 }, { t: 0.62, x: 60, y: 24 }, { t: 0.72, x: 66, y: 26 }, { t: 0.78, x: 66, y: 26 }, { t: 0.92, x: 88, y: 36, arc: 1.5 }, { t: 1, x: 88, y: 36 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 70, y: 34 }, { t: 0.25, x: 70, y: 34 }, { t: 0.5, x: 58, y: 32 }, { t: 0.66, x: 56, y: 30 }, { t: 1, x: 62, y: 32 }],
-        },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 32 }, { t: 0.8, x: 89, y: 32 }, { t: 0.95, x: 89, y: 37 }, { t: 1, x: 89, y: 37 }] },
-      ],
-    },
   },
   {
     id: '2v1-overload',
@@ -2166,36 +1533,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Defender walks.', 'Bigger goal, no keeper.'],
       harder: ['Recovery defender chases from behind after 2 seconds.', 'Finish within 8 seconds.'],
-    },
-    diagram: {
-      duration: 7,
-      areaLabel: '2v1 to goal',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 25, y: 14 }, { x: 25, y: 50 }],
-      phases: [
-        { t: 0, label: 'Drive at the defender…' },
-        { t: 0.45, label: 'They commit — release it!' },
-        { t: 0.7, label: 'First-time finish!' },
-      ],
-      entities: [
-        {
-          id: 'a1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 26, y: 24 }, { t: 0.45, x: 52, y: 28 }, { t: 0.7, x: 60, y: 24 }, { t: 1, x: 64, y: 24 }],
-        },
-        {
-          id: 'a2', kind: 'player', team: 'a', label: '2',
-          path: [{ t: 0, x: 26, y: 44 }, { t: 0.45, x: 56, y: 44 }, { t: 0.66, x: 68, y: 40 }, { t: 1, x: 74, y: 38 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 28, y: 24 }, { t: 0.45, x: 54, y: 28 }, { t: 0.6, x: 66, y: 40 }, { t: 0.68, x: 68, y: 40 }, { t: 0.82, x: 88, y: 34, arc: 1.5 }, { t: 1, x: 88, y: 34 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 62, y: 32 }, { t: 0.45, x: 56, y: 30 }, { t: 0.7, x: 62, y: 36 }, { t: 1, x: 66, y: 36 }],
-        },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 32 }, { t: 0.7, x: 89, y: 32 }, { t: 0.85, x: 89, y: 36 }, { t: 1, x: 89, y: 36 }] },
-      ],
     },
   },
 
@@ -2243,29 +1580,6 @@ export const DRILLS = [
       easier: ['Solo stroke-play first — count your own passes with no head-to-head pressure.', 'Bigger hoops or a circle of discs.'],
       harder: ['Weak foot only on the putts.', 'Match play with a stroke-play tiebreaker for tied holes.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Hole 1 — match play',
-      hoops: [{ x: 78, y: 20, r: 4 }],
-      cones: [{ x: 18, y: 46 }],
-      phases: [
-        { t: 0, label: 'Your opponent drives first…' },
-        { t: 0.3, label: '…now it\'s your turn' },
-        { t: 0.85, label: 'You win the hole!' },
-      ],
-      entities: [
-        { id: 'p2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 14, y: 52 }, { t: 0.06, x: 14, y: 52 }, { t: 0.28, x: 60, y: 38 }, { t: 1, x: 60, y: 38 }] },
-        {
-          id: 'ball2', kind: 'ball',
-          path: [{ t: 0, x: 16, y: 50 }, { t: 0.06, x: 16, y: 50 }, { t: 0.2, x: 62, y: 34, arc: 7 }, { t: 0.28, x: 62, y: 34 }, { t: 1, x: 62, y: 34 }],
-        },
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 16, y: 46 }, { t: 0.3, x: 16, y: 46 }, { t: 0.65, x: 64, y: 30 }, { t: 1, x: 68, y: 28 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 18, y: 44 }, { t: 0.3, x: 18, y: 44 }, { t: 0.55, x: 66, y: 26, arc: 9 }, { t: 0.65, x: 66, y: 26 }, { t: 0.85, x: 78, y: 20 }, { t: 1, x: 78, y: 20 }],
-        },
-      ],
-    },
   },
   {
     id: 'one-two-finish',
@@ -2310,29 +1624,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['No mannequin — just pass, run and finish.', 'Take a touch before finishing.'],
       harder: ['Replace the mannequin with a real (passive → active) defender.', 'One-touch finish only.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'One-two zone',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 28, y: 20 }, { x: 28, y: 44 }],
-      phases: [
-        { t: 0, label: 'Drive at the dummy…' },
-        { t: 0.35, label: 'Give…' },
-        { t: 0.6, label: '…go! And finish!' },
-      ],
-      entities: [
-        { id: 'dummy', kind: 'player', team: 'n', label: 'M', path: still(58, 32) },
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 28, y: 32 }, { t: 0.35, x: 48, y: 32 }, { t: 0.62, x: 68, y: 26 }, { t: 0.75, x: 72, y: 28 }, { t: 1, x: 74, y: 28 }],
-        },
-        { id: 'wall', kind: 'player', team: 'a', label: '2', path: still(58, 16) },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 30, y: 32 }, { t: 0.35, x: 50, y: 32 }, { t: 0.48, x: 58, y: 18 }, { t: 0.52, x: 58, y: 18 }, { t: 0.68, x: 70, y: 27 }, { t: 0.75, x: 70, y: 27 }, { t: 0.88, x: 88, y: 36, arc: 1.5 }, { t: 1, x: 88, y: 36 }],
-        },
-      ],
     },
   },
   {
@@ -2379,31 +1670,6 @@ export const DRILLS = [
       easier: ['Switch can be two shorter passes through a middle player.'],
       harder: ['Switch must be one pass and arrive in the air.', 'Add a defender who guards the far gate.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: '30 x 25 switch pitch',
-      cones: [{ x: 12, y: 8 }, { x: 88, y: 8 }, { x: 12, y: 56 }, { x: 88, y: 56 }],
-      gates: [[{ x: 90, y: 42 }, { x: 90, y: 52 }]],
-      phases: [
-        { t: 0, label: 'Draw them to one side…' },
-        { t: 0.5, label: 'SWITCH! The diagonal flies…' },
-        { t: 0.8, label: 'Through the gate!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 22, y: 16 }, { t: 0.4, x: 26, y: 20 }, { t: 1, x: 30, y: 18 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 34, y: 34 }, { t: 0.4, x: 30, y: 30 }, { t: 1, x: 36, y: 32 }] },
-        {
-          id: 'a3', kind: 'player', team: 'a', label: '3',
-          path: [{ t: 0, x: 78, y: 40 }, { t: 0.5, x: 78, y: 42 }, { t: 0.72, x: 80, y: 44 }, { t: 1, x: 92, y: 47 }],
-        },
-        { id: 'b1', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 42, y: 22 }, { t: 0.45, x: 32, y: 22 }, { t: 0.7, x: 44, y: 28 }, { t: 1, x: 56, y: 34 }] },
-        { id: 'b2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 48, y: 36 }, { t: 0.45, x: 38, y: 32 }, { t: 0.7, x: 50, y: 36 }, { t: 1, x: 62, y: 40 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 24, y: 18 }, { t: 0.2, x: 32, y: 32 }, { t: 0.38, x: 28, y: 22 }, { t: 0.5, x: 28, y: 22 }, { t: 0.72, x: 78, y: 43, arc: 9 }, { t: 0.82, x: 82, y: 45 }, { t: 1, x: 94, y: 47 }],
-        },
-      ],
-    },
   },
   {
     id: 'toss-volley',
@@ -2448,29 +1714,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Let it bounce once first (half-volley).', 'Bigger, softer serve.'],
       harder: ['Serve from behind the striker so they adjust feet.', 'Call the corner before the serve.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Volley zone',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 45, y: 16 }, { x: 45, y: 48 }],
-      phases: [
-        { t: 0, label: 'The toss floats in…' },
-        { t: 0.5, label: 'VOLLEY!' },
-      ],
-      entities: [
-        { id: 'srv', kind: 'player', team: 'n', label: 'S', path: still(72, 14) },
-        {
-          id: 'st', kind: 'player', team: 'a', label: '9',
-          path: [{ t: 0, x: 56, y: 34 }, { t: 0.4, x: 60, y: 31 }, { t: 0.55, x: 62, y: 30 }, { t: 1, x: 62, y: 30 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 72, y: 16 }, { t: 0.15, x: 72, y: 16 }, { t: 0.5, x: 63, y: 30, arc: 5 }, { t: 0.68, x: 88, y: 28, arc: 2 }, { t: 1, x: 88, y: 28 }],
-        },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 34 }, { t: 0.5, x: 89, y: 34 }, { t: 0.68, x: 89, y: 29 }, { t: 1, x: 89, y: 29 }] },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(48, 42) },
-      ],
     },
   },
 
@@ -2518,36 +1761,6 @@ export const DRILLS = [
       easier: ['Cross along the ground.', 'No keeper.'],
       harder: ['Add a defender in the box.', 'Winger must beat a cone "full-back" before crossing.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: 'Crossing zone',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 92, y: 8 }, { x: 60, y: 8 }],
-      phases: [
-        { t: 0, label: 'Winger drives down the flank…' },
-        { t: 0.45, label: 'The cross flies in…' },
-        { t: 0.7, label: 'Met at the far post!' },
-      ],
-      entities: [
-        {
-          id: 'w', kind: 'player', team: 'a', label: 'W',
-          path: [{ t: 0, x: 34, y: 12 }, { t: 0.42, x: 74, y: 10 }, { t: 0.55, x: 78, y: 12 }, { t: 1, x: 78, y: 12 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 36, y: 13 }, { t: 0.42, x: 76, y: 11 }, { t: 0.48, x: 76, y: 11 }, { t: 0.68, x: 80, y: 38, arc: 7 }, { t: 0.74, x: 80, y: 38 }, { t: 0.86, x: 88, y: 33, arc: 1 }, { t: 1, x: 88, y: 33 }],
-        },
-        {
-          id: 'r1', kind: 'player', team: 'a', label: '9',
-          path: [{ t: 0, x: 52, y: 34 }, { t: 0.45, x: 62, y: 30 }, { t: 0.68, x: 79, y: 39 }, { t: 1, x: 80, y: 39 }],
-        },
-        {
-          id: 'r2', kind: 'player', team: 'a', label: '10',
-          path: [{ t: 0, x: 48, y: 44 }, { t: 0.5, x: 60, y: 44 }, { t: 0.75, x: 72, y: 44 }, { t: 1, x: 74, y: 44 }],
-        },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 32 }, { t: 0.6, x: 89, y: 29 }, { t: 0.86, x: 89, y: 34 }, { t: 1, x: 89, y: 34 }] },
-      ],
-    },
   },
   {
     id: 'jockey-delay',
@@ -2593,34 +1806,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Attacker at half speed.', 'Recovery arrives after 2 seconds.'],
       harder: ['Recovery arrives after 5 seconds.', 'Attacker scores double for beating the defender cleanly.'],
-    },
-    diagram: {
-      duration: 7,
-      areaLabel: '8 x 20 channel',
-      cones: [{ x: 18, y: 20 }, { x: 18, y: 44 }, { x: 84, y: 20 }, { x: 84, y: 44 }],
-      phases: [
-        { t: 0, label: 'Jockey — delay them…' },
-        { t: 0.55, label: 'Help is coming…' },
-        { t: 0.8, label: 'Two v one — win it!' },
-      ],
-      entities: [
-        {
-          id: 'att', kind: 'player', team: 'a', label: 'A',
-          path: [{ t: 0, x: 22, y: 32 }, { t: 0.35, x: 40, y: 30 }, { t: 0.6, x: 52, y: 26 }, { t: 0.8, x: 60, y: 24 }, { t: 1, x: 62, y: 26 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 24, y: 32 }, { t: 0.35, x: 42, y: 30 }, { t: 0.6, x: 54, y: 26 }, { t: 0.8, x: 62, y: 24 }, { t: 0.92, x: 74, y: 18 }, { t: 1, x: 74, y: 18 }],
-        },
-        {
-          id: 'def', kind: 'player', team: 'b', label: 'D',
-          path: [{ t: 0, x: 34, y: 32 }, { t: 0.35, x: 46, y: 30 }, { t: 0.6, x: 57, y: 27 }, { t: 0.85, x: 64, y: 25 }, { t: 1, x: 66, y: 24 }],
-        },
-        {
-          id: 'rec', kind: 'player', team: 'b', label: 'R',
-          path: [{ t: 0, x: 50, y: 50 }, { t: 0.55, x: 50, y: 50 }, { t: 0.85, x: 60, y: 28, ease: 'out' }, { t: 1, x: 62, y: 26 }],
-        },
-      ],
     },
   },
   {
@@ -2677,33 +1862,6 @@ export const DRILLS = [
         'Rotate one pair into goal each circuit so every player gets keeper practice.',
       ],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Handling circuit',
-      goals: [{ x: 10, y: 32, facing: 'right' }],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Rolled ball — scoop it up…' },
-        { t: 0.35, label: 'Chest ball — W-catch…' },
-        { t: 0.7, label: 'High ball — claim it at the top!' },
-      ],
-      entities: [
-        { id: 'srv', kind: 'player', team: 'n', label: 'S', path: still(45, 32) },
-        {
-          id: 'gk', kind: 'player', team: 'k', label: 'GK',
-          path: [{ t: 0, x: 15, y: 32 }, { t: 0.3, x: 15, y: 32 }, { t: 0.65, x: 15, y: 30 }, { t: 0.82, x: 18, y: 30, arc: 2 }, { t: 1, x: 15, y: 32 }],
-        },
-        {
-          id: 'ball', kind: 'ball',
-          path: [
-            { t: 0, x: 43, y: 32 }, { t: 0.05, x: 43, y: 32 }, { t: 0.18, x: 16, y: 32 }, { t: 0.28, x: 16, y: 32 },
-            { t: 0.42, x: 43, y: 32, arc: 3 }, { t: 0.5, x: 43, y: 32 }, { t: 0.62, x: 16, y: 31, arc: 3 }, { t: 0.72, x: 16, y: 31 },
-            { t: 0.85, x: 43, y: 32, arc: 3 }, { t: 0.9, x: 43, y: 32 }, { t: 1, x: 18, y: 30, arc: 8 },
-          ],
-        },
-        { id: 'q1', kind: 'player', team: 'a', label: '2', path: still(52, 44) },
-      ],
-    },
   },
 
   // ================= GAMES =================
@@ -2751,29 +1909,6 @@ export const DRILLS = [
       easier: ['Bigger pitch, bigger goals.'],
       harder: ['Two-touch zones.', 'Silent football (no shouting) to force scanning.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: '4v4 small pitch',
-      goals: [{ x: 8, y: 32, facing: 'right' }, { x: 92, y: 32, facing: 'left' }],
-      cones: [{ x: 8, y: 8 }, { x: 92, y: 8 }, { x: 8, y: 56 }, { x: 92, y: 56 }],
-      phases: [
-        { t: 0, label: 'Build up with passes…' },
-        { t: 0.6, label: '…triangle in the corner…' },
-        { t: 0.85, label: 'GOAL!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 25, y: 22 }, { t: 0.4, x: 40, y: 24 }, { t: 0.8, x: 55, y: 20 }, { t: 1, x: 60, y: 22 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 30, y: 44 }, { t: 0.4, x: 48, y: 44 }, { t: 0.7, x: 62, y: 40 }, { t: 1, x: 70, y: 36 }] },
-        { id: 'a3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 45, y: 32 }, { t: 0.5, x: 60, y: 30 }, { t: 0.8, x: 74, y: 28 }, { t: 1, x: 78, y: 30 }] },
-        { id: 'b1', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 55, y: 26 }, { t: 0.5, x: 52, y: 30 }, { t: 1, x: 66, y: 30 }] },
-        { id: 'b2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 62, y: 42 }, { t: 0.5, x: 58, y: 40 }, { t: 1, x: 72, y: 38 }] },
-        { id: 'b3', kind: 'player', team: 'b', label: '3', path: [{ t: 0, x: 78, y: 32 }, { t: 0.6, x: 76, y: 34 }, { t: 1, x: 84, y: 32 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 27, y: 24 }, { t: 0.25, x: 32, y: 44 }, { t: 0.45, x: 50, y: 44 }, { t: 0.6, x: 62, y: 31 }, { t: 0.75, x: 72, y: 39 }, { t: 0.85, x: 76, y: 30 }, { t: 1, x: 91, y: 30 }],
-        },
-      ],
-    },
   },
   {
     id: 'numbers-game',
@@ -2820,29 +1955,6 @@ export const DRILLS = [
       easier: ['1v1 and 2v2 only.', 'Bigger goals.'],
       harder: ['Call uneven numbers ("two v three!") to teach overloads.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: '20 x 15 pitch',
-      goals: [{ x: 8, y: 32, facing: 'right' }, { x: 92, y: 32, facing: 'left' }],
-      cones: [{ x: 8, y: 10 }, { x: 92, y: 10 }, { x: 8, y: 54 }, { x: 92, y: 54 }],
-      phases: [
-        { t: 0, label: '"TWO!" — sprint out!' },
-        { t: 0.5, label: '2v2 battle' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 12, y: 14 }, { t: 0.3, x: 38, y: 28 }, { t: 0.7, x: 55, y: 30 }, { t: 1, x: 70, y: 28 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 12, y: 50 }, { t: 0.3, x: 36, y: 40 }, { t: 0.7, x: 52, y: 42 }, { t: 1, x: 64, y: 40 }] },
-        { id: 'b1', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 88, y: 14 }, { t: 0.3, x: 60, y: 28 }, { t: 0.7, x: 58, y: 32 }, { t: 1, x: 72, y: 32 }] },
-        { id: 'b2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 88, y: 50 }, { t: 0.3, x: 62, y: 40 }, { t: 0.7, x: 60, y: 44 }, { t: 1, x: 74, y: 42 }] },
-        { id: 'aq', kind: 'player', team: 'a', label: '3', path: still(6, 20) },
-        { id: 'bq', kind: 'player', team: 'b', label: '3', path: still(94, 20) },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(50, 60) },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 50, y: 58 }, { t: 0.15, x: 48, y: 34 }, { t: 0.4, x: 40, y: 30 }, { t: 0.7, x: 56, y: 32 }, { t: 0.88, x: 72, y: 30 }, { t: 1, x: 91, y: 31 }],
-        },
-      ],
-    },
   },
 
   {
@@ -2853,7 +1965,12 @@ export const DRILLS = [
     focus: ['shooting', '1v1', 'teamwork'],
     equipment: ['balls', 'goals'],
     players: { min: 4, max: 20 },
-    ages: ['U6-U8', 'U15+'],
+    // Single-elimination bracket — most of the group is standing in a queue
+    // watching one head-to-head at a time, and losers are knocked out
+    // altogether. That's too little activity, for too long a wait, for a
+    // 6-8 year old's attention span — this needs the older band's patience
+    // (or a coach willing to run a consolation bracket) to actually land.
+    ages: ['U9-U11', 'U15+'],
     family: 'shootout-game',
     good: { goals: true, opponent: true, opportunities: true, directional: true },
     baseDuration: 12,
@@ -2889,26 +2006,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Move the shooting line closer.', 'Best of 3 shots each.'],
       harder: ['Weak foot only.', 'Add a goalkeeper for the final four.'],
-    },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Shootout line',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 40, y: 14 }, { x: 40, y: 50 }],
-      phases: [
-        { t: 0, label: 'Player 1 steps up...' },
-        { t: 0.4, label: 'GOAL!' },
-        { t: 0.6, label: 'Player 2\'s turn...' },
-      ],
-      entities: [
-        // Run-up, then ONE continuous strike into the net — the ball never
-        // stalls mid-flight. Slight arc lifts the shot off the grass.
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 32, y: 25 }, { t: 0.1, x: 37, y: 24 }, { t: 1, x: 37, y: 24 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 39, y: 24 }, { t: 0.1, x: 39, y: 24 }, { t: 0.38, x: 88, y: 20, arc: 2.5 }, { t: 1, x: 88, y: 20 }] },
-        { id: 'p2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 34, y: 44 }, { t: 0.55, x: 34, y: 44 }, { t: 0.63, x: 37, y: 41 }, { t: 1, x: 37, y: 41 }] },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 39, y: 41 }, { t: 0.63, x: 39, y: 41 }, { t: 0.9, x: 88, y: 40, arc: 2.5 }, { t: 1, x: 88, y: 40 }] },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 89, y: 30 }, { t: 0.38, x: 89, y: 24 }, { t: 0.6, x: 89, y: 32 }, { t: 0.9, x: 89, y: 38 }, { t: 1, x: 89, y: 32 }] },
-      ],
     },
   },
   {
@@ -2954,25 +2051,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['3 passes needed instead of 5.', 'No zones — anywhere counts.'],
       harder: ['Two-touch max.', '7 passes needed, and it must include every teammate once.'],
-    },
-    diagram: {
-      duration: 9,
-      areaLabel: '3-zone pitch',
-      cones: [{ x: 10, y: 8 }, { x: 10, y: 56 }, { x: 40, y: 8 }, { x: 40, y: 56 }, { x: 60, y: 8 }, { x: 60, y: 56 }, { x: 90, y: 8 }, { x: 90, y: 56 }],
-      zones: [{ x: 60, y: 8, w: 30, h: 48 }],
-      phases: [
-        { t: 0, label: 'Build through the middle...' },
-        { t: 0.6, label: 'Into their third!' },
-        { t: 0.8, label: '5 passes — point!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 20, y: 20 }, { t: 0.4, x: 45, y: 24 }, { t: 0.7, x: 68, y: 20 }, { t: 1, x: 72, y: 22 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 22, y: 44 }, { t: 0.4, x: 48, y: 44 }, { t: 0.7, x: 70, y: 44 }, { t: 1, x: 76, y: 40 }] },
-        { id: 'a3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 35, y: 32 }, { t: 0.4, x: 55, y: 32 }, { t: 0.7, x: 74, y: 32 }, { t: 1, x: 80, y: 30 }] },
-        { id: 'b1', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 55, y: 24 }, { t: 0.5, x: 58, y: 28 }, { t: 1, x: 64, y: 24 }] },
-        { id: 'b2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 58, y: 44 }, { t: 0.5, x: 62, y: 40 }, { t: 1, x: 66, y: 44 }] },
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 22, y: 22 }, { t: 0.25, x: 24, y: 44 }, { t: 0.4, x: 47, y: 44 }, { t: 0.55, x: 50, y: 33 }, { t: 0.7, x: 70, y: 20 }, { t: 0.85, x: 72, y: 44 }, { t: 1, x: 78, y: 32 }] },
-      ],
     },
   },
   {
@@ -3028,23 +2106,6 @@ export const DRILLS = [
         'After your attempt, collect your ball and rejoin via a dribble around the outside.',
       ],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: 'Keeper gauntlet',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 40, y: 14 }, { x: 40, y: 50 }],
-      phases: [
-        { t: 0, label: 'Attacker 1 rushes in...' },
-        { t: 0.4, label: 'Save!' },
-        { t: 0.55, label: 'Reset — attacker 2 incoming' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 38, y: 24 }, { t: 0.4, x: 70, y: 26 }, { t: 1, x: 74, y: 24 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 40, y: 24 }, { t: 0.35, x: 72, y: 26, ease: 'inout' }, { t: 0.42, x: 84, y: 28 }, { t: 0.52, x: 78, y: 24 }, { t: 1, x: 78, y: 24 }] },
-        { id: 'a2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 30, y: 44 }, { t: 0.55, x: 30, y: 44 }, { t: 1, x: 65, y: 42 }] },
-        { id: 'gk', kind: 'player', team: 'k', label: 'GK', path: [{ t: 0, x: 88, y: 32 }, { t: 0.4, x: 84, y: 26 }, { t: 0.55, x: 88, y: 32 }, { t: 1, x: 88, y: 32 }] },
-      ],
-    },
   },
 
   {
@@ -3092,38 +2153,6 @@ export const DRILLS = [
       easier: ['Bigger ring.', 'Coach is the only "shark" for round one.'],
       harder: ['Weak foot only.', 'Two rings — winners move up, "champions ring" plays for the title.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'The ring',
-      circleRadius: 22,
-      cones: [],
-      phases: [
-        { t: 0, label: 'Shield yours, hunt theirs…' },
-        { t: 0.55, label: 'One ball booted out!' },
-      ],
-      entities: [
-        {
-          id: 'p1', kind: 'player', team: 'a', label: '1',
-          path: [{ t: 0, x: 40, y: 26 }, { t: 0.3, x: 48, y: 34 }, { t: 0.55, x: 56, y: 30 }, { t: 0.8, x: 50, y: 24 }, { t: 1, x: 44, y: 28 }],
-        },
-        {
-          id: 'b1', kind: 'ball',
-          path: [{ t: 0, x: 42, y: 28 }, { t: 0.3, x: 50, y: 36 }, { t: 0.55, x: 58, y: 32 }, { t: 0.8, x: 52, y: 26 }, { t: 1, x: 46, y: 30 }],
-        },
-        {
-          id: 'p2', kind: 'player', team: 'a', label: '2',
-          path: [{ t: 0, x: 58, y: 40 }, { t: 0.45, x: 52, y: 38 }, { t: 0.6, x: 56, y: 42 }, { t: 1, x: 60, y: 38 }],
-        },
-        {
-          id: 'b2', kind: 'ball',
-          path: [{ t: 0, x: 60, y: 42 }, { t: 0.45, x: 54, y: 40 }, { t: 0.55, x: 56, y: 43 }, { t: 0.78, x: 84, y: 52 }, { t: 1, x: 84, y: 52 }],
-        },
-        {
-          id: 'p3', kind: 'player', team: 'a', label: '3',
-          path: [{ t: 0, x: 44, y: 42 }, { t: 0.45, x: 50, y: 41 }, { t: 0.6, x: 54, y: 44 }, { t: 0.85, x: 60, y: 48 }, { t: 1, x: 58, y: 46 }],
-        },
-      ],
-    },
   },
   {
     id: 'four-goal-game',
@@ -3169,33 +2198,6 @@ export const DRILLS = [
       easier: ['Wider goals.', '3 passes before scoring so everyone touches it.'],
       harder: ['Goals only count after a switch (ball must cross the halfway width first).', 'Two-touch max.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Four-goal square',
-      gates: [
-        [{ x: 8, y: 14 }, { x: 8, y: 24 }],
-        [{ x: 8, y: 40 }, { x: 8, y: 50 }],
-        [{ x: 92, y: 14 }, { x: 92, y: 24 }],
-        [{ x: 92, y: 40 }, { x: 92, y: 50 }],
-      ],
-      cones: [{ x: 8, y: 6 }, { x: 92, y: 6 }, { x: 8, y: 58 }, { x: 92, y: 58 }],
-      phases: [
-        { t: 0, label: 'Top goal is crowded…' },
-        { t: 0.45, label: '…switch to the free one!' },
-        { t: 0.85, label: 'GOAL through the open door!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 40, y: 18 }, { t: 0.4, x: 52, y: 20 }, { t: 1, x: 60, y: 24 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 36, y: 34 }, { t: 0.45, x: 48, y: 36 }, { t: 0.75, x: 62, y: 40 }, { t: 1, x: 70, y: 42 }] },
-        { id: 'a3', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 52, y: 46 }, { t: 0.5, x: 64, y: 46 }, { t: 1, x: 76, y: 45 }] },
-        { id: 'b1', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 72, y: 16 }, { t: 0.4, x: 66, y: 20 }, { t: 1, x: 70, y: 28 }] },
-        { id: 'b2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 78, y: 24 }, { t: 0.5, x: 74, y: 30 }, { t: 1, x: 78, y: 38 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 42, y: 18 }, { t: 0.25, x: 54, y: 21 }, { t: 0.45, x: 50, y: 37 }, { t: 0.62, x: 66, y: 46 }, { t: 0.72, x: 68, y: 46 }, { t: 0.88, x: 93, y: 45 }, { t: 1, x: 93, y: 45 }],
-        },
-      ],
-    },
   },
   {
     id: 'crossbar-challenge',
@@ -3240,25 +2242,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Move the line closer.', 'Points for hitting anywhere on goal frame or net.'],
       harder: ['One attempt each, sudden death.', 'Weak foot doubles the points.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Crossbar range',
-      goals: [{ x: 90, y: 32, facing: 'left' }],
-      cones: [{ x: 35, y: 16 }, { x: 35, y: 48 }],
-      phases: [
-        { t: 0, label: 'Line it up…' },
-        { t: 0.45, label: 'CLANG! Off the bar!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 30, y: 34 }, { t: 0.1, x: 33, y: 32 }, { t: 1, x: 34, y: 32 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 35, y: 32 }, { t: 0.12, x: 35, y: 32 }, { t: 0.45, x: 89, y: 32, arc: 9 }, { t: 0.8, x: 66, y: 34, arc: 5 }, { t: 1, x: 62, y: 35 }],
-        },
-        { id: 'q1', kind: 'player', team: 'b', label: '2', path: still(28, 40) },
-        { id: 'q2', kind: 'player', team: 'a', label: '3', path: still(23, 44) },
-      ],
     },
   },
 
@@ -3306,25 +2289,6 @@ export const DRILLS = [
       easier: ['Skip the lap; stretches only.'],
       harder: ['Add gentle ball juggling in pairs while cooling down.'],
     },
-    diagram: {
-      duration: 16,
-      areaLabel: 'Team circle',
-      cones: [],
-      phases: [
-        { t: 0, label: 'Reach for the sky — tall as you can!' },
-        { t: 0.25, label: 'Toe touch — fold forward, legs straight' },
-        { t: 0.5, label: 'Quad hold — heel to bottom, balance!' },
-        { t: 0.75, label: 'Butterfly sit — soles together, knees low' },
-      ],
-      entities: [
-        // Little people doing the stretch sequence together — the poses
-        // show exactly how the body should be positioned at each step.
-        { id: 'coach', kind: 'figure', team: 'n', x: 22, y: 50, scale: 2, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
-        { id: 'f1', kind: 'figure', team: 'a', x: 42, y: 50, scale: 2, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
-        { id: 'f2', kind: 'figure', team: 'a', x: 60, y: 50, scale: 2, flip: true, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
-        { id: 'f3', kind: 'figure', team: 'a', x: 79, y: 50, scale: 2, poses: [{ t: 0, pose: 'reachUp' }, { t: 0.25, pose: 'toeTouch' }, { t: 0.5, pose: 'quadHold' }, { t: 0.75, pose: 'butterfly' }] },
-      ],
-    },
   },
   {
     id: 'keepy-up-cooldown',
@@ -3369,20 +2333,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Catch between each touch.'],
       harder: ['Left foot, right foot, thigh sequence.'],
-    },
-    diagram: {
-      duration: 5,
-      areaLabel: 'Open space',
-      cones: [],
-      phases: [{ t: 0, label: 'Soft touches — keep it floating' }],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(35, 30) },
-        // Juggling = repeated little hops in place; height comes from `arc`,
-        // so the shadow stays under the ball and shrinks on every touch.
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 35, y: 27 }, { t: 0.25, x: 35, y: 27, arc: 3 }, { t: 0.5, x: 35, y: 27, arc: 3 }, { t: 0.75, x: 35, y: 27, arc: 3 }, { t: 1, x: 35, y: 27, arc: 3 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(65, 38) },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 65, y: 35 }, { t: 0.33, x: 65, y: 35, arc: 4 }, { t: 0.66, x: 65, y: 35, arc: 4 }, { t: 1, x: 65, y: 35, arc: 4 }] },
-      ],
     },
   },
   {
@@ -3429,23 +2379,6 @@ export const DRILLS = [
       easier: ['Stretches without partner assistance if preferred.'],
       harder: ['Add a partner-resisted core stretch (gentle sit-up holds).'],
     },
-    diagram: {
-      duration: 14,
-      areaLabel: 'Partner pairs',
-      cones: [],
-      phases: [
-        { t: 0, label: 'Hamstring reach — legs long, ease forward' },
-        { t: 0.5, label: 'Butterfly — soles together, gentle press' },
-      ],
-      entities: [
-        // Seated pairs facing each other — the reach shows the hamstring
-        // stretch shape, then both fold into butterfly sits.
-        { id: 'f1', kind: 'figure', team: 'a', x: 30, y: 34, scale: 2, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
-        { id: 'f2', kind: 'figure', team: 'a', x: 46, y: 34, scale: 2, flip: true, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
-        { id: 'f3', kind: 'figure', team: 'b', x: 58, y: 52, scale: 2, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
-        { id: 'f4', kind: 'figure', team: 'b', x: 74, y: 52, scale: 2, flip: true, poses: [{ t: 0, pose: 'sitReach' }, { t: 0.5, pose: 'butterfly' }] },
-      ],
-    },
   },
   {
     id: 'chip-catch-cooldown',
@@ -3490,21 +2423,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Roll the ball instead of chipping.'],
       harder: ['Volley the return instead of catching.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Partner pairs',
-      cones: [],
-      phases: [
-        { t: 0, label: 'Soft chip up...' },
-        { t: 0.5, label: '...gentle catch' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(34, 30) },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(58, 30) },
-        // Lofted chip across, caught and held, then chipped gently back.
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 36, y: 30 }, { t: 0.08, x: 36, y: 30 }, { t: 0.45, x: 56, y: 30, arc: 6 }, { t: 0.58, x: 56, y: 30 }, { t: 0.95, x: 36, y: 30, arc: 6 }, { t: 1, x: 36, y: 30 }] },
-      ],
     },
   },
   {
@@ -3561,20 +2479,6 @@ export const DRILLS = [
         'Everyone joins together at the end for shoulder rolls and ankle shakes.',
       ],
     },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Partner pairs',
-      cones: [],
-      phases: [
-        { t: 0, label: 'Roll it along the ground...' },
-        { t: 0.5, label: 'Scoop and gather' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(34, 30) },
-        { id: 'p2', kind: 'player', team: 'k', label: 'GK', path: still(58, 30) },
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 36, y: 30 }, { t: 0.1, x: 36, y: 30 }, { t: 0.7, x: 56, y: 30 }, { t: 1, x: 56, y: 30 }] },
-      ],
-    },
   },
   {
     id: 'silent-circle',
@@ -3618,25 +2522,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Shorten to 3 breaths for younger groups.'],
       harder: ['Extend the silence to a full minute before the check-in.'],
-    },
-    diagram: {
-      duration: 10,
-      areaLabel: 'Team circle',
-      circleRadius: 20,
-      cones: [],
-      phases: [
-        { t: 0, label: 'Breathe in... and out...' },
-        { t: 0.6, label: 'How do you feel?' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(50, 12) },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(69, 19) },
-        { id: 'p3', kind: 'player', team: 'a', label: '3', path: still(76, 36) },
-        { id: 'p4', kind: 'player', team: 'a', label: '4', path: still(64, 50) },
-        { id: 'p5', kind: 'player', team: 'a', label: '5', path: still(36, 50) },
-        { id: 'p6', kind: 'player', team: 'a', label: '6', path: still(24, 36) },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(31, 19) },
-      ],
     },
   },
   {
@@ -3682,26 +2567,6 @@ export const DRILLS = [
       easier: ['Bigger goals, smaller pitch.'],
       harder: ['Two-touch max — passing brains only.'],
     },
-    diagram: {
-      duration: 9,
-      areaLabel: 'Walking pitch',
-      gates: [[{ x: 10, y: 26 }, { x: 10, y: 38 }], [{ x: 90, y: 26 }, { x: 90, y: 38 }]],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Walking pace only!' },
-        { t: 0.55, label: 'No zoomies — pass instead' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 32, y: 26 }, { t: 0.5, x: 40, y: 28 }, { t: 1, x: 46, y: 26 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 38, y: 42 }, { t: 0.5, x: 46, y: 40 }, { t: 1, x: 52, y: 42 }] },
-        { id: 'b1', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 56, y: 30 }, { t: 0.5, x: 52, y: 32 }, { t: 1, x: 58, y: 30 }] },
-        { id: 'b2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 62, y: 40 }, { t: 0.5, x: 58, y: 42 }, { t: 1, x: 64, y: 40 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 34, y: 28 }, { t: 0.3, x: 44, y: 40, ease: 'out' }, { t: 0.45, x: 46, y: 40 }, { t: 0.75, x: 44, y: 28 }, { t: 1, x: 48, y: 27 }],
-        },
-      ],
-    },
   },
   {
     id: 'pass-and-praise',
@@ -3745,36 +2610,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Roll the ball by hand.'],
       harder: ['Receiver must return a compliment before passing on.'],
-    },
-    diagram: {
-      duration: 9,
-      areaLabel: 'Praise circle',
-      circleRadius: 20,
-      cones: [],
-      phases: [
-        { t: 0, label: '"Great defending today, Zoe!"' },
-        { t: 0.5, label: '"Loved your passing, Sam!"' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: still(50, 11) },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: still(69, 19) },
-        { id: 'p3', kind: 'player', team: 'a', label: '3', path: still(69, 44) },
-        { id: 'p4', kind: 'player', team: 'a', label: '4', path: still(50, 52) },
-        { id: 'p5', kind: 'player', team: 'a', label: '5', path: still(31, 44) },
-        { id: 'p6', kind: 'player', team: 'a', label: '6', path: still(31, 19) },
-        {
-          id: 'ball', kind: 'ball',
-          path: [
-            { t: 0, x: 50, y: 13, ease: 'out' },
-            { t: 0.16, x: 67, y: 21, ease: 'out' },
-            { t: 0.32, x: 67, y: 42, ease: 'out' },
-            { t: 0.48, x: 50, y: 50, ease: 'out' },
-            { t: 0.64, x: 33, y: 42, ease: 'out' },
-            { t: 0.8, x: 33, y: 21, ease: 'out' },
-            { t: 1, x: 50, y: 13, ease: 'out' },
-          ],
-        },
-      ],
     },
   },
   {
@@ -3822,24 +2657,6 @@ export const DRILLS = [
       easier: ['One dingo only to start.', 'Bigger square so there\'s more room to escape.'],
       harder: ['Add a third dingo.', 'Shrink the square to raise the tag rate.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: '25 x 25 square',
-      cones: [{ x: 22, y: 8 }, { x: 78, y: 8 }, { x: 22, y: 56 }, { x: 78, y: 56 }],
-      phases: [
-        { t: 0, label: 'Dribble free, rabbits!' },
-        { t: 0.4, label: 'Tagged — freeze!' },
-        { t: 0.75, label: 'Rescued! Dribble through to free them' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 34, y: 20 }, { t: 0.4, x: 46, y: 30 }, { t: 1, x: 46, y: 30 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 36, y: 22 }, { t: 0.4, x: 48, y: 32 }, { t: 1, x: 48, y: 32 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 66, y: 44 }, { t: 0.75, x: 46, y: 30 }, { t: 1, x: 40, y: 24 }] },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 64, y: 42 }, { t: 0.75, x: 44, y: 30 }, { t: 1, x: 38, y: 22 }] },
-        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 50, y: 32 }, { t: 0.4, x: 46, y: 30 }, { t: 1, x: 60, y: 20 }] },
-        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 30, y: 44 }, { t: 0.6, x: 40, y: 40 }, { t: 1, x: 55, y: 46 }] },
-      ],
-    },
   },
   {
     id: 'simon-says-ball-feet',
@@ -3884,23 +2701,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Slow the calls down and skip the trick (non-"Simon says") calls at first.', 'Bigger space, gentler pace.'],
       harder: ['Speed up the calls.', 'Weak-foot-only actions.', 'Two "Simon"s calling different things at once.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: '20 x 20 area',
-      cones: [{ x: 25, y: 12 }, { x: 75, y: 12 }, { x: 25, y: 52 }, { x: 75, y: 52 }],
-      phases: [
-        { t: 0, label: 'Simon says... dribble!' },
-        { t: 0.5, label: 'Stop the ball — left foot!' },
-        { t: 0.75, label: 'No "Simon says"! 3 toe-taps' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 35, y: 20 }, { t: 0.5, x: 45, y: 30 }, { t: 1, x: 45, y: 30 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 37, y: 22 }, { t: 0.5, x: 47, y: 32 }, { t: 1, x: 47, y: 32 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 60, y: 40 }, { t: 0.5, x: 55, y: 25 }, { t: 0.75, x: 55, y: 25 }, { t: 1, x: 55, y: 25 }] },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 62, y: 42 }, { t: 0.5, x: 57, y: 27 }, { t: 0.75, x: 57, y: 27 }, { t: 1, x: 57, y: 27 }] },
-        { id: 'coach', kind: 'player', team: 'n', label: 'C', path: still(14, 32) },
-      ],
     },
   },
   {
@@ -3948,25 +2748,6 @@ export const DRILLS = [
       easier: ['Start the raiding phase early so the game opens up sooner.', 'Fewer balls per team needed to "win" a round.'],
       harder: ['Delay the raiding phase so the sprint phase lasts longer.', 'Two runners at once per team.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Four-corner nests',
-      goals: [
-        { x: 8, y: 8, facing: 'right' }, { x: 92, y: 8, facing: 'left' },
-        { x: 8, y: 56, facing: 'right' }, { x: 92, y: 56, facing: 'left' },
-      ],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Grab from the pile!' },
-        { t: 0.55, label: 'Pile\'s empty — raid time!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 16, y: 14 }, { t: 0.35, x: 50, y: 32 }, { t: 0.6, x: 16, y: 14 }, { t: 1, x: 16, y: 14 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 50, y: 32 }, { t: 0.35, x: 50, y: 32 }, { t: 0.6, x: 16, y: 14 }, { t: 1, x: 16, y: 14 }] },
-        { id: 'p2', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 84, y: 50 }, { t: 0.55, x: 84, y: 50 }, { t: 0.8, x: 16, y: 14 }, { t: 1, x: 84, y: 50 }] },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 20, y: 16 }, { t: 0.55, x: 20, y: 16 }, { t: 0.8, x: 20, y: 16 }, { t: 1, x: 84, y: 50 }] },
-      ],
-    },
   },
   {
     id: 'snatch-and-grab',
@@ -4011,22 +2792,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Move the end zones closer together.', 'Fewer balls needed, shorter time.'],
       harder: ['Move the end zones further apart to raise the fitness demand.', 'Add a rule: must tag a teammate before going again.'],
-    },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Two end zones',
-      zones: [{ x: 4, y: 6, w: 16, h: 52 }, { x: 80, y: 6, w: 16, h: 52 }],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Go — one ball at a time!' },
-        { t: 0.55, label: 'Race it back home!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 14, y: 18 }, { t: 0.45, x: 86, y: 20 }, { t: 1, x: 14, y: 18 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 86, y: 20 }, { t: 0.45, x: 86, y: 20 }, { t: 1, x: 14, y: 18 }] },
-        { id: 'p2', kind: 'player', team: 'b', label: '1', path: [{ t: 0, x: 86, y: 46 }, { t: 0.55, x: 14, y: 44 }, { t: 1, x: 86, y: 46 }] },
-        { id: 'b2', kind: 'ball', path: [{ t: 0, x: 14, y: 44 }, { t: 0.55, x: 14, y: 44 }, { t: 1, x: 86, y: 46 }] },
-      ],
     },
   },
   {
@@ -4074,27 +2839,6 @@ export const DRILLS = [
       easier: ['Widen the field so targets are easier to hit.', 'Fewer defenders allowed to block at once.'],
       harder: ['Narrow the field to make striking the target harder.', 'One-touch passing only.'],
     },
-    diagram: {
-      duration: 8,
-      areaLabel: 'Target strike zone',
-      cones: [
-        { x: 12, y: 20 }, { x: 12, y: 32 }, { x: 12, y: 44 },
-        { x: 88, y: 20 }, { x: 88, y: 32 }, { x: 88, y: 44 },
-      ],
-      phases: [
-        { t: 0, label: 'Move it — find the lane' },
-        { t: 0.6, label: 'Strike!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 35, y: 40 }, { t: 0.35, x: 45, y: 28 }, { t: 1, x: 45, y: 28 }] },
-        { id: 'p2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 50, y: 22 }, { t: 0.35, x: 55, y: 26 }, { t: 1, x: 55, y: 26 }] },
-        {
-          id: 'ball', kind: 'ball',
-          path: [{ t: 0, x: 37, y: 40, ease: 'out' }, { t: 0.35, x: 47, y: 28, ease: 'out' }, { t: 0.6, x: 88, y: 20, ease: 'out' }, { t: 1, x: 88, y: 20 }],
-        },
-        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 65, y: 32 }, { t: 0.5, x: 72, y: 24 }, { t: 1, x: 72, y: 24 }] },
-      ],
-    },
   },
   {
     id: 'get-it-back',
@@ -4141,21 +2885,6 @@ export const DRILLS = [
       easier: ['Shorter distance to the ball.', 'Call one number at a time, plenty of rest between turns.'],
       harder: ['Call two numbers at once for a 2v2 scramble.', 'Increase the distance between players and the ball.'],
     },
-    diagram: {
-      duration: 7,
-      areaLabel: 'Numbered pairs',
-      goals: [{ x: 8, y: 32, facing: 'right' }, { x: 92, y: 32, facing: 'left' }],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Number 3!' },
-        { t: 0.55, label: 'Race back and score!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '3', path: [{ t: 0, x: 40, y: 30 }, { t: 0.3, x: 50, y: 32 }, { t: 0.6, x: 42, y: 30 }, { t: 1, x: 14, y: 30 }] },
-        { id: 'b1', kind: 'player', team: 'b', label: '3', path: [{ t: 0, x: 60, y: 34 }, { t: 0.3, x: 52, y: 33 }, { t: 0.6, x: 50, y: 33 }, { t: 1, x: 46, y: 33 }] },
-        { id: 'ball', kind: 'ball', path: [{ t: 0, x: 50, y: 32 }, { t: 0.3, x: 50, y: 32, ease: 'out' }, { t: 0.6, x: 40, y: 30, ease: 'out' }, { t: 1, x: 14, y: 30, ease: 'out' }] },
-      ],
-    },
   },
   {
     id: 'partner-tag',
@@ -4200,20 +2929,6 @@ export const DRILLS = [
     adaptations: {
       easier: ['Bigger space per pair.', 'Taggers walk for the first round.'],
       harder: ['Shrink the space.', 'Two taggers per group of four.'],
-    },
-    diagram: {
-      duration: 6,
-      areaLabel: 'Pairs area',
-      cones: [{ x: 25, y: 12 }, { x: 75, y: 12 }, { x: 25, y: 52 }, { x: 75, y: 52 }],
-      phases: [
-        { t: 0, label: 'Dribble away!' },
-        { t: 0.6, label: 'Tagged — swap roles!' },
-      ],
-      entities: [
-        { id: 'p1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 40, y: 28 }, { t: 0.6, x: 58, y: 40 }, { t: 1, x: 45, y: 46 }] },
-        { id: 'b1', kind: 'ball', path: [{ t: 0, x: 42, y: 30 }, { t: 0.6, x: 60, y: 42 }, { t: 1, x: 47, y: 48 }] },
-        { id: 'p2', kind: 'player', team: 'b', label: '2', path: [{ t: 0, x: 30, y: 20 }, { t: 0.6, x: 56, y: 38 }, { t: 1, x: 65, y: 30 }] },
-      ],
     },
   },
   {
@@ -4260,27 +2975,11 @@ export const DRILLS = [
       easier: ['Fewer defenders in the middle.', 'Wider end zones to start.'],
       harder: ['Add more defenders.', 'Make it multi-directional so attackers can run either way at any time.'],
     },
-    diagram: {
-      duration: 9,
-      areaLabel: 'Breakout zone',
-      zones: [{ x: 4, y: 6, w: 12, h: 52 }, { x: 84, y: 6, w: 12, h: 52 }],
-      goals: [{ x: 4, y: 32, facing: 'right' }],
-      cones: [],
-      phases: [
-        { t: 0, label: 'Go — dribble through!' },
-        { t: 0.55, label: 'Turnover — swap roles!' },
-      ],
-      entities: [
-        { id: 'a1', kind: 'player', team: 'a', label: '1', path: [{ t: 0, x: 14, y: 18 }, { t: 0.5, x: 50, y: 24 }, { t: 1, x: 86, y: 18 }] },
-        { id: 'ba1', kind: 'ball', path: [{ t: 0, x: 16, y: 18 }, { t: 0.5, x: 52, y: 24 }, { t: 1, x: 88, y: 18 }] },
-        { id: 'a2', kind: 'player', team: 'a', label: '2', path: [{ t: 0, x: 14, y: 44 }, { t: 0.4, x: 45, y: 40 }, { t: 0.55, x: 45, y: 40 }, { t: 1, x: 12, y: 32 }] },
-        { id: 'ba2', kind: 'ball', path: [{ t: 0, x: 16, y: 44 }, { t: 0.4, x: 47, y: 40 }, { t: 0.55, x: 47, y: 40 }, { t: 1, x: 8, y: 32 }] },
-        { id: 'd1', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 55, y: 40 }, { t: 0.4, x: 46, y: 40 }, { t: 0.55, x: 46, y: 40 }, { t: 1, x: 8, y: 30 }] },
-        { id: 'd2', kind: 'player', team: 'b', label: 'D', path: [{ t: 0, x: 55, y: 22 }, { t: 0.5, x: 52, y: 26 }, { t: 1, x: 60, y: 20 }] },
-      ],
-    },
   },
 ];
+
+// Animations live in src/data/scenes/ (one Drill Script scene per drill).
+for (const d of DRILLS) if (SCENES[d.id]) d.diagram = SCENES[d.id];
 
 // Look up a single drill by id — returns undefined if it doesn't exist.
 export function getDrill(id) {

@@ -477,9 +477,22 @@ input.text-input {
 /* Safe zone below the pitch: captions + controls can never cover
    cones, players or the ball, no matter how small the screen is. */
 .pitch-bar {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(7, 59, 37, 0.95); padding: 8px 10px 8px 14px;
-  min-height: 50px;
+  background: rgba(7, 59, 37, 0.95); padding: 7px 10px 8px 14px;
+}
+.pitch-bar-row { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+/* Step progress: one segment per caption, tap to jump to that step */
+.pitch-steps { display: flex; gap: 4px; margin: 0 0 6px; }
+.pitch-step {
+  position: relative; flex-basis: 0; min-width: 10px; height: 14px; padding: 5px 0;
+  border: none; background: none; cursor: pointer; display: block;
+}
+.pitch-step::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 5px; height: 4px;
+  border-radius: 2px; background: rgba(255, 255, 255, 0.22);
+}
+.pitch-step span {
+  position: relative; display: block; height: 4px; border-radius: 2px;
+  transform-origin: left center; background: #ffe066;
 }
 .phase-banner {
   flex: 1; min-width: 0; color: #fff; font-size: 12.5px; font-weight: 800;
@@ -495,7 +508,9 @@ input.text-input {
   background: rgba(255, 255, 255, 0.92); border: none; border-radius: 999px;
   width: 34px; height: 34px; font-size: 14px; box-shadow: var(--shadow-sm);
   display: flex; align-items: center; justify-content: center;
+  font-weight: 900; color: var(--green-900); font-family: inherit;
 }
+.pitch-controls button.on { background: #ffe066; }
 @media (max-width: 420px) {
   .area-tag { display: none; } /* keep captions readable on narrow phones */
 }

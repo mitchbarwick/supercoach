@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, Link, NavLink, useLocation, useNavigationType } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import GuestInfo from './pages/GuestInfo.jsx'
@@ -13,6 +13,9 @@ import EmergencyGuide from './pages/EmergencyGuide.jsx'
 import Admin from './pages/Admin.jsx'
 import { useStore } from './store/useStore.js'
 import { accountsEnabled } from './config.js'
+
+// Dev-only gallery of every drill animation (#/anim-lab); never shipped.
+const AnimLab = import.meta.env.DEV ? lazy(() => import('./pages/AnimLab.jsx')) : null
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', emoji: '⚽', end: true },
@@ -123,6 +126,7 @@ export default function App() {
           <Route path="/plan" element={<PlanView />} />
           <Route path="/shared" element={<SharedPlan />} />
           <Route path="/admin" element={<Admin />} />
+          {AnimLab && <Route path="/anim-lab" element={<Suspense fallback={null}><AnimLab /></Suspense>} />}
           <Route path="/drill/:id" element={<DrillDetail />} />
           <Route path="/library" element={<DrillLibrary />} />
           <Route path="/settings" element={<Settings />} />
