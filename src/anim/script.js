@@ -42,7 +42,7 @@ export function beat(...args) {
 export const player = (team, label, x, y, opts = {}) => ({ team, label, at: [x, y], ...opts })
 export const keeper = (x, y, opts = {}) => ({ team: 'k', label: 'GK', at: [x, y], ...opts })
 export const coach = (x, y, opts = {}) => ({ team: 'n', label: 'C', at: [x, y], ...opts })
-// Side-view stick figure for stretches. `pose` names in figures.js.
+// Illustrated kid for stretches (src/anim/kid.js). `pose` names: kid.js POSES.
 export const figure = (team, x, y, opts = {}) => ({ team, at: [x, y], figure: true, pose: 'stand', ...opts })
 
 // ---- Targets --------------------------------------------------

@@ -6,7 +6,7 @@
 import { useId } from 'react'
 import { TEAM, WAKE, LIMB } from './theme.js'
 import { PLAYER_R, BALL_R } from './compile.js'
-import { jointsAt } from './figures.js'
+import { renderKid, blendPoses, POSES, SKINS, HAIRS } from './kid.js'
 import { Q_ID, panelOutlines } from './ball.js'
 
 const deg = (r) => (r * 180) / Math.PI
@@ -66,22 +66,59 @@ export function BallToken({ x, y, z, q, blur = 0 }) {
   )
 }
 
-export function StretchFigure({ actor, x, y, t }) {
-  const j = jointsAt(actor, t)
+// ---- Illustrated kids (stretches, cool-downs) ----------------------
+// Drawn by kid.js from a pose skeleton; this wrapper picks the pose for
+// this moment (blending pose changes, or a jog stride while moving),
+// gives each kid a stable look from their id, and places them on the pitch.
+const KID_HAIR = ['tufts', 'ponytail', 'swept', 'curly', 'tufts', 'ponytail']
+const KID_HAIR_COL = [HAIRS.brown, HAIRS.chestnut, HAIRS.black, HAIRS.dark, HAIRS.auburn, HAIRS.blonde]
+const hashId = (id) => {
+  let h = [...String(id)].reduce((a, ch) => Math.imul(a ^ ch.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5)
+  h ^= h >>> 16; h = Math.imul(h, 0x45d9f3b) >>> 0; h ^= h >>> 16
+  return h >>> 0
+}
+const smoothstep = (u) => u * u * (3 - 2 * u)
+
+function kidPoseAt(actor, t) {
+  let cur = actor.pose0 in POSES ? actor.pose0 : 'stand'
+  for (const p of actor.poses) {
+    if (t < p.t) break
+    const next = p.name in POSES ? p.name : 'stand'
+    const u = smoothstep(Math.min(1, (t - p.t) / (p.dur || 0.7)))
+    if (u >= 1) { cur = next; continue }
+    return blendPoses(cur, next, u)
+  }
+  return POSES[cur]
+}
+
+export function StretchFigure({ actor, x, y, t, frame = 0, fps = 30 }) {
+  const h = hashId(actor.id)
+  const isCoach = actor.team === 'n'
+  const colour = (TEAM[actor.team] || TEAM.a).fill
+  // moving? → jog stride, facing the way they travel
+  const f0 = Math.max(0, frame - 2), f1 = Math.min(actor.x.length - 1, frame + 2)
+  const vx = ((actor.x[f1] - actor.x[f0]) * fps) / Math.max(1, f1 - f0)
+  const vy = ((actor.y[f1] - actor.y[f0]) * fps) / Math.max(1, f1 - f0)
+  const speed = Math.hypot(vx, vy)
+  let pose, flip = !!actor.flip
+  if (speed > 1.2) {
+    const u = (Math.sin(t * (6 + speed * 0.25) + (h % 7)) + 1) / 2
+    pose = blendPoses('strideA', 'strideB', u)
+    if (Math.abs(vx) > 0.4) flip = vx < 0
+  } else {
+    pose = kidPoseAt(actor, t)
+  }
   const s = actor.scale || 1.8
-  const c = TEAM[actor.team] || TEAM.a
-  const pts = (...keys) => keys.map((k) => `${j[k][0]},${j[k][1]}`).join(' ')
-  return (
-    <g transform={`translate(${x} ${y}) scale(${(actor.flip ? -1 : 1) * s} ${s})`}>
-      <ellipse cx="0.6" cy="0.5" rx="3" ry="0.55" fill="rgba(0,0,0,0.16)" />
-      <polyline points={pts('hip', 'kneeL', 'footL')} fill="none" stroke={LIMB} strokeWidth="0.62" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points={pts('hip', 'kneeR', 'footR')} fill="none" stroke={LIMB} strokeWidth="0.62" strokeLinecap="round" strokeLinejoin="round" />
-      <line x1={j.hip[0]} y1={j.hip[1]} x2={j.shoulder[0]} y2={j.shoulder[1]} stroke={c.fill} strokeWidth="1.25" strokeLinecap="round" />
-      <line x1={j.shoulder[0]} y1={j.shoulder[1]} x2={j.handL[0]} y2={j.handL[1]} stroke={LIMB} strokeWidth="0.62" strokeLinecap="round" />
-      <line x1={j.shoulder[0]} y1={j.shoulder[1]} x2={j.handR[0]} y2={j.handR[1]} stroke={LIMB} strokeWidth="0.62" strokeLinecap="round" />
-      <circle cx={j.head[0]} cy={j.head[1]} r="1.45" fill={c.fill} stroke={c.dark} strokeWidth="0.28" />
-    </g>
-  )
+  const svg = renderKid(pose, colour, {
+    number: isCoach ? null : (h % 11) + 2,
+    hair: isCoach ? 'swept' : KID_HAIR[h % KID_HAIR.length],
+    hairColour: isCoach ? HAIRS.dark : KID_HAIR_COL[(h >>> 3) % KID_HAIR_COL.length],
+    skin: (h >>> 5) % SKINS.length,
+    freckles: h % 5 === 0,
+    t, phase: (h % 13) * 0.29,
+    mirror: flip,
+  })
+  return <g transform={`translate(${x} ${y}) scale(${flip ? -s : s} ${s})`} dangerouslySetInnerHTML={{ __html: svg }} />
 }
 
 // Pressed grass: a pale streak where a played ball ran along the ground

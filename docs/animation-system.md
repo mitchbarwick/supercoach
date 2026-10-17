@@ -8,8 +8,8 @@ an animated, top-down coaching board. Authors never place the ball by hand.
 src/anim/script.js       authoring vocabulary (scene, beat, run, pass, …)
 src/anim/compile.js      compiler + physics: resolves the script into frames
 src/anim/Field.jsx       pitch + kit components (cones, goals, ladders, …)
-src/anim/Actors.jsx      player tokens, ball, stick figures, pressed grass, effects
-src/anim/figures.js      stretch poses for cool-down figures
+src/anim/Actors.jsx      player tokens, ball, illustrated kids, pressed grass, effects
+src/anim/kid.js          illustrated kids: pose skeletons + drawing (stretches, cool-downs)
 src/anim/ball.js         ball panels + spin maths (quaternions)
 src/anim/theme.js        colours for teams, kit, lines — restyle everything here
 src/components/PitchAnimation.jsx   the player (controls, step bar, slow-mo)
@@ -110,7 +110,7 @@ import { scene, beat, player, keeper, run, dribble, pass, shoot } from '../../an
 | `pickUp(who)` / `drop(who)` / `leave(who)` | Ball to hands / to feet / left resting where it is. |
 | `shout(who, text)` | Speech bubble — commands ("RED!"), counts, praise. |
 | `highlight(target, { r, rate, color })` | Pulsing ring on a spot or player; slow `rate` for breathing. |
-| `pose(who, name)` | Stretch figures morph to a pose (`figures.js`). |
+| `pose(who, name)` | Illustrated kids blend into a pose (`kid.js` POSES: stand, reachUp, toeTouch, quadHold, armAcross, butterfly, sitReach, sitTall, sitCross, sitCrossBack, twistFront, twistBack, cheer, armsAround, breathe, lunge, handsOnHips). A kid that `run`s jogs, facing the way they travel; kids are drawn back to front by their y. |
 
 Cast helpers: `player(team, label, x, y, opts)`, `keeper(x, y)`, `coach(x, y)`,
 `figure(team, x, y, { pose, flip })`. Teams: `a` coral, `b` blue, `n` amber

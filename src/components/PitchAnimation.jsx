@@ -162,10 +162,12 @@ export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ...svgProps }) {
       <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
       <g opacity={alpha}>
         <Highlights highlights={scene.highlights} t={t} actors={scene.actors} frame={f} />
+        {/* illustrated kids, back to front so nearer kids overlap further ones */}
+        {scene.actors.filter((a) => a.figure).sort((p, q) => p.y[f] - q.y[f]).map((a) => (
+          <StretchFigure key={a.id} actor={a} x={lerp(a.x[f], a.x[f2], u)} y={lerp(a.y[f], a.y[f2], u)} t={t} frame={f} fps={scene.fps} />
+        ))}
         {scene.actors.map((a, i) =>
-          a.figure ? (
-            <StretchFigure key={a.id} actor={a} x={a.x[f]} y={a.y[f]} t={t} />
-          ) : (
+          a.figure ? null : (
             <PlayerToken
               key={a.id}
               x={lerp(a.x[f], a.x[f2], u) + lerp(a.lx[f], a.lx[f2], u)}

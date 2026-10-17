@@ -12,23 +12,31 @@ const ring = (n, r, cx = 50, cy = 32, from = 0) =>
   })
 
 export default {
+  // Illustrated kids (src/anim/kid.js). Figures are side-on people, so the
+  // "circle" is shown as the front arc of it, coach included.
   'cooldown-circle': (() => {
-    const who = ['c', 'f1', 'f2', 'f3']
-    const all = (name) => who.map((w) => pose(w, name, { dur: 0.8 }))
+    const spots = { c: [15, 50], f1: [38, 54], f2: [62, 54], f3: [85, 50] }
+    const who = Object.keys(spots)
+    const all = (name, dur = 0.8) => who.map((w) => pose(w, name, { dur }))
+    // one slow lap: out along the back of the area and round to the spot
+    const lap = (w, i) => run(w, [[spots[w][0] + 6, 36], [50 + (i - 1.5) * 12, 27], [spots[w][0] - 4, 36], spots[w]], { pace: 'jog', delay: i * 0.12 })
     return scene({
       area: 'Team circle',
       cast: {
-        c: figure('n', 22, 50),
-        f1: figure('a', 42, 50),
-        f2: figure('a', 60, 50, { flip: true }),
-        f3: figure('a', 79, 50),
+        c: figure('n', ...spots.c),
+        f1: figure('a', ...spots.f1),
+        f2: figure('a', ...spots.f2, { flip: true }),
+        f3: figure('a', ...spots.f3, { flip: true }),
       },
       beats: [
-        beat('Reach for the sky — tall as you can!', 3.2, ...all('reachUp')),
-        beat('Toe touch — fold forward, legs straight', 3.2, ...all('toeTouch')),
-        beat('Quad hold — heel to bottom, balance!', 3.2, ...all('quadHold'), shout('f2', 'Wobbly!', { delay: 1.4, dur: 1 })),
-        beat('Butterfly sit — share your favourite moment', 3.6, ...all('butterfly'), shout('f1', 'My goal!', { delay: 1.0, dur: 1.2 }), shout('f3', 'The save!', { delay: 2.2, dur: 1.2 })),
-        beat('Stand tall — team cheer on three!', 1.6, ...all('stand')),
+        beat('One slow lap together…', 4.2, ...who.map(lap)),
+        beat('Reach for the sky — side to side', 3.0, ...all('reachUp')),
+        beat('Toe touch — fold forward, legs straight', 3.0, ...all('toeTouch')),
+        beat('Quad hold — hold your foot, balance!', 3.0, ...all('quadHold'), shout('f2', 'Wobbly!', { delay: 1.3, dur: 1 })),
+        beat('Arm across — hold it at the elbow', 3.0, ...all('armAcross')),
+        beat('Butterfly sit — share your favourite moment', 3.6, ...all('butterfly'), shout('f1', 'My goal!', { delay: 0.9, dur: 1.2 }), shout('f3', 'The save!', { delay: 2.1, dur: 1.2 })),
+        beat('Team cheer on three!', 2.0, ...all('cheer', 0.6), shout('c', '1, 2, 3…', { dur: 0.9 }), shout('f2', 'TEAM!', { delay: 1.0, dur: 0.9 })),
+        beat(0.8, ...all('stand', 0.6)),
       ],
     })
   })(),
@@ -43,20 +51,44 @@ export default {
     ],
   }),
 
+  // Pairs sit facing each other, soles together (hips 17.4 apart at the
+  // figures' scale, so the boots meet in the middle).
   'partner-stretch': (() => {
-    const all = (name) => ['f1', 'f2', 'f3', 'f4'].map((w) => pose(w, name, { dur: 0.9 }))
+    // Facing pairs, soles together: at the kids' scale (1.8) their hips sit
+    // 26 apart so the boots meet in the middle.
+    const A1 = [17, 36], A2 = [43, 36], B1 = [53, 55], B2 = [79, 55]
+    const seated = ['f1', 'f2', 'f3', 'f4']
+    const all = (name, dur = 0.9) => seated.map((w) => pose(w, name, { dur }))
+    // Back-to-back as a coach sees it: one partner faces us, the other sits
+    // right behind them (further up the screen = further away).
+    const behind = (p) => [p[0], p[1] - 3.2]
+    const swap = (who, from, to) => run(who, [[from[0] - 3, from[1] - 6], [to[0] + 8, to[1] - 1], to], { delay: 0.5, pace: 'jog' })
     return scene({
       area: 'Partner pairs',
       cast: {
-        f1: figure('a', 30, 34, { pose: 'sitReach' }),
-        f2: figure('a', 47, 34, { pose: 'sitReach', flip: true }),
-        f3: figure('b', 56, 52, { pose: 'sitReach' }),
-        f4: figure('b', 73, 52, { pose: 'sitReach', flip: true }),
+        f1: figure('a', ...A1, { pose: 'sitReach' }),
+        f2: figure('a', ...A2, { pose: 'sitReach', flip: true }),
+        f3: figure('a', ...B1, { pose: 'sitReach' }),
+        f4: figure('a', ...B2, { pose: 'sitReach', flip: true }),
       },
       beats: [
-        beat('Hamstring reach — legs long, ease forward', 3.4, shout('f1', 'Best bit today?', { delay: 0.6, dur: 1.3 }), shout('f2', 'My tackle!', { delay: 2.0, dur: 1.2 })),
-        beat('Butterfly — soles together, gentle press', 3.6, ...all('butterfly'), shout('f4', 'Your turn first!', { delay: 1.2, dur: 1.3 })),
-        beat('Back to the reach — swap who talks first', 1.6, ...all('sitReach')),
+        beat('Hamstring reach — legs long, hold your feet', 3.4,
+          shout('f1', 'Best bit today?', { delay: 0.6, dur: 1.3 }), shout('f2', 'My tackle!', { delay: 2.0, dur: 1.2 })),
+        beat('Butterfly — soles together, gentle press', 3.4, ...all('butterfly'),
+          shout('f4', 'Your turn first!', { delay: 1.1, dur: 1.3 })),
+        beat('Back-to-back — swap seats', 2.9,
+          pose('f1', 'sitCross'), pose('f3', 'sitCross'),
+          pose('f2', 'stand', { dur: 0.5 }), pose('f4', 'stand', { dur: 0.5 }),
+          swap('f2', A2, behind(A1)), swap('f4', B2, behind(B1)),
+          pose('f2', 'sitCrossBack', { delay: 2.3, dur: 0.5 }), pose('f4', 'sitCrossBack', { delay: 2.3, dur: 0.5 })),
+        beat('Gentle twist — high five behind!', 3.2,
+          pose('f1', 'twistFront'), pose('f3', 'twistFront'), pose('f2', 'twistBack'), pose('f4', 'twistBack'),
+          shout('f3', 'One thing that went well?', { delay: 0.7, dur: 1.4 }), shout('f4', 'Our passing!', { delay: 2.0, dur: 1.1 })),
+        beat('Stand tall — arms round for the team cheer', 3.0,
+          ...all('stand', 0.5),
+          run('f2', [A1[0] + 12, A1[1]], { delay: 0.4 }), run('f4', [B1[0] + 12, B1[1]], { delay: 0.4 }),
+          ...seated.map((w) => pose(w, 'armsAround', { delay: 1.3, dur: 0.6 })),
+          shout('f1', '1, 2, 3…', { delay: 1.5, dur: 0.7 }), shout('f2', 'TEAM!', { delay: 2.2, dur: 0.7 })),
       ],
     })
   })(),
