@@ -11,6 +11,7 @@ import Settings from './pages/Settings.jsx'
 import Emergency from './pages/Emergency.jsx'
 import EmergencyGuide from './pages/EmergencyGuide.jsx'
 import Admin from './pages/Admin.jsx'
+import SpinningBall from './components/SpinningBall.jsx'
 import { useStore } from './store/useStore.js'
 import { accountsEnabled } from './config.js'
 
@@ -61,7 +62,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <Link to="/" className="brand" onClick={closeMenu}>
-          <span className="ball">⚽</span> SuperCoach
+          <SpinningBall /> SuperCoach
         </Link>
         {!showingLanding && (
           <>

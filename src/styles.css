@@ -61,7 +61,7 @@ input, select, textarea { font-family: inherit; }
   font-weight: 900; font-size: 20px; color: var(--green-700);
   text-decoration: none; letter-spacing: -0.3px;
 }
-.topbar .brand .ball { font-size: 22px; }
+.topbar .brand .ball { flex-shrink: 0; }
 .topbar-actions { display: flex; gap: 6px; }
 .icon-btn {
   border: 1px solid var(--line); background: var(--card);

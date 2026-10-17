@@ -170,13 +170,20 @@ export function Defs() {
         <rect width="1.4" height="1.4" fill="rgba(255,255,255,0.12)" />
         <path d="M 0 0 L 0 1.4 M 0 0 L 1.4 0" stroke="rgba(255,255,255,0.45)" strokeWidth="0.18" />
       </pattern>
-      {/* light from the top left: a soft highlight, and shade towards the far edge */}
-      <radialGradient id="sc-ball-shade" cx="0.36" cy="0.32" r="0.78">
-        <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
-        <stop offset="0.32" stopColor="#fff" stopOpacity="0" />
-        <stop offset="0.75" stopColor="#1f262b" stopOpacity="0.06" />
-        <stop offset="1" stopColor="#1f262b" stopOpacity="0.2" />
-      </radialGradient>
+      <BallShade />
     </defs>
+  )
+}
+
+// The ball's shading, shared by every pitch and the spinning logo ball.
+export function BallShade() {
+  // light from the top left: a soft highlight, and shade towards the far edge
+  return (
+    <radialGradient id="sc-ball-shade" cx="0.36" cy="0.32" r="0.78">
+      <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
+      <stop offset="0.32" stopColor="#fff" stopOpacity="0" />
+      <stop offset="0.75" stopColor="#1f262b" stopOpacity="0.06" />
+      <stop offset="1" stopColor="#1f262b" stopOpacity="0.2" />
+    </radialGradient>
   )
 }
