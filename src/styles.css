@@ -527,26 +527,7 @@ input.text-input {
     radial-gradient(55% 70% at 98% -6%, rgba(255, 246, 216, 0.34), transparent 62%);
   mix-blend-mode: normal;
 }
-.ft-flash { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(70% 90% at 92% 47%, var(--ft-flood), rgba(255, 246, 216, 0.15) 70%); }
-
-/* confetti: bursts from the goal mouth (right side of the pitch) */
-.ft-confetti { position: absolute; left: 91%; top: 47%; width: 0; height: 0; pointer-events: none; z-index: 2; }
-.ft-piece {
-  position: absolute; left: 0; top: 0;
-  animation: ftDrift var(--dur) cubic-bezier(0.12, 0.7, 0.3, 1) var(--delay) both;
-}
-.ft-piece i {
-  display: block; transform-origin: center;
-  animation: ftArc var(--dur) linear var(--delay) both;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-@keyframes ftDrift { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
-@keyframes ftArc {
-  0%   { transform: translateY(0) rotate(0) rotateX(0); opacity: 1; animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
-  28%  { transform: translateY(var(--rise)) rotate(calc(var(--rot) * 0.3)) rotateX(calc(var(--flip) * 0.3)); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6); }
-  85%  { opacity: 1; }
-  100% { transform: translateY(var(--fall)) rotate(var(--rot)) rotateX(var(--flip)); opacity: 0; }
-}
+.ft-cones { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 /* the scoreboard */
 .ft-board {

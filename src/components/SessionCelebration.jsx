@@ -1,25 +1,24 @@
 // ============================================================
 // SessionCelebration — shown when every block is ticked off.
 //
-// A floodlit "full time" moment, told in the same top-down language
-// as every drill diagram: the coach's own team (their Settings
-// colour) works a move and curls one into the top corner; the net
-// flashes, confetti bursts from the goal in the team's colours, the
-// players sprint over to celebrate with the coach, and a stadium
-// scoreboard counts up the session's real numbers.
+// The end of a real training night, told in the same top-down
+// language as every drill diagram: the players (the coach's team
+// colour from Settings) collect the cones and bring them back to the
+// coach, thank them and bounce about, the coach says "See you next
+// time!", and they run back to their parents — who thank the coach
+// too. A scoreboard counts up the session's real numbers.
 //
 // It plays ONCE when scrolled into view and rests on the last frame
-// ("Watch again" replays). Reduced motion: final frame, no confetti.
+// ("Watch again" replays). Reduced motion: the final frame.
 // Below it, the completed drills with favourite hearts.
 // ============================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore, actions } from '../store/useStore.js'
 import { compileScene } from '../anim/compile.js'
 import { PitchBoard } from './PitchAnimation.jsx'
-import { CELEBRATION } from '../data/scenes/celebration.js'
-import { TEAM } from '../anim/theme.js'
+import { CELEBRATION, CONE_RUNS, STACK_AT, GOODBYE_BEAT } from '../data/scenes/celebration.js'
+import { KIT } from '../anim/theme.js'
 
-const SCOREBOARD_AT = 0.75 // seconds after the goal
 const COUNT_FOR = 0.9
 
 const reducedMotion = () =>
@@ -55,36 +54,41 @@ function useOneShot(end) {
   return { ref, t, replay: () => { setT(0); setStarted(true); setRun((r) => r + 1) } }
 }
 
-// Deterministic pseudo-random, so the burst looks the same every replay.
-function rng(seed) {
-  let s = seed
-  return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646
+// ---- Cones: on the grass → carried → stacked at the coach's feet ----
+function ConeShape({ x, y, r = 1.35, lift = 0 }) {
+  return (
+    <g>
+      {lift === 0 && <ellipse cx={x + 0.35} cy={y + 0.45} rx={r + 0.1} ry={r * 0.88} fill="rgba(0,0,0,0.18)" />}
+      <circle cx={x} cy={y - lift} r={r} fill={KIT.cone} stroke={KIT.coneDark} strokeWidth="0.3" />
+      <circle cx={x} cy={y - lift} r={r * 0.33} fill={KIT.coneHole} stroke={KIT.coneDark} strokeWidth="0.15" />
+    </g>
+  )
 }
 
-function useConfetti(colourKey) {
-  return useMemo(() => {
-    const r = rng(7)
-    const colours = [TEAM.a.fill, TEAM.a.fill, TEAM.a.light, '#ffffff', '#ffc94d', '#ffc94d']
-    return Array.from({ length: 64 }, (_, i) => {
-      // fan out up-and-back from the goal mouth, towards the pitch
-      const angle = (200 + r() * 115) * (Math.PI / 180)
-      const power = 90 + r() * 170
-      return {
-        i,
-        dx: Math.cos(angle) * power,
-        rise: -(60 + r() * 120) * Math.abs(Math.sin(angle) + 0.35),
-        fall: 160 + r() * 140,
-        rot: (r() - 0.5) * 1440,
-        flip: 360 + r() * 1080,
-        dur: 1.9 + r() * 1.3,
-        delay: r() * 0.18,
-        w: 5 + r() * 5,
-        h: r() > 0.45 ? 9 + r() * 7 : 5 + r() * 4, // ribbons and squares
-        round: r() > 0.82,
-        c: colours[Math.floor(r() * colours.length)],
-      }
-    })
-  }, [colourKey]) // eslint-disable-line react-hooks/exhaustive-deps
+function ConeLayer({ scene, t }) {
+  const f = Math.min(scene.n - 1, Math.floor(t * scene.fps))
+  const at = (id) => {
+    const a = scene.actors.find((x) => x.id === id)
+    return [a.x[f], a.y[f] - a.z[f] * 0.9]
+  }
+  const end = (i) => scene.beats[i].t1
+  // drop order decides each cone's place in the stack
+  const order = [...CONE_RUNS].map((c, i) => ({ ...c, i })).sort((p, q) => end(p.drop) - end(q.drop) || p.i - q.i)
+  const carried = {} // who -> count so far, so a second cone sits on the first
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {order.map((c, k) => {
+        if (t < end(c.pick)) return <ConeShape key={c.i} x={c.at[0]} y={c.at[1]} />
+        if (t < end(c.drop)) {
+          const n = (carried[c.who] = (carried[c.who] || 0) + 1) - 1
+          const [x, y] = at(c.who)
+          // held out in front of the player, stacked if they've two
+          return <ConeShape key={c.i} x={x + 2.4} y={y - 1.2} r={1.15} lift={n * 0.55} />
+        }
+        return <ConeShape key={c.i} x={STACK_AT[0]} y={STACK_AT[1]} lift={k * 0.5} />
+      })}
+    </g>
+  )
 }
 
 const easeOut = (u) => 1 - Math.pow(1 - Math.min(1, Math.max(0, u)), 3)
@@ -103,12 +107,10 @@ function Stat({ value, label, t, at }) {
 
 export default function SessionCelebration({ session }) {
   const favourites = useStore((s) => s.favourites)
-  const teamColour = useStore((s) => s.team?.colour)
+  useStore((s) => s.team?.colour) // re-render when the team colour changes
   const scene = useMemo(() => compileScene(CELEBRATION), [])
-  const goalT = useMemo(() => scene.effects.find((e) => e.kind === 'goal')?.t ?? 2.6, [scene])
   const end = scene.duration - 0.02
   const { ref, t, replay } = useOneShot(end)
-  const confetti = useConfetti(teamColour)
   const cardRef = useRef(null)
   const reduced = reducedMotion()
 
@@ -128,42 +130,25 @@ export default function SessionCelebration({ session }) {
 
   const minutes = session?.totalPlanned || session?.request?.duration || 0
   const players = session?.request?.players || 0
-  const boardAt = goalT + SCOREBOARD_AT
-  const scored = t >= goalT
+  const boardAt = scene.beats[GOODBYE_BEAT].t0 + 0.4 // as the coach says goodbye
   const showBoard = t >= boardAt
-  const flash = scored && t < goalT + 0.5 ? Math.sin(((t - goalT) / 0.5) * Math.PI) : 0
 
   return (
     <>
       <section ref={cardRef} className="ft-card" aria-labelledby="ft-title">
         <h3 id="ft-title" className="ft-title">Session complete</h3>
         <div ref={ref} className="ft-stage">
-          <PitchBoard scene={scene} t={t} role="img" aria-label="Your team scores the winner and runs over to celebrate with the coach" />
+          <PitchBoard scene={scene} t={t} role="img" aria-label="The players bring the cones back to the coach, say thank you, then run back to their parents, who thank the coach too" />
+          <svg className="ft-cones" viewBox="0 0 100 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <ConeLayer scene={scene} t={t} />
+          </svg>
           <div className="ft-floodlights" aria-hidden="true" />
-          <div className="ft-flash" style={{ opacity: flash * 0.55 }} aria-hidden="true" />
-          {scored && !reduced && (
-            <div className="ft-confetti" aria-hidden="true">
-              {confetti.map((p) => (
-                <span
-                  key={`${p.i}-${Math.floor(goalT)}`}
-                  className="ft-piece"
-                  style={{
-                    '--dx': `${p.dx}px`, '--rise': `${p.rise}px`, '--fall': `${p.fall}px`,
-                    '--rot': `${p.rot}deg`, '--flip': `${p.flip}deg`,
-                    '--dur': `${p.dur}s`, '--delay': `${p.delay}s`,
-                  }}
-                >
-                  <i style={{ width: p.w, height: p.h, background: p.c, borderRadius: p.round ? '50%' : 1.5 }} />
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className={`ft-board${showBoard ? ' on' : ''}`}>
           <div className="ft-board-head" aria-live="polite">
             <span className="ft-live" aria-hidden="true" />
-            {showBoard ? 'Full time' : 'Final minute'}
+            {showBoard ? 'Full time' : 'Packing up'}
           </div>
           <div className="ft-stats">
             <Stat value={minutes} label={minutes === 1 ? 'minute' : 'minutes'} t={t} at={boardAt + 0.1} />
