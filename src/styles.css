@@ -837,3 +837,6 @@ input.text-input {
 .pitch-controls .speed-toggle button:hover { opacity: 0.85; }
 .pitch-controls .speed-toggle button.on { background: rgba(255, 255, 255, 0.95); opacity: 1; box-shadow: var(--shadow-sm); }
 .pitch-controls .speed-toggle button:active { transform: scale(0.92); }
+
+/* ---- Icons (src/icons/Icon.jsx) ---- */
+.icon { flex-shrink: 0; vertical-align: -0.15em; }

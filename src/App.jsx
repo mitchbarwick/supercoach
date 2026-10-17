@@ -17,6 +17,8 @@ import { accountsEnabled } from './config.js'
 
 // Dev-only gallery of every drill animation (#/anim-lab); never shipped.
 const AnimLab = import.meta.env.DEV ? lazy(() => import('./pages/AnimLab.jsx')) : null
+// Dev-only review of the emoji → icon mapping (#/icon-lab); never shipped.
+const IconLab = import.meta.env.DEV ? lazy(() => import('./pages/IconLab.jsx')) : null
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', emoji: '⚽', end: true },
@@ -130,6 +132,7 @@ export default function App() {
           <Route path="/shared" element={<SharedPlan />} />
           <Route path="/admin" element={<Admin />} />
           {AnimLab && <Route path="/anim-lab" element={<Suspense fallback={null}><AnimLab /></Suspense>} />}
+          {IconLab && <Route path="/icon-lab" element={<Suspense fallback={null}><IconLab /></Suspense>} />}
           <Route path="/drill/:id" element={<DrillDetail />} />
           <Route path="/library" element={<DrillLibrary />} />
           <Route path="/settings" element={<Settings />} />
