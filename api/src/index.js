@@ -10,13 +10,42 @@
 //   POST /api/feedback           free-text drill feedback + telemetry (auth optional)
 //   GET  /api/dashboard/overview counts + recent feedback + recent users (admin)
 //        NB: route must NOT start with 'admin' — Azure Functions reserves /admin
+//   GET  /api/ping               wake-up call: warms Cosmos + Google keys
+//   (timer) keepWarm             every 5 min, so sign-in rarely hits a cold start
 import { app } from '@azure/functions'
 import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose'
-import { getContainers, countAll } from './lib/db.js'
+import { getContainers, ensureContainers, countAll } from './lib/db.js'
 import { wrap, json, isAdminEmail } from './lib/http.js'
 
 const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'))
 const MAX_PROGRAMS_PER_USER = 200
+
+// ---------- warm-up ----------
+// On the Consumption plan the app sleeps after ~20 idle minutes and the
+// next request pays a cold start (often 10–30 s) — that was most of the
+// sign-in wait. The app pings /ping as soon as a sign-in button shows,
+// and this timer keeps it from sleeping at all (≈8,600 runs a month,
+// well inside the free grant). Both also warm the Cosmos connection and
+// Google's signing keys so the first real sign-in skips those fetches.
+async function warm() {
+  const { users } = await getContainers()
+  await Promise.all([ensureContainers(), users.read(), GOOGLE_JWKS.reload?.()].map((p) => Promise.resolve(p).catch(() => {})))
+}
+
+app.http('ping', {
+  route: 'ping',
+  methods: ['GET', 'OPTIONS'],
+  authLevel: 'anonymous',
+  handler: wrap(async (request) => {
+    await warm()
+    return json(request, 200, { ok: true })
+  }),
+})
+
+app.timer('keepWarm', {
+  schedule: '0 */5 * * * *',
+  handler: async () => { await warm() },
+})
 
 // ---------- auth ----------
 

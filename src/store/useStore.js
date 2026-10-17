@@ -267,13 +267,27 @@ export const actions = {
       favourites: mergedFavs,
       prefs: prefs || local.prefs,
     })
-    try {
-      if (local.programs.length) await api.pushPrograms(t, local.programs)
-      if (mergedFavs.length !== (favourites || []).length) await api.putFavourites(t, mergedFavs)
-      if (!prefs && local.prefs) await api.putPrefs(t, local.prefs)
-      const { programs } = await api.listPrograms(t)
-      setState({ programs: trimPrograms(programs), syncedAt: Date.now() })
-    } catch { /* sync is best-effort; local data is intact */ }
+    // Signed in as soon as the token arrives — merging this device's data
+    // into the account runs in the background so the sign-in screen
+    // doesn't wait on it. The three uploads are independent; the list is
+    // fetched after them so it includes what was just pushed.
+    ;(async () => {
+      try {
+        await Promise.all([
+          local.programs.length ? api.pushPrograms(t, local.programs) : null,
+          mergedFavs.length !== (favourites || []).length ? api.putFavourites(t, mergedFavs) : null,
+          !prefs && local.prefs ? api.putPrefs(t, local.prefs) : null,
+        ])
+        const { programs } = await api.listPrograms(t)
+        // keep anything made on this device while the sync was running
+        const onServer = new Set(programs.map((p) => p.id))
+        const before = new Set(local.programs.map((p) => p.id))
+        setState((s) => ({
+          programs: trimPrograms([...s.programs.filter((p) => !onServer.has(p.id) && !before.has(p.id)), ...programs]),
+          syncedAt: Date.now(),
+        }))
+      } catch { /* sync is best-effort; local data is intact */ }
+    })()
   },
 
   /** Refresh account data from the server (e.g. on app load). */

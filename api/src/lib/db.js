@@ -1,24 +1,40 @@
 // Cosmos DB data layer. One database, three containers.
-// Containers are created on first use so provisioning only needs the
-// account itself to exist.
+// getContainers() hands out references without touching the network, so
+// a cold start doesn't pay four "create if missing" round trips before
+// it can serve a request. ensureContainers() does that creation; it runs
+// from /api/ping and the keep-warm timer, so a brand-new database is set
+// up long before anyone signs in.
 import { CosmosClient } from '@azure/cosmos'
 
-let containersPromise = null
+const DB = 'supercoach'
+const SPECS = [
+  { id: 'users', partitionKey: { paths: ['/id'] } },
+  { id: 'programs', partitionKey: { paths: ['/userId'] } },
+  { id: 'feedback', partitionKey: { paths: ['/id'] } },
+]
 
+let client = null
+const cosmos = () => (client ||= new CosmosClient(process.env.COSMOS_CONNECTION_STRING))
+
+let containers = null
 export function getContainers() {
-  if (!containersPromise) {
-    containersPromise = (async () => {
-      const client = new CosmosClient(process.env.COSMOS_CONNECTION_STRING)
-      const { database } = await client.databases.createIfNotExists({ id: 'supercoach' })
-      const [users, programs, feedback] = await Promise.all([
-        database.containers.createIfNotExists({ id: 'users', partitionKey: { paths: ['/id'] } }),
-        database.containers.createIfNotExists({ id: 'programs', partitionKey: { paths: ['/userId'] } }),
-        database.containers.createIfNotExists({ id: 'feedback', partitionKey: { paths: ['/id'] } }),
-      ])
-      return { users: users.container, programs: programs.container, feedback: feedback.container }
-    })().catch((err) => { containersPromise = null; throw err })
+  if (!containers) {
+    const db = cosmos().database(DB)
+    const [users, programs, feedback] = SPECS.map((c) => db.container(c.id))
+    containers = { users, programs, feedback }
   }
-  return containersPromise
+  return Promise.resolve(containers)
+}
+
+let ensured = null
+export function ensureContainers() {
+  if (!ensured) {
+    ensured = (async () => {
+      const { database } = await cosmos().databases.createIfNotExists({ id: DB })
+      await Promise.all(SPECS.map((c) => database.containers.createIfNotExists(c)))
+    })().catch((err) => { ensured = null; throw err })
+  }
+  return ensured
 }
 
 export async function countAll(container) {

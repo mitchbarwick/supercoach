@@ -6,12 +6,16 @@ class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
 }
 
-async function req(path, { method = 'GET', token, body } = {}) {
+// `simple: true` sends the JSON body as text/plain so the browser
+// treats it as a "simple" request and skips the CORS preflight — one
+// round trip fewer, which matters most when the API is cold. (The
+// server parses the body as JSON regardless of the header.)
+async function req(path, { method = 'GET', token, body, simple = false } = {}) {
   if (!API_BASE) throw new ApiError('API not configured', 0)
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(body ? { 'Content-Type': simple ? 'text/plain' : 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -22,7 +26,10 @@ async function req(path, { method = 'GET', token, body } = {}) {
 }
 
 export const api = {
-  authGoogle: (credential) => req('/auth/google', { method: 'POST', body: { credential } }),
+  authGoogle: (credential) => req('/auth/google', { method: 'POST', body: { credential }, simple: true }),
+  // Wakes the API (and its database connection) without a preflight, so a
+  // cold start overlaps with the user choosing their Google account.
+  ping: () => (API_BASE ? fetch(`${API_BASE}/ping`).catch(() => {}) : Promise.resolve()),
   me: (token) => req('/me', { token }),
   putPrefs: (token, prefs) => req('/prefs', { method: 'PUT', token, body: prefs }),
   putFavourites: (token, favourites) => req('/favourites', { method: 'PUT', token, body: favourites }),

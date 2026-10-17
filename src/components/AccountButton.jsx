@@ -10,6 +10,9 @@ import { api } from '../api/client.js'
 import { useStore, actions } from '../store/useStore.js'
 import SigningInScreen from './SigningInScreen.jsx'
 
+// Wake the API once per page load, as soon as a sign-in button is shown.
+let pinged = false
+
 export default function AccountButton({ compact = false }) {
   const auth = useStore((s) => s.auth)
   const navigate = useNavigate()
@@ -24,6 +27,10 @@ export default function AccountButton({ compact = false }) {
     // the button (it would white-screen on tap). Show the escape hatch instead.
     if (embedded) return
     if (!accountsEnabled() || auth || !holder.current) return
+    if (!pinged) {
+      pinged = true
+      api.ping()
+    }
     let live = true
     renderGoogleButton(holder.current, async (credential) => {
       if (!live) return
