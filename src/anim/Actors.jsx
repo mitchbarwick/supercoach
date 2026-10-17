@@ -9,7 +9,7 @@ import { jointsAt } from './figures.js'
 
 const deg = (r) => (r * 180) / Math.PI
 
-// A player seen from above: coloured disc, white rim, and a small
+// A player seen from above: coloured disc, darker rim, and a small
 // "nose" showing which way they face — so you can read body shape
 // (open to receive, side-on to defend, head up to scan).
 export function PlayerToken({ x, y, z, h, team, label, dive, hasBall }) {
@@ -22,11 +22,11 @@ export function PlayerToken({ x, y, z, h, team, label, dive, hasBall }) {
       <ellipse cx={x + 0.5} cy={y + 0.9} rx={(dive ? 3.6 : 2.6) * (0.6 + 0.4 * k)} ry={(dive ? 2.0 : 1.9) * (0.6 + 0.4 * k)} fill={`rgba(0,0,0,${0.24 * k})`} />
       {hasBall && <circle cx={x} cy={y - lift} r={PLAYER_R + 1.3} fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.45)" strokeWidth="0.25" />}
       <g transform={`translate(${x} ${y - lift}) rotate(${deg(h)})`}>
-        <path d={`M ${PLAYER_R - 0.6} -1.75 L ${PLAYER_R + 1.75} 0 L ${PLAYER_R - 0.6} 1.75 Z`} fill={c.dark} stroke="#fff" strokeWidth="0.3" strokeLinejoin="round" />
+        <path d={`M ${PLAYER_R - 0.6} -1.75 L ${PLAYER_R + 1.75} 0 L ${PLAYER_R - 0.6} 1.75 Z`} fill={c.dark} stroke={c.dark} strokeWidth="0.3" strokeLinejoin="round" />
         {dive ? (
-          <ellipse rx={PLAYER_R + 1.1} ry={PLAYER_R - 0.6} fill={c.fill} stroke="#fff" strokeWidth="0.5" transform="rotate(90)" />
+          <ellipse rx={PLAYER_R + 1.1} ry={PLAYER_R - 0.6} fill={c.fill} stroke={c.dark} strokeWidth="0.5" transform="rotate(90)" />
         ) : (
-          <circle r={PLAYER_R} fill={c.fill} stroke="#fff" strokeWidth="0.5" />
+          <circle r={PLAYER_R} fill={c.fill} stroke={c.dark} strokeWidth="0.5" />
         )}
       </g>
       <text x={x} y={y - lift + (small ? 0.85 : 1.05)} textAnchor="middle" fontSize={small ? 2.2 : 2.9} fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif" style={{ pointerEvents: 'none' }}>
