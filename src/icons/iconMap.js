@@ -8,9 +8,8 @@
 //          'close'  — nearest Lucide icon; a custom one may suit better
 //          'custom' — nothing in Lucide fits; must be drawn
 //
-// Drills must each have a unique icon — it's the coach's memory aid
-// for finding a drill that worked. Overlap *across* sets (a drill and
-// a focus area sharing an icon) is allowed.
+// Drills keep their emoji: each one is a memorable, unique marker,
+// and anyone adding a drill can pick one without new artwork.
 //
 // Emojis in written copy ("Welcome back 👋", "All done 🎉", share
 // text) are content, not icons, and stay as they are.
@@ -29,94 +28,12 @@ export const CUSTOM_ICONS = {
   rebounder: 'Rebounder / kickback net',
   'gk-glove': 'Goalkeeper glove',
   runner: 'Running person',
-  'keeper-dive': 'Keeper diving',
-  'yoga-pose': 'Seated stretch / calm pose',
-  'chip-catch': 'Hands catching a ball',
   dribble: 'Ball at a foot, curved path',
   'one-v-one': 'Two players facing off',
-  kangaroo: 'Kangaroo',
-  shark: 'Shark fin / shark',
-  crab: 'Crab',
-  horse: 'Horse head',
-  pig: 'Pig face',
-  'traffic-light': 'Traffic light',
-  boomerang: 'Boomerang',
   leg: 'Leg and knee',
   shorts: 'Shorts (groin area)',
   tooth: 'Tooth',
   lungs: 'Lungs',
-}
-
-// Keyed by drill id (src/data/drills.js).
-export const DRILL_ICONS = {
-  // warm-ups
-  'eleven-plus-kids-prep': { icon: 'kangaroo', match: 'custom', note: 'MiniRoos' },
-  'eleven-plus-lite': { icon: 'shield-plus', match: 'lucide', note: 'Injury prevention; plain shield is the Defending focus' },
-  'eleven-plus-senior': { icon: 'biceps-flexed', match: 'lucide' },
-  'traffic-lights': { icon: 'traffic-light', match: 'custom' },
-  'dynamic-warmup': { icon: 'runner', match: 'custom' },
-  'sharks-minnows': { icon: 'shark', match: 'custom', note: 'Draw from Lucide fish' },
-  'passing-pairs-warmup': { icon: 'repeat', match: 'lucide' },
-  'crab-attack': { icon: 'crab', match: 'custom' },
-  'mirror-match': { icon: 'mirror-round', match: 'lucide' },
-  'ladder-activation': { icon: 'agility-ladder', match: 'custom' },
-  'follow-the-leader': { icon: 'bird', match: 'close', note: 'Was a duck' },
-  'gate-hunters': { icon: 'door-open', match: 'lucide' },
-  'simon-says-ball-feet': { icon: 'ear', match: 'lucide' },
-  'partner-tag': { icon: 'users', match: 'lucide', note: 'Was 🤝, shared with Partner Stretch' },
-
-  // drills
-  'relay-races': { icon: 'flag', match: 'lucide', note: 'Finish flag' },
-  'slalom-circuit': { icon: 'route', match: 'lucide' },
-  'ball-tag': { icon: 'tag', match: 'lucide' },
-  '1v1-gates': { icon: 'fence', match: 'close', note: 'Was 🚪, shared with Gate Hunters' },
-  '1v1-channel': { icon: 'swords', match: 'lucide' },
-  'defend-the-castle': { icon: 'castle', match: 'lucide' },
-  'triangle-passing': { icon: 'triangle', match: 'lucide' },
-  rondo: { icon: 'pig', match: 'custom', note: 'Lucide piggy-bank reads as money' },
-  'pass-move-triangles': { icon: 'link', match: 'lucide' },
-  'rebounder-returns': { icon: 'boomerang', match: 'custom' },
-  'shooting-gallery': { icon: 'target', match: 'lucide' },
-  'gate-finish': { icon: 'bow-arrow', match: 'lucide' },
-  'free-kick-wall': { icon: 'brick-wall', match: 'lucide' },
-  'keeper-wars': { icon: 'gk-glove', match: 'custom' },
-  'speed-spring-circuit': { icon: 'gauge', match: 'lucide', note: 'Was 🦘, shared with MiniRoos' },
-  'turn-and-burn': { icon: 'flame', match: 'lucide' },
-  '1v1-to-goal': { icon: 'hand-fist', match: 'close', note: 'Was a boxing glove' },
-  '2v1-overload': { icon: 'plus', match: 'lucide' },
-  'passing-golf': { icon: 'flag-triangle-right', match: 'close', note: 'Golf pin' },
-  'one-two-finish': { icon: 'hand-metal', match: 'close', note: 'Was 🤜; hand-fist is taken by 1v1 Finish' },
-  'switch-play': { icon: 'shuffle', match: 'lucide' },
-  'toss-volley': { icon: 'volleyball', match: 'close', note: 'A literal volley' },
-  'cross-and-finish': { icon: 'tent', match: 'close', note: 'Was a circus tent' },
-  'jockey-delay': { icon: 'horse', match: 'custom' },
-  'keeper-hands-circuit': { icon: 'hand', match: 'lucide' },
-  'dingoes-and-rabbits': { icon: 'rabbit', match: 'lucide' },
-  'rob-the-nest': { icon: 'egg', match: 'lucide', note: 'Was 🥅, shared with Keeper’s Gauntlet' },
-  'snatch-and-grab': { icon: 'hand-grab', match: 'lucide', note: 'Was 🏃, shared with Dynamic Warm-Up' },
-  'knock-it-off': { icon: 'traffic-cone', match: 'lucide', note: 'Was 🎯 (×3); strike balls off cones' },
-  'get-it-back': { icon: 'zap', match: 'lucide' },
-  'football-rush': { icon: 'wind', match: 'lucide' },
-
-  // games
-  'small-sided-game': { icon: 'trophy', match: 'lucide' },
-  'numbers-game': { icon: 'hash', match: 'lucide' },
-  'world-cup-shootout': { icon: 'earth', match: 'lucide' },
-  'possession-wars': { icon: 'magnet', match: 'lucide', note: 'Was 👑, shared with King of the Ring' },
-  'keepers-gauntlet': { icon: 'football-goal', match: 'custom' },
-  'king-of-the-ring': { icon: 'crown', match: 'lucide' },
-  'four-goal-game': { icon: 'compass', match: 'lucide' },
-  'crossbar-challenge': { icon: 'crosshair', match: 'lucide', note: 'Was 🎯 (×3)' },
-
-  // cool-downs
-  'cooldown-circle': { icon: 'yoga-pose', match: 'custom' },
-  'keepy-up-cooldown': { icon: 'balloon', match: 'lucide' },
-  'partner-stretch': { icon: 'handshake', match: 'lucide' },
-  'chip-catch-cooldown': { icon: 'chip-catch', match: 'custom' },
-  'keeper-cooldown': { icon: 'keeper-dive', match: 'custom' },
-  'silent-circle': { icon: 'moon', match: 'lucide' },
-  'walking-football': { icon: 'footprints', match: 'close' },
-  'pass-and-praise': { icon: 'message-circle', match: 'lucide' },
 }
 
 // Keyed by FOCUS_AREAS id (src/data/drills.js).
@@ -254,6 +171,7 @@ export const UI_ICONS = {
 
 // Copy that keeps its emoji (content, not interface).
 export const CONTENT_EMOJIS = [
+  { text: 'Drill emojis (🦈 Sharks & Minnows, 🦀 Crab Attack…)', where: 'data/drills.js' },
   { text: 'Welcome back 👋', where: 'Home' },
   { text: 'All done 🎉', where: 'DrillDetail' },
   { text: '💚 Thanks — that goes straight to SuperCoach HQ.', where: 'DrillFeedback' },

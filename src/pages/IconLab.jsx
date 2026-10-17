@@ -1,14 +1,14 @@
-// Dev-only gallery (#/icon-lab): every emoji in the app beside the icon
-// that will replace it, for reviewing src/icons/iconMap.js.
+// Dev-only gallery (#/icon-lab): every emoji used as an icon beside the
+// icon that will replace it, for reviewing src/icons/iconMap.js.
+// Drills keep their emoji, so they aren't listed.
 //   ?size=24        icon size in px (16, 20, 24, 32)
 //   ?match=custom   only show 'lucide', 'close' or 'custom' entries
 //   ?q=shark        filter by id or name
 import { useSearchParams } from 'react-router-dom'
-import { DRILLS, FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
+import { FOCUS_AREAS, EQUIPMENT } from '../data/drills.js'
 import { INJURIES, INJURY_CATEGORIES } from '../data/injuries.js'
-import { BLOCK_STYLE } from '../engine/sessionBuilder.js'
 import {
-  CUSTOM_ICONS, DRILL_ICONS, FOCUS_ICONS, EQUIPMENT_ICONS,
+  CUSTOM_ICONS, FOCUS_ICONS, EQUIPMENT_ICONS,
   INJURY_CATEGORY_ICONS, INJURY_ICONS, UI_ICONS, CONTENT_EMOJIS,
 } from '../icons/iconMap.js'
 import Icon, { hasIcon } from '../icons/Icon.jsx'
@@ -19,7 +19,6 @@ const MATCH_TAG = {
   close: { cls: 'amber', label: 'Close' },
   custom: { cls: 'coral', label: 'Custom' },
 }
-const CATEGORY_ORDER = ['warmup', 'drill', 'game', 'cooldown']
 
 export default function IconLab() {
   const [params, setParams] = useSearchParams()
@@ -34,17 +33,11 @@ export default function IconLab() {
   }
   const keep = (row) => (!match || row.match === match) && (!q || row.id.toLowerCase().includes(q) || row.label.toLowerCase().includes(q))
 
-  const drillRows = DRILLS.map((d) => ({ id: d.id, label: d.name, was: d.emoji, category: d.category, ...DRILL_ICONS[d.id] }))
   const rowsFrom = (list, map, labelKey = 'label') => list.map((x) => ({ id: x.id, label: x[labelKey], was: x.emoji, ...map[x.id] }))
   const uiRows = Object.entries(UI_ICONS).map(([id, e]) => ({ id, label: e.where, match: hasIcon(e.icon) ? 'lucide' : 'custom', ...e }))
 
-  // Drills must not share an icon — it's how coaches recognise them.
-  const byIcon = {}
-  for (const r of drillRows) (byIcon[r.icon] ||= []).push(r.label)
-  const dups = Object.entries(byIcon).filter(([, v]) => v.length > 1)
-  const unmapped = drillRows.filter((r) => !r.icon)
 
-  const all = [...drillRows, ...rowsFrom(FOCUS_AREAS, FOCUS_ICONS), ...rowsFrom(EQUIPMENT, EQUIPMENT_ICONS), ...rowsFrom(INJURY_CATEGORIES, INJURY_CATEGORY_ICONS), ...rowsFrom(INJURIES, INJURY_ICONS, 'name')]
+  const all = [...rowsFrom(FOCUS_AREAS, FOCUS_ICONS), ...rowsFrom(EQUIPMENT, EQUIPMENT_ICONS), ...rowsFrom(INJURY_CATEGORIES, INJURY_CATEGORY_ICONS), ...rowsFrom(INJURIES, INJURY_ICONS, 'name')]
   const tally = all.reduce((t, r) => ({ ...t, [r.match]: (t[r.match] || 0) + 1 }), {})
   const customUse = Object.keys(CUSTOM_ICONS).map((name) => ({ name, desc: CUSTOM_ICONS[name], drawn: hasIcon(name), usedBy: all.filter((r) => r.icon === name).map((r) => r.label) }))
 
@@ -66,16 +59,6 @@ export default function IconLab() {
         </div>
       </div>
 
-      {(dups.length > 0 || unmapped.length > 0) && (
-        <div className="card" style={{ background: 'var(--coral-100)', marginBottom: 20 }}>
-          {dups.map(([icon, names]) => <div key={icon}><strong>{icon}</strong> is shared by {names.join(', ')}</div>)}
-          {unmapped.map((r) => <div key={r.id}><strong>{r.label}</strong> has no icon yet</div>)}
-        </div>
-      )}
-
-      {CATEGORY_ORDER.map((cat) => (
-        <Section key={cat} title={`Drills · ${BLOCK_STYLE[cat].label}`} rows={drillRows.filter((r) => r.category === cat && keep(r))} size={size} tint={BLOCK_STYLE[cat].bg} />
-      ))}
       <Section title="Focus areas" rows={rowsFrom(FOCUS_AREAS, FOCUS_ICONS).filter(keep)} size={size} />
       <Section title="Equipment" rows={rowsFrom(EQUIPMENT, EQUIPMENT_ICONS).filter(keep)} size={size} />
       <Section title="Injury categories" rows={rowsFrom(INJURY_CATEGORIES, INJURY_CATEGORY_ICONS).filter(keep)} size={size} />
