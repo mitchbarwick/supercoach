@@ -55,8 +55,7 @@ export default function DrillDetail() {
   const setTicksBetween = (fromIdx, toIdx, done) => {
     planBlocks.slice(fromIdx, toIdx).forEach((b) => { if (!b.drillId) actions.setTick(b.id, done) })
   }
-  const done = planBlocks.filter((b) => ticks[b.id]).length
-  const pct = planBlocks.length ? Math.round((done / planBlocks.length) * 100) : 0
+  const drillsDone = drillableBlocks.filter((b) => ticks[b.id]).length
   const minsLeft = planBlocks.filter((b) => !ticks[b.id]).reduce((sum, b) => sum + b.duration, 0)
 
   useEffect(() => {
@@ -84,17 +83,9 @@ export default function DrillDetail() {
 
   return (
     <div>
-      {inPlan && (
-        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-          <div className="spread" style={{ marginBottom: 8 }}>
-            <strong style={{ fontSize: 14.5 }}>{done} of {planBlocks.length} done</strong>
-            <span className="muted">{minsLeft > 0 ? `${minsLeft} min${minsLeft === 1 ? '' : 's'} left` : 'All done'}</span>
-          </div>
-          <div className="progress-wrap"><div className="progress-bar" style={{ width: `${pct}%` }} /></div>
-        </div>
+      {!inPlan && (
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)} style={{ marginBottom: 14 }}>← Back</button>
       )}
-
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)} style={{ marginBottom: 14 }}>← Back to plan</button>
 
       <div className="spread" style={{ marginBottom: 4 }}>
         <h1 style={{ fontSize: 26 }}>{drill.emoji} {drill.name}</h1>
@@ -275,38 +266,59 @@ export default function DrillDetail() {
 
       {inPlan && (
         <div className="sticky-cta">
-          <div className="inner">
-            {prevBlock && (
+          <nav className="inner plan-bar" aria-label="Session progress">
+            <div className="plan-bar-status">
+              <strong>{drillsDone} of {drillableBlocks.length} done</strong>
+              <span>{minsLeft > 0 ? `${minsLeft} min${minsLeft === 1 ? '' : 's'} left` : 'All done 🎉'}</span>
+            </div>
+            <div className="plan-bar-track">
+              {drillableBlocks.map((b, i) => (
+                <button
+                  key={b.id}
+                  className={`plan-seg${ticks[b.id] ? ' done' : ''}${i === blockIndex ? ' current' : ''}`}
+                  aria-label={`${i + 1}. ${b.title}${ticks[b.id] ? ' (done)' : ''}`}
+                  aria-current={i === blockIndex ? 'step' : undefined}
+                  title={b.title}
+                  onClick={() => i !== blockIndex && navigate(`/drill/${b.drillId}?block=${b.id}`, { replace: true })}
+                />
+              ))}
+            </div>
+            <div className="plan-bar-actions">
+              <button className="plan-bar-btn" onClick={() => navigate('/plan')} aria-label="Back to plan">
+                <span aria-hidden="true">☰</span><span className="plan-bar-btn-label">Plan</span>
+              </button>
               <button
-                className="icon-btn"
+                className="plan-bar-btn"
                 aria-label="Previous drill"
+                disabled={!prevBlock}
                 onClick={() => {
                   actions.setTick(blockId, false)
                   // stepping back over a drink break un-ticks it again
                   setTicksBetween(planIndexOf(prevBlock) + 1, planIndexOf({ id: blockId }), false)
-                  navigate(`/drill/${prevBlock.drillId}?block=${prevBlock.id}`)
+                  navigate(`/drill/${prevBlock.drillId}?block=${prevBlock.id}`, { replace: true })
                 }}
               >
-                ←
+                <span aria-hidden="true">←</span>
               </button>
-            )}
-            <button
-              className="btn btn-primary btn-block"
-              onClick={() => {
-                actions.setTick(blockId, true)
-                // advancing past a drink break checks it off too; finishing
-                // the session sweeps up any trailing non-drill blocks
-                const curIdx = planIndexOf({ id: blockId })
-                setTicksBetween(curIdx + 1, nextBlock ? planIndexOf(nextBlock) : planBlocks.length, true)
-                navigate(nextBlock ? `/drill/${nextBlock.drillId}?block=${nextBlock.id}` : '/plan')
-              }}
-            >
-              <span className="next-btn-text">
-                <span className="next-btn-main">{nextBlock ? 'Next →' : 'Finish session →'}</span>
-                {nextBlock && <span className="next-btn-sub">{nextBlock.title}</span>}
-              </span>
-            </button>
-          </div>
+              <button
+                className="btn btn-primary plan-bar-next"
+                onClick={() => {
+                  actions.setTick(blockId, true)
+                  // advancing past a drink break checks it off too; finishing
+                  // the session sweeps up any trailing non-drill blocks
+                  const curIdx = planIndexOf({ id: blockId })
+                  setTicksBetween(curIdx + 1, nextBlock ? planIndexOf(nextBlock) : planBlocks.length, true)
+                  if (nextBlock) navigate(`/drill/${nextBlock.drillId}?block=${nextBlock.id}`, { replace: true })
+                  else navigate('/plan')
+                }}
+              >
+                <span className="next-btn-text">
+                  <span className="next-btn-main">{nextBlock ? 'Done · Next →' : 'Finish session ✓'}</span>
+                  {nextBlock && <span className="next-btn-sub">{nextBlock.title}</span>}
+                </span>
+              </button>
+            </div>
+          </nav>
         </div>
       )}
     </div>
