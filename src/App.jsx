@@ -37,6 +37,8 @@ export default function App() {
   // interstitial — neither should also expose site navigation before the
   // visitor has actually chosen sign-in or guest.
   const showingLanding = (pathname === '/' && !auth && !guestEntered && accountsEnabled()) || pathname === '/guest'
+  // The drill page brings its own top bar (back · share · favourite).
+  const onDrillPage = pathname.startsWith('/drill/')
 
   useEffect(() => {
     // Only scroll fresh navigations to the top — back/forward (POP) keeps
@@ -60,7 +62,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
+      {!onDrillPage && <header className="topbar">
         <Link to="/" className="brand" onClick={closeMenu}>
           <SpinningBall /> SuperCoach
         </Link>
@@ -117,7 +119,7 @@ export default function App() {
             </nav>
           </>
         )}
-      </header>
+      </header>}
       {menuOpen && <button className="nav-backdrop" aria-hidden="true" tabIndex={-1} onClick={closeMenu} />}
       <main key={pathname} className="page-fade">
         <Routes>

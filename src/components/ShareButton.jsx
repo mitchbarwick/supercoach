@@ -11,6 +11,7 @@ export default function ShareButton({
   label = 'Share',
   icon = '🔗',
   className = 'btn btn-ghost btn-sm',
+  ariaLabel,
 }) {
   const [toast, setToast] = useState('')
 
@@ -25,7 +26,7 @@ export default function ShareButton({
 
   return (
     <>
-      <button type="button" className={className} onClick={onClick} disabled={!url}>
+      <button type="button" className={className} onClick={onClick} disabled={!url} aria-label={ariaLabel} title={ariaLabel}>
         <span aria-hidden="true">{icon}</span> {label}
       </button>
       {toast && <div className="toast">{toast}</div>}
