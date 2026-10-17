@@ -1,46 +1,53 @@
 // ============================================================
-// SuperCoach kids — the illustrated players used where a drill
-// needs to show HOW a body is positioned (stretches, cool-downs).
+// SuperCoach kids — illustrated players for drills that need to show
+// HOW a body is positioned (stretches, cool-downs).
 //
-// Drawn entirely from a pose skeleton as layered flat vector art,
-// so any pose blends into any other, any team colour works, and a
-// new stretch is data, not artwork. Style follows the character
-// brief: chibi proportions (head ≈ 40% of height), clumped hair,
-// a real tee / shorts / long socks / chunky boots kit, one warm
-// outline (heavier on the silhouette), two-tone cel shading with the
-// light from the top left.
+// Everything is drawn from a pose skeleton, so poses blend, any team
+// colour works and a new stretch is data, not artwork. What keeps it
+// from looking like a puppet:
+//   • Merged silhouettes. Parts are drawn in depth GROUPS (far arm,
+//     legs, body, near arm, head). Each group gets ONE outline pass
+//     under all its fills, so a group reads as a single shape; only
+//     real edges (hems, fringe, overlaps) get thin interior lines.
+//   • Smooth limbs. Arms and legs are tubes along a spline through the
+//     joints with a muscle profile (thigh → knee → calf → ankle), and
+//     garments are sections of the same tube with curved hems.
+//   • Soft shading. Gradients across each limb (lit from the top left),
+//     radial light on head / torso / hair, soft contact shadows.
+//   • Real views. Front, three-quarter, side and back each have their
+//     own head, torso and boot drawing, with near / far limb depth.
 //
-// Units: feet at y = 0, up is negative, a standing kid ≈ 12 units.
-// renderKid() returns an SVG string (wrapped by the React component
-// in Actors.jsx); keeping it a pure string makes it cheap to call
-// every frame and lets scripts render character sheets.
+// Units: feet at y = 0, up is negative; a standing kid ≈ 12.4 tall.
+// renderKid() returns an SVG string (wrapped by the React component in
+// Actors.jsx) so it is cheap per frame and can render character sheets.
 // ============================================================
 
 // ---------- palette ----------
-export const OUTLINE = '#3a2418'
+export const OUTLINE = '#4a2a1c'
+const LINE = 'rgba(74,42,28,0.7)' // interior lines
 export const SKINS = [
-  { base: '#f7d2ae', shade: '#e6b08a', warm: '#eda27f' },
-  { base: '#e7ad80', shade: '#cd8d61', warm: '#d98a62' },
-  { base: '#b97c50', shade: '#9a6239', warm: '#a96a45' },
-  { base: '#7f5033', shade: '#653d24', warm: '#704329' },
+  { base: '#f7c7a0', light: '#ffdcbd', shade: '#e6a77c', deep: '#cc8a5e' },
+  { base: '#e8a676', light: '#f6c095', shade: '#cc8656', deep: '#ad6a40' },
+  { base: '#bd8052', light: '#d79c6d', shade: '#9b6038', deep: '#80492a' },
+  { base: '#85542f', light: '#a06c44', shade: '#673f22', deep: '#4f2f19' },
 ]
 export const HAIRS = {
-  brown: '#5a3420', chestnut: '#8a5328', black: '#231a16', blonde: '#d09a4a', auburn: '#9a4220', dark: '#3b2418',
+  brown: '#5d3721', chestnut: '#8e5629', black: '#2a1f1a', blonde: '#d39f50', auburn: '#9b4524', dark: '#3e261a',
 }
-const SHORTS = '#f7f5f0', SHORTS_SHADE = '#d9d4cb'
-const BOOT = '#24282b', BOOT_HI = '#3d4347', SOLE = '#cfd4d7'
 
 // ---------- maths ----------
 const add = (a, b) => [a[0] + b[0], a[1] + b[1]]
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1]]
 const mul = (a, k) => [a[0] * k, a[1] * k]
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1]
 const len = (a) => Math.hypot(a[0], a[1]) || 1e-6
 const norm = (a) => mul(a, 1 / len(a))
 const perp = (a) => [-a[1], a[0]]
 const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]
 const r2 = (n) => Math.round(n * 100) / 100
 const P = (p) => `${r2(p[0])} ${r2(p[1])}`
-const LIGHT = norm([0.75, 0.66]) // direction shadows fall (light from top left)
+const rot = (v, deg) => { const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a); return [v[0] * c - v[1] * s, v[0] * s + v[1] * c] }
+const smooth = (u) => u * u * (3 - 2 * u)
 
 export function tint(hex, k) {
   const n = parseInt(hex.slice(1), 16)
@@ -51,550 +58,980 @@ const lum = (hex) => {
   const n = parseInt(hex.slice(1), 16)
   return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
 }
+// warm / cool shift for shading: shadows lean warmer-darker, lights a touch creamy
+const ramp = (base) => ({ base, light: tint(base, 0.2), shade: tint(base, -0.22), deep: tint(base, -0.36) })
 
-// Tapered capsule a(ra) → b(rb), as a path.
-function capsule(a, b, ra, rb) {
-  const d = norm(sub(b, a)), n = perp(d)
-  const a1 = add(a, mul(n, ra)), a2 = add(a, mul(n, -ra))
-  const b1 = add(b, mul(n, rb)), b2 = add(b, mul(n, -rb))
-  return `M${P(a1)}L${P(b1)}A${r2(rb)} ${r2(rb)} 0 0 0 ${P(b2)}L${P(a2)}A${r2(ra)} ${r2(ra)} 0 0 0 ${P(a1)}Z`
+// ---------- smooth closed path through points ----------
+function smoothClosed(pts) {
+  const n = pts.length
+  const m = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  let d = `M${P(m(pts[n - 1], pts[0]))}`
+  for (let i = 0; i < n; i++) d += `Q${P(pts[i])} ${P(m(pts[i], pts[(i + 1) % n]))}`
+  return d + 'Z'
 }
 
-// One filled, cel-shaded, outlined limb segment.
-//   fill → shade sliver on the side away from the light → outline on top
-function limb(a, b, ra, rb, fill, shade, w = 0.17) {
-  const d = norm(sub(b, a)), n = perp(d)
-  const side = n[0] * LIGHT[0] + n[1] * LIGHT[1] >= 0 ? 1 : -1
-  const k = 0.42
-  const sa = add(a, mul(n, side * ra * (1 - k))), sb = add(b, mul(n, side * rb * (1 - k)))
-  const path = capsule(a, b, ra, rb)
-  return `<path d="${path}" fill="${fill}"/>` +
-    `<path d="${capsule(sa, sb, ra * k, rb * k)}" fill="${shade}"/>` +
-    `<path d="${path}" fill="none" stroke="${OUTLINE}" stroke-width="${w}" stroke-linejoin="round"/>`
+// ---------- splines & tubes ----------
+function spline(pts, per = 9) {
+  const raw = []
+  if (pts.length === 2) {
+    for (let k = 0; k <= per * 2; k++) raw.push(lerp(pts[0], pts[1], k / (per * 2)))
+  } else {
+    const cr = (p0, p1, p2, p3, t) => {
+      const t2 = t * t, t3 = t2 * t
+      return [0, 1].map((i) => 0.5 * (2 * p1[i] + (-p0[i] + p2[i]) * t + (2 * p0[i] - 5 * p1[i] + 4 * p2[i] - p3[i]) * t2 + (-p0[i] + 3 * p1[i] - 3 * p2[i] + p3[i]) * t3))
+    }
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)]
+      for (let k = 0; k < per; k++) raw.push(cr(p0, p1, p2, p3, k / per))
+    }
+    raw.push(pts[pts.length - 1])
+  }
+  const L = [0]
+  for (let i = 1; i < raw.length; i++) L.push(L[i - 1] + len(sub(raw[i], raw[i - 1])))
+  const total = L[L.length - 1] || 1e-6
+  // where each control joint sits along the curve (0..1)
+  const joints = pts.map((p) => {
+    let best = 0, bd = Infinity
+    raw.forEach((q, i) => { const d = len(sub(p, q)); if (d < bd) { bd = d; best = i } })
+    return L[best] / total
+  })
+  return { pts: raw, s: L.map((l) => l / total), total, joints }
 }
-const line = (a, b, col, w, cap = 'round') =>
-  `<path d="M${P(a)}L${P(b)}" stroke="${col}" stroke-width="${w}" stroke-linecap="${cap}" fill="none"/>`
+
+function at(spl, s) {
+  const { pts, s: S } = spl
+  if (s <= 0) return { p: pts[0], t: norm(sub(pts[1], pts[0])) }
+  if (s >= 1) return { p: pts[pts.length - 1], t: norm(sub(pts[pts.length - 1], pts[pts.length - 2])) }
+  let i = 0
+  while (i < S.length - 2 && S[i + 1] < s) i++
+  const u = (s - S[i]) / Math.max(1e-6, S[i + 1] - S[i])
+  const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 2)]
+  return { p: lerp(pts[i], pts[i + 1], u), t: norm(sub(b, a)) }
+}
+
+// radius profile: [[s, r], …] eased between stops
+function profile(stops) {
+  return (s) => {
+    if (s <= stops[0][0]) return stops[0][1]
+    for (let i = 0; i < stops.length - 1; i++) {
+      const [s0, r0] = stops[i], [s1, r1] = stops[i + 1]
+      if (s <= s1) return r0 + (r1 - r0) * smooth((s - s0) / Math.max(1e-6, s1 - s0))
+    }
+    return stops[stops.length - 1][1]
+  }
+}
+
+// Outline of a tube section [s0, s1]. caps: 'round' | 'hem' (a curved
+// cross-section, like a sleeve or sock edge seen slightly from above).
+function tube(spl, rAt, s0 = 0, s1 = 1, cap0 = 'round', cap1 = 'round', bulge = 0.32, n0 = 12) {
+  const n = SMALL ? Math.max(6, Math.round(n0 * 0.7)) : n0
+  const L = [], R = []
+  for (let k = 0; k <= n; k++) {
+    const s = s0 + ((s1 - s0) * k) / n
+    const { p, t } = at(spl, s), nn = perp(t), r = rAt(s)
+    L.push(add(p, mul(nn, r)))
+    R.push(add(p, mul(nn, -r)))
+  }
+  const pts = [...L]
+  const capPts = (s, sign, kind) => {
+    const { p, t } = at(spl, s), nn = perp(t), r = rAt(s), out = []
+    const steps = 5
+    for (let k = 1; k < steps; k++) {
+      const th = (Math.PI * k) / steps
+      const along = kind === 'round' ? r * Math.sin(th) * sign : r * bulge * Math.sin(th)
+      out.push(add(p, add(mul(nn, r * Math.cos(th) * sign), mul(t, along))))
+    }
+    return out
+  }
+  pts.push(...capPts(s1, 1, cap1))
+  pts.push(...R.reverse())
+  pts.push(...capPts(s0, -1, cap0).map((q) => q))
+  return smoothClosed(pts)
+}
+
+// Curved line across a tube at s (a hem / stripe edge)
+function hemLine(spl, rAt, s, bulge = 0.32, inset = 0.02) {
+  const { p, t } = at(spl, s), nn = perp(t), r = rAt(s) - inset
+  const a = add(p, mul(nn, r)), b = add(p, mul(nn, -r))
+  return `M${P(a)}Q${P(add(p, mul(t, r * bulge * 2)))} ${P(b)}`
+}
+
+// ---------- gradients (ids unique per kid render) ----------
+function makeGrads(uid) {
+  let n = 0
+  const defs = []
+  const stops = (list) => list.map(([o, c, a]) => `<stop offset="${o}" stop-color="${c}"${a != null && a < 1 ? ` stop-opacity="${a}"` : ''}/>`).join('')
+  return {
+    defs,
+    lin(p1, p2, list) {
+      const id = `${uid}${n++}`
+      defs.push(`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${r2(p1[0])}" y1="${r2(p1[1])}" x2="${r2(p2[0])}" y2="${r2(p2[1])}">${stops(list)}</linearGradient>`)
+      return `url(#${id})`
+    },
+    // radial gradient squashed to an ellipse (fades out exactly at rx, ry)
+    radE(c, rx, ry, list, deg = 0) {
+      const id = `${uid}${n++}`
+      defs.push(`<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1" gradientTransform="translate(${r2(c[0])} ${r2(c[1])}) rotate(${r2(deg)}) scale(${r2(rx)} ${r2(ry)})">${stops(list)}</radialGradient>`)
+      return `url(#${id})`
+    },
+    rad(c, r, list, f) {
+      const id = `${uid}${n++}`
+      const fx = f ? ` fx="${r2(f[0])}" fy="${r2(f[1])}"` : ''
+      defs.push(`<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${r2(c[0])}" cy="${r2(c[1])}" r="${r2(r)}"${fx}>${stops(list)}</radialGradient>`)
+      return `url(#${id})`
+    },
+  }
+}
+
+// ---------- groups: one outline pass under all fills ----------
+const W = 0.1 // visible silhouette line width
+// Each shape is defined once and drawn twice through <use>: first fat and
+// dark (outline pass), then with its fill. Ids come from the current render.
+let GID = { prefix: 'g', n: 0, defs: null }
+let SMALL = false // drill-size drawing: skip detail too fine to see
+function group(items) {
+  let outline = '', fills = ''
+  for (const it of items) {
+    if (!it) continue
+    if (typeof it === 'string') { fills += it; continue }
+    if (it.outline === false) { fills += `<path d="${it.d}" fill="${it.fill}"/>`; continue }
+    const id = `${GID.prefix}${GID.n++}`
+    GID.defs.push(`<path id="${id}" d="${it.d}"/>`)
+    outline += `<use href="#${id}" fill="${OUTLINE}" stroke="${OUTLINE}" stroke-width="${W * 2}" stroke-linejoin="round"/>`
+    fills += `<use href="#${id}" fill="${it.fill}"${it.opacity != null ? ` opacity="${it.opacity}"` : ''}/>`
+  }
+  return outline + fills
+}
+const iline = (d, w = 0.085, col = LINE) => `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`
+// tapered stroke (thick in the middle) for strands, folds, brows, highlights
+function taper(a, b, w, bend = 0, fill = LINE, opacity = 1) {
+  const d = sub(b, a), nn = norm(perp(d)), m = add(lerp(a, b, 0.5), mul(nn, bend))
+  return `<path d="M${P(a)}Q${P(add(m, mul(nn, w)))} ${P(b)}Q${P(add(m, mul(nn, -w * 0.35)))} ${P(a)}Z" fill="${fill}"${opacity < 1 ? ` opacity="${opacity}"` : ''}/>`
+}
+
+// Gradient across a limb so it reads as a cylinder lit from the top left
+function limbGrad(G, a, b, r, c, LT, far) {
+  const mid = lerp(a, b, 0.5), nn = norm(perp(sub(b, a)))
+  const lit = dot(nn, LT) >= 0 ? nn : mul(nn, -1)
+  const k = far ? -0.1 : 0
+  return G.lin(add(mid, mul(lit, r * 1.05)), add(mid, mul(lit, -r * 1.05)), [
+    [0, tint(c.light, k)], [0.35, tint(c.base, k)], [0.8, tint(c.shade, k)], [1, tint(c.deep, k)],
+  ])
+}
 
 // ============================================================
-// POSES — joints in kid units. view: front | three | side | back.
-// In side / three views +x is the way the kid faces; L = far limb,
-// R = near limb. `hand*` states: open | fist | grip.
-// `front` lists limbs drawn in front of the shirt (default arms).
-// `effort` = little motion ticks [[x, y, angle°], …].
+// POSES — joints in kid units, authored facing +x (flip to face left).
+// view: front | three | side | back. In three / side views `near` is the
+// limb set closer to us ('L' = screen-left limbs by default in three,
+// 'R' in side). `front` = arms drawn in front of the body. Hand states:
+// open | fist | grip. `effort` = little motion ticks [[x, y, angle°]].
 // ============================================================
 const STAND_LEGS = { kneeL: [-0.85, -2.05], footL: [-0.95, 0], kneeR: [0.85, -2.05], footR: [0.95, 0] }
 export const POSES = {
-  stand: { view: 'front', head: [0, -9.55], neck: [0, -6.9], hip: [0, -4.0],
-    elbowL: [-2.1, -5.1], handL: [-2.35, -3.55], elbowR: [2.1, -5.1], handR: [2.35, -3.55], ...STAND_LEGS },
-  handsOnHips: { view: 'three', head: [0.15, -9.55], neck: [0, -6.9], hip: [0, -4.0],
-    elbowL: [-2.75, -5.2], handL: [-1.55, -4.15], handLState: 'fist', elbowR: [2.75, -5.2], handR: [1.6, -4.15], handRState: 'fist',
+  stand: { view: 'front', head: [0, -9.6], neck: [0, -6.9], hip: [0, -3.95],
+    elbowL: [-2.08, -4.95], handL: [-2.32, -3.05], elbowR: [2.08, -4.95], handR: [2.32, -3.05], ...STAND_LEGS },
+  standSide: { view: 'side', head: [0.35, -9.6], neck: [0.1, -6.9], hip: [0, -3.95],
+    elbowL: [-0.65, -5.0], handL: [-0.35, -3.15], elbowR: [-0.35, -4.95], handR: [0.1, -3.1],
+    kneeL: [-0.25, -2.05], footL: [-0.35, 0], kneeR: [0.25, -2.05], footR: [0.35, 0] },
+  handsOnHips: { view: 'front', head: [0.1, -9.6], neck: [0, -6.9], hip: [0, -3.95],
+    elbowL: [-2.55, -5.45], handL: [-1.72, -4.05], handLState: 'fist', elbowR: [2.55, -5.45], handR: [1.72, -4.05], handRState: 'fist',
     kneeL: [-1.0, -2.05], footL: [-1.3, 0], kneeR: [1.0, -2.05], footR: [1.3, 0] },
-  reachUp: { view: 'three', head: [-0.95, -9.35], neck: [-0.5, -6.85], hip: [0, -4.0],
-    elbowL: [-2.7, -5.3], handL: [-1.55, -4.15], handLState: 'fist',
-    elbowR: [2.45, -9.35], handR: [0.95, -12.15],
+  reachUp: { view: 'three', head: [-1.2, -9.4], neck: [-0.55, -6.85], hip: [0, -3.95],
+    elbowL: [-2.6, -5.3], handL: [-1.45, -4.15], handLState: 'fist',
+    elbowR: [2.2, -10.0], handR: [0.4, -12.55], handRState: 'open', overHead: ['R'],
     kneeL: [-1.25, -2.05], footL: [-1.85, 0], kneeR: [1.25, -2.05], footR: [1.85, 0],
-    effort: [[2.9, -12.4, -30], [3.5, -11.3, 0], [3.35, -10.1, 25]] },
-  quadHold: { view: 'three', head: [-0.15, -9.55], neck: [-0.05, -6.9], hip: [0, -4.0],
-    elbowL: [-2.8, -6.45], handL: [-4.05, -6.0],
-    elbowR: [2.3, -4.95], handR: [2.75, -3.3], handRState: 'grip',
-    kneeL: [-0.55, -2.05], footL: [-0.55, 0], kneeR: [0.85, -1.85], footR: [2.6, -3.0], liftR: true,
-    effort: [[-4.9, -7.1, -20], [-5.2, -5.6, 15], [3.9, -3.9, -10]] },
-  armAcross: { view: 'three', head: [0.3, -9.55], neck: [0, -6.9], hip: [0, -4.0],
-    elbowL: [-1.75, -5.25], handL: [-0.5, -6.15], handLState: 'grip',
-    elbowR: [-0.55, -6.3], handR: [-3.25, -6.3],
+    effort: [[2.9, -12.35, -30], [3.5, -11.2, 0], [3.35, -10.0, 25]] },
+  quadHold: { view: 'three', head: [-0.15, -9.6], neck: [-0.05, -6.9], hip: [0, -3.95],
+    elbowL: [-2.75, -6.4], handL: [-3.95, -6.05], handLState: 'fist',
+    elbowR: [2.25, -5.0], handR: [2.7, -3.3], handRState: 'grip',
+    kneeL: [-0.55, -2.05], footL: [-0.55, 0], kneeR: [0.85, -1.85], footR: [2.55, -3.05], liftR: true, front: ['L', 'R'],
+    effort: [[-4.9, -7.15, -20], [-5.2, -5.65, 15], [3.85, -3.9, -10]] },
+  armAcross: { view: 'three', head: [0.3, -9.6], neck: [0, -6.9], hip: [0, -3.95],
+    elbowL: [-1.75, -5.3], handL: [-0.55, -6.1], handLState: 'grip',
+    elbowR: [-0.45, -6.3], handR: [-3.2, -6.3], handRState: 'fist',
     kneeL: [-0.95, -2.05], footL: [-1.15, 0], kneeR: [0.95, -2.05], footR: [1.15, 0],
     front: ['R', 'L'], effort: [[3.0, -7.4, -30], [3.55, -6.2, 0]] },
-  breathe: { view: 'front', head: [0, -9.6], neck: [0, -6.95], hip: [0, -4.0],
-    elbowL: [-2.6, -7.0], handL: [-3.6, -8.6], elbowR: [2.6, -7.0], handR: [3.6, -8.6], ...STAND_LEGS, expr: 'calm' },
-  cheer: { view: 'front', head: [0, -9.6], neck: [0, -6.95], hip: [0, -4.0],
-    elbowL: [-2.3, -8.6], handL: [-2.1, -11.0], handLState: 'fist', elbowR: [2.3, -8.6], handR: [2.1, -11.0], handRState: 'fist',
+  breathe: { view: 'front', head: [0, -9.65], neck: [0, -6.95], hip: [0, -3.95],
+    elbowL: [-2.55, -7.0], handL: [-3.55, -8.6], elbowR: [2.55, -7.0], handR: [3.55, -8.6], ...STAND_LEGS, expr: 'calm' },
+  cheer: { view: 'front', head: [0, -9.65], neck: [0, -6.95], hip: [0, -3.95],
+    elbowL: [-2.25, -8.55], handL: [-2.05, -10.95], handLState: 'fist', elbowR: [2.25, -8.55], handR: [2.05, -10.95], handRState: 'fist',
     ...STAND_LEGS, expr: 'happy', effort: [[-3.4, -11.6, -35], [3.4, -11.6, 35]] },
-  armsAround: { view: 'front', head: [0, -9.55], neck: [0, -6.9], hip: [0, -4.0],
-    elbowL: [-2.6, -6.1], handL: [-4.1, -6.5], elbowR: [2.6, -6.1], handR: [4.1, -6.5], ...STAND_LEGS, expr: 'grin' },
+  armsAround: { view: 'front', head: [0, -9.6], neck: [0, -6.9], hip: [0, -3.95],
+    elbowL: [-2.55, -6.15], handL: [-4.05, -6.5], elbowR: [2.55, -6.15], handR: [4.05, -6.5], ...STAND_LEGS, expr: 'grin' },
   // folding forward towards the viewer: head drops over the hips, hands to the boots
-  toeTouch: { view: 'front', head: [0, -6.55], neck: [0, -5.45], hip: [0, -4.0],
-    elbowL: [-1.55, -3.0], handL: [-0.95, -0.95], elbowR: [1.55, -3.0], handR: [0.95, -0.95],
+  toeTouch: { view: 'front', head: [0, -6.6], neck: [0, -5.45], hip: [0, -3.95],
+    elbowL: [-1.5, -3.0], handL: [-0.95, -0.95], elbowR: [1.5, -3.0], handR: [0.95, -0.95],
     kneeL: [-0.75, -2.05], footL: [-0.85, 0], kneeR: [0.75, -2.05], footR: [0.85, 0], expr: 'focus' },
-  lunge: { view: 'side', head: [0.4, -8.7], neck: [0.25, -6.05], hip: [0, -3.2],
+  lunge: { view: 'side', head: [0.4, -8.75], neck: [0.25, -6.05], hip: [0, -3.15],
     elbowL: [0.8, -4.4], handL: [1.55, -3.45], elbowR: [1.0, -4.3], handR: [1.75, -3.35],
     kneeL: [2.15, -2.3], footL: [2.4, 0], kneeR: [-1.35, -0.75], footR: [-3.35, 0] },
-  butterfly: { view: 'front', head: [0, -7.45], neck: [0, -4.85], hip: [0, -1.25],
-    elbowL: [-1.9, -2.7], handL: [-0.45, -0.85], handLState: 'grip', elbowR: [1.9, -2.7], handR: [0.45, -0.85], handRState: 'grip',
+  butterfly: { view: 'front', head: [0, -7.5], neck: [0, -4.85], hip: [0, -1.25],
+    elbowL: [-1.9, -2.75], handL: [-0.45, -0.85], handLState: 'grip', elbowR: [1.9, -2.75], handR: [0.45, -0.85], handRState: 'grip',
     kneeL: [-2.8, -1.1], footL: [-0.35, -0.3], kneeR: [2.8, -1.1], footR: [0.35, -0.3], sit: true, expr: 'calm' },
-  sitReach: { view: 'side', head: [2.55, -5.75], neck: [1.45, -3.7], hip: [0, -1.15],
-    elbowL: [3.6, -2.3], handL: [5.25, -1.25], handLState: 'grip', elbowR: [3.75, -2.2], handR: [5.4, -1.15], handRState: 'grip',
-    kneeL: [2.75, -0.7], footL: [5.6, -0.6], kneeR: [2.75, -0.6], footR: [5.6, -0.5], sit: true, soles: true, expr: 'calm' },
-  sitTall: { view: 'side', head: [0.55, -7.45], neck: [0.25, -4.85], hip: [0, -1.15],
-    elbowL: [1.1, -2.9], handL: [2.3, -1.6], elbowR: [1.3, -2.8], handR: [2.5, -1.5],
-    kneeL: [2.7, -0.7], footL: [5.4, -0.6], kneeR: [2.7, -0.6], footR: [5.4, -0.5], sit: true },
-  // Back-to-back twist: sitting tall, rotated towards the partner behind,
-  // near hand on the far knee, far hand back to touch the partner's hand.
-  sitTwist: { view: 'three', head: [-0.55, -7.5], neck: [-0.15, -4.9], hip: [0, -1.15],
-    elbowL: [-2.4, -3.0], handL: [-3.6, -1.7], elbowR: [1.1, -3.4], handR: [1.9, -1.4], handRState: 'grip',
-    kneeL: [2.0, -0.95], footL: [3.4, -0.35], kneeR: [2.6, -0.8], footR: [4.0, -0.3], sit: true, expr: 'grin',
-    effort: [[-1.9, -9.6, -20], [0.9, -9.8, 20]] },
+  sitReach: { view: 'side', head: [2.5, -5.8], neck: [1.45, -3.7], hip: [0, -1.15],
+    elbowL: [3.55, -2.3], handL: [5.2, -1.3], handLState: 'grip', elbowR: [3.7, -2.2], handR: [5.35, -1.2], handRState: 'grip',
+    kneeL: [2.75, -0.72], footL: [5.6, -0.62], kneeR: [2.75, -0.62], footR: [5.6, -0.52], sit: true, front: ['R'], expr: 'calm' },
+  sitTall: { view: 'side', head: [0.5, -7.5], neck: [0.25, -4.85], hip: [0, -1.15],
+    elbowL: [1.1, -2.95], handL: [2.3, -1.65], elbowR: [1.3, -2.85], handR: [2.5, -1.55],
+    kneeL: [2.7, -0.72], footL: [5.4, -0.62], kneeR: [2.7, -0.62], footR: [5.4, -0.52], sit: true },
+  sitCross: { view: 'front', head: [0, -7.5], neck: [0, -4.85], hip: [0, -1.25],
+    elbowL: [-2.1, -2.95], handL: [-2.5, -1.45], elbowR: [2.1, -2.95], handR: [2.5, -1.45],
+    kneeL: [-2.7, -1.0], footL: [0.85, -0.3], kneeR: [2.7, -1.0], footR: [-0.85, -0.3], sit: true, expr: 'calm' },
+  // the twist: hand on the opposite knee, the other arm reaching round
+  // behind to high-five the partner (both reach to the viewer's left)
+  twistFront: { view: 'three', head: [-0.35, -7.5], neck: [-0.1, -4.85], hip: [0, -1.25],
+    elbowL: [-2.75, -3.6], handL: [-4.1, -3.15], handLState: 'open',
+    elbowR: [0.75, -2.95], handR: [-1.6, -1.6], handRState: 'grip',
+    kneeL: [-2.7, -1.0], footL: [0.85, -0.3], kneeR: [2.7, -1.0], footR: [-0.85, -0.3], sit: true, expr: 'grin',
+    front: ['L', 'R'], effort: [[-5.2, -4.2, -15]] },
+  twistBack: { view: 'back', head: [-0.3, -7.5], neck: [-0.1, -4.85], hip: [0, -1.25],
+    elbowL: [-2.75, -3.55], handL: [-3.95, -3.35], handLState: 'open',
+    elbowR: [0.7, -2.9], handR: [1.9, -1.5],
+    kneeL: [-2.7, -1.0], footL: [0.85, -0.3], kneeR: [2.7, -1.0], footR: [-0.85, -0.3], sit: true, front: ['L'] },
+  // two extremes of a jog stride (side view)
+  strideA: { view: 'side', head: [0.75, -9.4], neck: [0.4, -6.8], hip: [0, -3.9],
+    elbowL: [1.15, -5.3], handL: [1.95, -5.95], handLState: 'fist', elbowR: [-0.95, -5.0], handR: [-1.3, -3.95], handRState: 'fist',
+    kneeL: [-0.75, -1.95], footL: [-1.85, -0.45], kneeR: [1.15, -2.3], footR: [1.05, 0] },
+  strideB: { view: 'side', head: [0.75, -9.4], neck: [0.4, -6.8], hip: [0, -3.9],
+    elbowL: [-0.95, -5.0], handL: [-1.3, -3.95], handLState: 'fist', elbowR: [1.15, -5.3], handR: [1.95, -5.95], handRState: 'fist',
+    kneeL: [1.15, -2.3], footL: [1.05, 0], kneeR: [-0.75, -1.95], footR: [-1.85, -0.45] },
 }
 POSES.sideBend = POSES.reachUp
-// Cross-legged, facing us / seen from behind (back-to-back partners).
-POSES.sitCross = { view: 'front', head: [0, -7.45], neck: [0, -4.85], hip: [0, -1.25],
-  elbowL: [-2.15, -2.95], handL: [-2.55, -1.45], elbowR: [2.15, -2.95], handR: [2.55, -1.45],
-  kneeL: [-2.7, -1.0], footL: [0.85, -0.3], kneeR: [2.7, -1.0], footR: [-0.85, -0.3], sit: true, expr: 'calm' }
 POSES.sitCrossBack = { ...POSES.sitCross, view: 'back', front: [] }
-// The twist: hand on the opposite knee, the other arm reaching round
-// behind to high-five the partner (both reach to the viewer's left).
-POSES.twistFront = { view: 'three', head: [-0.35, -7.5], neck: [-0.1, -4.85], hip: [0, -1.25],
-  elbowL: [-2.75, -3.6], handL: [-4.1, -3.15], handLState: 'open',
-  elbowR: [0.75, -2.95], handR: [-1.6, -1.6], handRState: 'grip',
-  kneeL: [-2.7, -1.0], footL: [0.85, -0.3], kneeR: [2.7, -1.0], footR: [-0.85, -0.3], sit: true, expr: 'grin',
-  effort: [[-5.2, -4.2, -15]] }
-POSES.twistBack = { view: 'back', head: [-0.3, -7.5], neck: [-0.1, -4.85], hip: [0, -1.25],
-  elbowL: [-2.75, -3.55], handL: [-3.95, -3.35], handLState: 'open',
-  elbowR: [0.7, -2.9], handR: [1.9, -1.5],
-  kneeL: [-2.7, -1.0], footL: [0.85, -0.3], kneeR: [2.7, -1.0], footR: [-0.85, -0.3], sit: true, front: ['L'] }
-// Two extremes of a jog stride (side view); the player swings between them.
-POSES.strideA = { view: 'side', head: [0.75, -9.35], neck: [0.4, -6.75], hip: [0, -3.95],
-  elbowL: [1.2, -5.3], handL: [2.0, -5.9], handLState: 'fist', elbowR: [-1.0, -5.0], handR: [-1.3, -3.9], handRState: 'fist',
-  kneeL: [-0.75, -1.95], footL: [-1.85, -0.45], kneeR: [1.15, -2.3], footR: [1.05, 0] }
-POSES.strideB = { view: 'side', head: [0.75, -9.35], neck: [0.4, -6.75], hip: [0, -3.95],
-  elbowL: [-1.0, -5.0], handL: [-1.3, -3.9], handLState: 'fist', elbowR: [1.2, -5.3], handR: [2.0, -5.9], handRState: 'fist',
-  kneeL: [1.15, -2.3], footL: [1.05, 0], kneeR: [-0.75, -1.95], footR: [-1.85, -0.45] }
-POSES.standSide = { view: 'side', head: [0.3, -9.55], neck: [0.05, -6.9], hip: [0, -4.0],
-  elbowL: [-0.35, -5.15], handL: [-0.25, -3.6], elbowR: [0.4, -5.1], handR: [0.6, -3.55],
-  kneeL: [-0.15, -2.05], footL: [-0.25, 0], kneeR: [0.2, -2.05], footR: [0.3, 0] }
 
 // ============================================================
-// HAIR — a soft, clumpy mass built round the skull (head radius 2.4):
-// rounded lobes make the silhouette, a few curved flicks break it,
-// fringe clumps hang over the forehead, strand lines + highlights on top.
-// Angles in degrees round the head centre, 0 = straight up, + = clockwise.
+// HAIR (front / three views): a soft mass round the skull, flicks
+// breaking the silhouette, fringe clumps over the forehead.
+// Angles in degrees round the head centre, 0 = up, + = clockwise.
 // ============================================================
 const HAIR_STYLES = {
   tufts: {
-    from: -100, to: 100, r: 2.85, lobes: 8, amp: 0.4,
-    flicks: [[-72, 0.8, -1], [-30, 0.95, -1], [8, 0.85, 1], [44, 0.95, 1], [80, 0.75, 1]],
-    fringe: [[-46, -1.2, 0.7, -0.2], [-14, -0.95, 0.76, 0.15], [18, -1.0, 0.7, 0.35], [48, -1.25, 0.6, 0.3]],
+    from: -100, to: 100, r: 2.95, lobes: 7, amp: 0.42,
+    flicks: [[-88, 0.5, -1], [-55, 0.72, 1], [-20, 1.0, 1], [14, 1.08, 1], [48, 0.9, 1], [84, 0.6, 1]],
+    fringe: [[-58, -1.3, 0.8, 0.9], [-26, -1.25, 0.92, 1.3], [8, -1.35, 0.85, 1.2], [46, -1.45, 0.6, 0.45]],
   },
   swept: {
-    from: -100, to: 100, r: 2.8, lobes: 7, amp: 0.28,
-    flicks: [[-60, 0.6, -1], [50, 0.75, 1]],
-    fringe: [[-50, -1.15, 0.85, 1.0], [-16, -1.0, 0.85, 1.1], [20, -1.05, 0.75, 0.9]],
+    from: -100, to: 100, r: 2.88, lobes: 7, amp: 0.26,
+    flicks: [[-62, 0.6, -1], [52, 0.75, 1]],
+    fringe: [[-50, -1.1, 0.88, 1.0], [-16, -0.95, 0.88, 1.1], [20, -1.0, 0.78, 0.9]],
   },
   curly: { curls: true },
   ponytail: {
-    from: -100, to: 100, r: 2.7, lobes: 6, amp: 0.15, smooth: true, tail: true,
+    from: -100, to: 100, r: 2.78, lobes: 6, amp: 0.14, smooth: true, tail: true, locks: true,
     flicks: [],
-    locks: true,
-    fringe: [[-42, -1.1, 0.78, 0.75], [-10, -0.95, 0.82, 0.85], [24, -1.05, 0.72, 0.7]],
+    fringe: [[-42, -1.05, 0.8, 0.75], [-10, -0.92, 0.85, 0.85], [24, -1.0, 0.74, 0.7]],
   },
 }
+// Hand-drawn front hair shapes, as path commands relative to the head
+// centre: crown tufts flowing to the right, a fringe of clumps swept
+// right that stops above the brows. `k` scales tuft height per style.
+function hairShape(c, style, k = 1, mirror = false) {
+  const X = (x) => r2(c[0] + (mirror ? -x : x)), Y = (y) => r2(c[1] + y)
+  const tu = (y) => (y < -2.6 ? -2.6 + (y + 2.6) * k : y) // squash tufts above the skull
+  const segs = style === 'swept' ? HAIR_SWEPT : style === 'ponytail' ? HAIR_PONY : HAIR_TUFTS
+  return segs.map(([cmd, ...n]) => {
+    const pts = []
+    for (let i = 0; i < n.length; i += 2) pts.push(`${X(n[i])} ${Y(tu(n[i + 1]))}`)
+    return cmd + pts.join(' ')
+  }).join('') + 'Z'
+}
+const HAIR_TUFTS = [
+  ['M', -2.35, 0.05],
+  ['C', -2.72, -0.4, -2.88, -1.0, -2.78, -1.45],
+  ['C', -3.05, -1.5, -3.22, -1.72, -3.22, -1.98],
+  ['C', -2.88, -1.88, -2.72, -1.98, -2.56, -2.35],
+  ['C', -2.36, -2.95, -1.92, -3.28, -1.55, -3.35],
+  ['C', -1.62, -3.68, -1.86, -3.92, -2.12, -4.06],
+  ['C', -1.45, -4.05, -0.96, -3.72, -0.76, -3.46],
+  ['C', -0.5, -3.88, -0.08, -4.16, 0.46, -4.24],
+  ['C', 0.26, -3.96, 0.24, -3.72, 0.4, -3.5],
+  ['C', 0.96, -3.82, 1.6, -3.86, 2.22, -3.74],
+  ['C', 1.96, -3.56, 1.86, -3.36, 1.94, -3.14],
+  ['C', 2.6, -3.0, 3.06, -2.56, 3.26, -2.1],
+  ['C', 2.96, -2.06, 2.86, -1.96, 2.86, -1.8],
+  ['C', 3.0, -1.2, 2.84, -0.48, 2.4, 0.0],
+  // fringe, right to left: clumps swept right, tips above the brows
+  ['C', 2.38, -0.3, 2.3, -0.58, 2.18, -0.74],
+  ['C', 1.98, -0.9, 1.75, -1.18, 1.6, -1.55],
+  ['C', 1.55, -1.25, 1.48, -1.02, 1.35, -0.86],
+  ['C', 1.05, -0.98, 0.76, -1.22, 0.6, -1.58],
+  ['C', 0.55, -1.3, 0.48, -1.08, 0.35, -0.92],
+  ['C', 0.05, -1.02, -0.24, -1.26, -0.4, -1.6],
+  ['C', -0.45, -1.36, -0.5, -1.16, -0.6, -1.04],
+  ['C', -0.9, -1.15, -1.2, -1.36, -1.4, -1.6],
+  ['C', -1.45, -1.36, -1.55, -1.12, -1.7, -0.98],
+  ['C', -1.95, -0.85, -2.2, -0.45, -2.35, 0.05],
+]
+const HAIR_PONY = [
+  ['M', -2.35, 0.1],
+  ['C', -2.82, -0.6, -2.96, -1.5, -2.62, -2.3],
+  ['C', -2.12, -3.22, -1.0, -3.56, 0.1, -3.56],
+  ['C', 1.3, -3.56, 2.42, -3.06, 2.76, -2.1],
+  ['C', 2.96, -1.4, 2.86, -0.5, 2.45, 0.05],
+  // side-parted fringe sweeping right, down to the right temple
+  ['C', 2.22, -0.42, 1.62, -0.7, 0.92, -0.9],
+  ['C', 0.22, -1.1, -0.45, -1.42, -0.85, -2.0],
+  ['C', -1.5, -2.05, -2.2, -1.5, -2.45, -0.55],
+  ['C', -2.5, -0.3, -2.45, -0.05, -2.35, 0.1],
+]
+const HAIR_SWEPT = [
+  ['M', -2.35, 0.05],
+  ['C', -2.75, -0.5, -2.95, -1.3, -2.75, -2.05],
+  ['C', -2.45, -3.05, -1.4, -3.65, -0.1, -3.7],
+  ['C', 1.2, -3.75, 2.35, -3.25, 2.85, -2.35],
+  ['C', 3.2, -2.25, 3.35, -2.05, 3.4, -1.8],
+  ['C', 3.15, -1.75, 3.0, -1.6, 2.95, -1.4],
+  ['C', 2.95, -0.85, 2.75, -0.35, 2.4, 0.0],
+  ['C', 2.3, -0.45, 2.05, -0.82, 1.7, -1.05],
+  ['C', 1.25, -1.15, 0.7, -1.35, 0.35, -1.62],
+  ['C', 0.15, -1.3, -0.25, -1.05, -0.75, -0.98],
+  ['C', -1.15, -1.0, -1.5, -1.2, -1.75, -1.5],
+  ['C', -1.95, -1.05, -2.2, -0.5, -2.35, 0.05],
+]
 
 const polar = (c, deg, r) => [c[0] + Math.sin((deg * Math.PI) / 180) * r, c[1] - Math.cos((deg * Math.PI) / 180) * r]
 
 function hairMass(c, S) {
-  // start at the left temple, scallop over the crown, end at the right temple
-  const n = S.lobes
-  let d = `M${P(polar(c, S.from, 2.35))}L${P(polar(c, S.from, S.r))}`
-  for (let i = 0; i < n; i++) {
-    const a0 = S.from + ((S.to - S.from) * i) / n, a1 = S.from + ((S.to - S.from) * (i + 1)) / n
-    const am = (a0 + a1) / 2
-    d += `Q${P(polar(c, am, S.r + S.amp))} ${P(polar(c, a1, S.r))}`
+  let d = `M${P(polar(c, S.from, 2.3))}L${P(polar(c, S.from, S.r))}`
+  for (let i = 0; i < S.lobes; i++) {
+    const a0 = S.from + ((S.to - S.from) * i) / S.lobes, a1 = S.from + ((S.to - S.from) * (i + 1)) / S.lobes
+    d += `Q${P(polar(c, (a0 + a1) / 2, S.r + S.amp))} ${P(polar(c, a1, S.r))}`
   }
-  d += `L${P(polar(c, S.to, 2.3))}`
-  // close along the hairline: temples → high across the forehead
-  d += `C${P(polar(c, 35, 2.3))} ${P(polar(c, -35, 2.3))} ${P(polar(c, S.from, 2.3))}Z`
+  d += `L${P(polar(c, S.to, 2.3))}C${P(polar(c, 35, 2.3))} ${P(polar(c, -35, 2.3))} ${P(polar(c, S.from, 2.3))}Z`
   return d
 }
-
 function flickPath(c, S, deg, size, dir) {
   const base = polar(c, deg, S.r + S.amp * 0.4)
   const out = norm(sub(base, c)), tan = [out[1] * -dir, -out[0] * -dir]
-  const tip = add(base, add(mul(out, size * 0.75), mul(tan, size * 0.7)))
-  const b1 = add(base, mul(tan, -0.42)), b2 = add(base, mul(tan, 0.42))
-  return `M${P(add(b1, mul(out, -0.3)))}Q${P(add(lerp(b1, tip, 0.5), mul(out, 0.35)))} ${P(tip)}Q${P(add(lerp(b2, tip, 0.5), mul(out, -0.05)))} ${P(add(b2, mul(out, -0.3)))}Z`
+  const tip = add(base, add(mul(out, size * 0.85), mul(tan, size * 0.55)))
+  const b1 = add(base, mul(tan, -0.6)), b2 = add(base, mul(tan, 0.45))
+  // a tapered tuft: wide at the root, leaning with the flow, pointed tip
+  return `M${P(add(b1, mul(out, -0.4)))}C${P(add(b1, mul(out, 0.55)))} ${P(add(tip, add(mul(out, -0.15), mul(tan, -0.45))))} ${P(tip)}C${P(add(tip, add(mul(out, -0.45), mul(tan, -0.05))))} ${P(add(b2, mul(out, 0.35)))} ${P(add(b2, mul(out, -0.4)))}Z`
 }
-
 function fringeClump(c, deg, endY, w, sweep) {
-  const root = polar(c, deg, 2.2)
+  const root = polar(c, deg, 2.15)
   const tip = [root[0] + sweep, c[1] + endY]
-  const d = sub(tip, root), n = norm(perp(d)), m = lerp(root, tip, 0.5)
-  const bow = mul(n, -0.3 * Math.sign(sweep || 1))
-  return `M${P(add(root, mul(n, w)))}Q${P(add(add(m, mul(n, w * 0.9)), bow))} ${P(tip)}Q${P(add(add(m, mul(n, -w * 0.8)), bow))} ${P(add(root, mul(n, -w)))}Z`
+  const d = sub(tip, root), nn = norm(perp(d)), m = lerp(root, tip, 0.5)
+  const bow = mul(nn, -0.3 * Math.sign(sweep || 1))
+  const A = add(root, mul(nn, w)), CA = add(add(m, mul(nn, w * 0.9)), bow)
+  const B = add(root, mul(nn, -w)), CB = add(add(m, mul(nn, -w * 0.8)), bow)
+  const q = (p0, p1, p2, u) => add(add(mul(p0, (1 - u) * (1 - u)), mul(p1, 2 * u * (1 - u))), mul(p2, u * u))
+  // lower part of each edge only, so neighbouring clumps don't scribble on the crown
+  const ea = q(A, CA, tip, 0.5), eb = q(B, CB, tip, 0.5)
+  const edge = `M${P(ea)}Q${P(lerp(CA, tip, 0.5))} ${P(tip)}Q${P(lerp(CB, tip, 0.5))} ${P(eb)}`
+  return { d: `M${P(A)}Q${P(CA)} ${P(tip)}Q${P(CB)} ${P(B)}Z`, root, tip, edge }
 }
 
-function hair(c, style, col, look, view, layer, kit) {
-  const S = HAIR_STYLES[style] || HAIR_STYLES.tufts
-  const dark = tint(col, -0.38), hi = tint(col, 0.35)
-  const shift = view === 'three' ? -look * 0.25 : view === 'side' ? -look * 0.55 : 0
-  const cc = [c[0] + shift, c[1]]
-  const stroke = `stroke="${OUTLINE}" stroke-width="0.22" stroke-linejoin="round"`
-  let s = ''
-  if (S.curls) {
-    if (layer === 'back') {
-      s += `<circle cx="${r2(cc[0])}" cy="${r2(cc[1] - 0.5)}" r="3.0" fill="${col}" ${stroke}/>`
-      return s
-    }
-    const ring = view === 'back'
-      ? [[-2.5, -0.2], [-2.6, -1.4], [-2.0, -2.5], [-1.0, -3.15], [0.1, -3.35], [1.2, -3.1], [2.15, -2.45], [2.65, -1.3], [2.5, -0.1], [-1.4, 0.9], [0, 1.2], [1.4, 0.9], [-1.0, -1.0], [0.6, -1.2]]
-      : [[-2.55, 0.0], [-2.7, -1.2], [-2.15, -2.35], [-1.15, -3.05], [0, -3.3], [1.15, -3.05], [2.15, -2.35], [2.7, -1.2], [2.55, 0.0], [-1.6, -1.75], [-0.5, -2.05], [0.6, -2.05], [1.65, -1.75]]
-    for (const [x, y] of ring) s += `<circle cx="${r2(cc[0] + x)}" cy="${r2(cc[1] + y)}" r="0.82" fill="${col}" ${stroke}/>`
-    for (const [x, y] of [[-1.15, -2.8], [0.1, -3.05], [-2.0, -1.95]]) s += `<path d="M${r2(cc[0] + x - 0.32)} ${r2(cc[1] + y + 0.12)}q0.32 -0.38 0.64 0" fill="none" stroke="${hi}" stroke-width="0.2" stroke-linecap="round"/>`
-    return s
+// ============================================================
+// HEAD
+// ============================================================
+const HR = 2.45 // head radius
+function headOutline(c, view) {
+  const x = c[0], y = c[1], R = HR
+  // wide cheeks, soft chin
+  return `M${r2(x)} ${r2(y - R)}C${r2(x + R * 0.62)} ${r2(y - R)} ${r2(x + R * 1.02)} ${r2(y - R * 0.55)} ${r2(x + R)} ${r2(y + R * 0.14)}` +
+    `C${r2(x + R * 0.98)} ${r2(y + R * 0.66)} ${r2(x + R * 0.55)} ${r2(y + R * 0.9)} ${r2(x)} ${r2(y + R * 0.9)}` +
+    `C${r2(x - R * 0.55)} ${r2(y + R * 0.9)} ${r2(x - R * 0.98)} ${r2(y + R * 0.66)} ${r2(x - R)} ${r2(y + R * 0.14)}` +
+    `C${r2(x - R * 1.02)} ${r2(y - R * 0.55)} ${r2(x - R * 0.62)} ${r2(y - R)} ${r2(x)} ${r2(y - R)}Z`
+}
+const ellipse = (c, rx, ry, deg = 0) => {
+  const pts = []
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2
+    pts.push(add(c, rot([Math.cos(a) * rx, Math.sin(a) * ry], deg)))
   }
-  if (layer === 'back') {
-    // volume behind the head (and the side locks / ponytail)
-    if (S.locks || view === 'back') {
-      const low = view === 'back' ? 2.5 : 1.3
-      s += `<path d="M${P([cc[0] - 2.75, cc[1] - 0.6])}C${P([cc[0] - 3.0, cc[1] + low * 0.6])} ${P([cc[0] - 2.2, cc[1] + low])} ${P([cc[0] - 1.4, cc[1] + low])}L${P([cc[0] + 1.4, cc[1] + low])}C${P([cc[0] + 2.2, cc[1] + low])} ${P([cc[0] + 3.0, cc[1] + low * 0.6])} ${P([cc[0] + 2.75, cc[1] - 0.6])}Z" fill="${col}" ${stroke}/>`
-    }
-    if (S.tail) {
-      const dir = view === 'front' || view === 'back' ? 1 : -look
-      const base = [cc[0] + 1.7 * dir, cc[1] - 2.25]
-      const mid = [base[0] + 2.0 * dir, base[1] + 1.6], tip = [base[0] + 1.5 * dir, base[1] + 4.6], curl = [base[0] + 0.55 * dir, base[1] + 4.0]
-      const tailD = `M${P([base[0] - 0.55 * dir, base[1] - 0.1])}C${P([base[0] + 2.3 * dir, base[1] - 1.3])} ${P([mid[0] + 1.0 * dir, mid[1]])} ${P(tip)}Q${P([tip[0] - 0.75 * dir, tip[1] + 0.75])} ${P(curl)}Q${P([mid[0] - 0.55 * dir, mid[1] + 0.3])} ${P([base[0] + 0.35 * dir, base[1] + 0.8])}Z`
-      s += `<path d="${tailD}" fill="${col}" ${stroke}/>`
-      s += `<path d="M${P([base[0] + 0.95 * dir, base[1] + 0.2])}Q${P([mid[0] + 0.15 * dir, mid[1] - 0.3])} ${P([tip[0] + 0.05 * dir, tip[1] - 0.8])}" fill="none" stroke="${dark}" stroke-width="0.13" stroke-linecap="round"/>`
-      s += `<path d="M${P([base[0] + 0.6 * dir, base[1] - 0.45])}Q${P([mid[0] + 0.25 * dir, mid[1] - 1.1])} ${P([mid[0] + 0.75 * dir, mid[1] + 0.2])}" fill="none" stroke="${hi}" stroke-width="0.2" stroke-linecap="round"/>`
-      s += `<ellipse cx="${r2(base[0])}" cy="${r2(base[1])}" rx="0.52" ry="0.66" fill="${kit.shirt}" stroke="${OUTLINE}" stroke-width="0.17" transform="rotate(${-30 * dir} ${r2(base[0])} ${r2(base[1])})"/>`
-    }
-    return s
+  return smoothClosed(pts)
+}
+
+function eyes(G, ex, ey, rx, ry, expr, blink, closedSide) {
+  const ink = '#1f130d'
+  if (blink || expr === 'happy' || closedSide) {
+    const curve = expr === 'happy' || closedSide ? -0.5 : 0.2
+    return `<path d="M${r2(ex - rx * 1.1)} ${r2(ey + 0.12)}Q${r2(ex)} ${r2(ey + curve)} ${r2(ex + rx * 1.1)} ${r2(ey + 0.12)}" fill="none" stroke="${ink}" stroke-width="0.22" stroke-linecap="round"/>`
   }
-  if (view === 'back') {
-    // the back of the head: all hair, clumps falling to the nape
-    s += `<path d="${hairMass(cc, { ...S, from: -150, to: 150 })}" fill="${col}" ${stroke}/>`
-    s += `<ellipse cx="${r2(cc[0])}" cy="${r2(cc[1] + 0.2)}" rx="2.4" ry="2.15" fill="${col}"/>`
-    for (const x of [-1.5, -0.5, 0.5, 1.5]) s += `<path d="M${r2(cc[0] + x * 0.7)} ${r2(cc[1] - 2.2)}Q${r2(cc[0] + x * 1.1)} ${r2(cc[1] - 0.4)} ${r2(cc[0] + x)} ${r2(cc[1] + 1.7)}" fill="none" stroke="${dark}" stroke-width="0.14" stroke-linecap="round"/>`
-    s += `<path d="M${r2(cc[0] - 2.4)} ${r2(cc[1] + 1.1)}Q${r2(cc[0])} ${r2(cc[1] + 2.5)} ${r2(cc[0] + 2.4)} ${r2(cc[1] + 1.1)}" fill="none" stroke="${OUTLINE}" stroke-width="0.2"/>`
-    return s
-  }
-  // flicks sit behind the mass so only their tips show
-  for (const [deg, size, dir] of S.flicks) s += `<path d="${flickPath(cc, S, deg, size, dir)}" fill="${col}" ${stroke}/>`
-  s += `<path d="${hairMass(cc, S)}" fill="${col}" ${stroke}/>`
-  // side locks framing the face (ponytail style)
-  if (S.locks) for (const side of [-1, 1]) {
-    if (view !== 'front' && side === look) continue
-    const r = [cc[0] + side * 2.25, cc[1] - 1.1], t = [cc[0] + side * 2.75, cc[1] + 1.05]
-    s += `<path d="M${P([r[0] - 0.45 * side, r[1] - 0.2])}Q${P([t[0] + 0.3 * side, cc[1] - 0.2])} ${P(t)}Q${P([t[0] - 0.5 * side, cc[1] + 0.1])} ${P([r[0] - 0.55 * side, r[1] + 0.9])}Z" fill="${col}" ${stroke}/>`
-  }
-  // strand lines on the crown
-  for (const deg of [-62, -28, 30, 64]) {
-    const a = polar(cc, deg, S.r - 0.2), b = polar(cc, deg + (deg < 0 ? 14 : -14), S.r - 0.85)
-    s += `<path d="M${P(a)}Q${P(polar(cc, deg + (deg < 0 ? 4 : -4), S.r - 0.6))} ${P(b)}" fill="none" stroke="${dark}" stroke-width="0.12" stroke-linecap="round"/>`
-  }
-  // fringe over the forehead
-  for (const [deg, endY, w, sweep] of S.fringe) {
-    const sw = sweep + (view === 'three' ? look * 0.3 : 0)
-    s += `<path d="${fringeClump(cc, deg, endY, w, sw)}" fill="${col}" stroke="${dark}" stroke-width="0.14" stroke-linejoin="round"/>`
-  }
-  // highlights where the light hits (top left)
-  for (const [deg, l] of [[-40, 24], [-8, 16]]) {
-    const r = S.r - 0.42
-    s += `<path d="M${P(polar(cc, deg - l / 2, r))}Q${P(polar(cc, deg, r + 0.2))} ${P(polar(cc, deg + l / 2, r))}" fill="none" stroke="${hi}" stroke-width="0.26" stroke-linecap="round"/>`
-  }
+  let s = `<path d="${ellipse([ex, ey], rx, ry)}" fill="${G.lin([ex, ey - ry], [ex, ey + ry], [[0, '#140b07'], [1, '#3a2316']])}"/>`
+  s += `<path d="${ellipse([ex + rx * 0.28, ey - ry * 0.36], rx * 0.36, ry * 0.26)}" fill="#fff"/>`
   return s
 }
 
-// ============================================================
-// HEAD & FACE
-// ============================================================
-function headShape(c) {
-  const x = c[0], y = c[1]
-  return `M${r2(x)} ${r2(y - 2.35)}C${r2(x + 1.5)} ${r2(y - 2.35)} ${r2(x + 2.5)} ${r2(y - 1.35)} ${r2(x + 2.45)} ${r2(y + 0.35)}` +
-    `C${r2(x + 2.4)} ${r2(y + 1.6)} ${r2(x + 1.35)} ${r2(y + 2.2)} ${r2(x)} ${r2(y + 2.2)}` +
-    `C${r2(x - 1.35)} ${r2(y + 2.2)} ${r2(x - 2.4)} ${r2(y + 1.6)} ${r2(x - 2.45)} ${r2(y + 0.35)}` +
-    `C${r2(x - 2.5)} ${r2(y - 1.35)} ${r2(x - 1.5)} ${r2(y - 2.35)} ${r2(x)} ${r2(y - 2.35)}Z`
+function brow(ex, ey, w, hairCol, tilt = 0) {
+  const a = [ex - w, ey + tilt], b = [ex + w, ey - tilt * 0.4]
+  return taper(a, b, 0.26, -0.12, tint(hairCol, -0.3))
 }
 
-function face(c, skin, hairCol, look, view, expr, blink, freckles) {
-  const ink = '#2b1a12'
-  const fx = view === 'side' ? 1.25 : view === 'three' ? 0.62 : 0
-  const fl = look < 0 ? -1 : 1
-  const eyeY = c[1] + 0.35
-  let s = ''
-  // jaw shade + the soft shadow the fringe casts on the forehead
-  s += `<path d="M${r2(c[0] + 2.35)} ${r2(c[1] + 0.2)}C${r2(c[0] + 2.2)} ${r2(c[1] + 1.7)} ${r2(c[0] + 1.0)} ${r2(c[1] + 2.15)} ${r2(c[0] - 0.2)} ${r2(c[1] + 2.15)}C${r2(c[0] + 1.3)} ${r2(c[1] + 1.6)} ${r2(c[0] + 1.95)} ${r2(c[1] + 1.0)} ${r2(c[0] + 2.35)} ${r2(c[1] + 0.2)}Z" fill="${skin.shade}" opacity="0.7"/>`
-  s += `<ellipse cx="${r2(c[0] + fx * fl * 0.3)}" cy="${r2(c[1] - 1.15)}" rx="1.95" ry="0.6" fill="${skin.shade}" opacity="0.55"/>`
-  const eyes = view === 'side' ? [c[0] + fl * 1.15] : [c[0] - 1.0 + fl * fx, c[0] + 1.0 + fl * fx]
-  eyes.forEach((ex, i) => {
-    const far = view !== 'front' && ((fl > 0 && i === 0) || (fl < 0 && i === 1))
-    const sx = far ? 0.82 : 1
-    const closed = blink || expr === 'happy' || (expr === 'wink' && i === (fl > 0 ? 1 : 0))
-    if (closed) {
-      const curve = expr === 'happy' || expr === 'wink' ? -0.5 : 0.18
-      s += `<path d="M${r2(ex - 0.42 * sx)} ${r2(eyeY + 0.1)}Q${r2(ex)} ${r2(eyeY + curve)} ${r2(ex + 0.42 * sx)} ${r2(eyeY + 0.1)}" fill="none" stroke="${ink}" stroke-width="0.24" stroke-linecap="round"/>`
+function mouth(G, mx, my, expr, scale = 1) {
+  const k = scale
+  if (expr === 'oh') return `<path d="${ellipse([mx, my + 0.15 * k], 0.27 * k, 0.33 * k)}" fill="#7b2420"/>` + iline(ellipse([mx, my + 0.15 * k], 0.27 * k, 0.33 * k), 0.07)
+  if (expr === 'calm' || expr === 'focus' || expr === 'wink') {
+    const c = expr === 'focus' ? 0.14 : 0.36
+    return `<path d="M${r2(mx - 0.48 * k)} ${r2(my)}Q${r2(mx)} ${r2(my + c * k)} ${r2(mx + 0.48 * k)} ${r2(my)}" fill="none" stroke="#5e2416" stroke-width="0.17" stroke-linecap="round"/>`
+  }
+  const w = (expr === 'happy' ? 0.58 : 0.64) * k, h = 0.82 * k
+  const d = `M${r2(mx - w)} ${r2(my - 0.06)}Q${r2(mx)} ${r2(my + 0.04)} ${r2(mx + w)} ${r2(my - 0.06)}Q${r2(mx + w * 0.85)} ${r2(my + h)} ${r2(mx)} ${r2(my + h)}Q${r2(mx - w * 0.85)} ${r2(my + h)} ${r2(mx - w)} ${r2(my - 0.06)}Z`
+  let s = `<path d="${d}" fill="${G.lin([mx, my], [mx, my + h], [[0, '#5a1414'], [1, '#8e2c26']])}"/>`
+  s += `<path d="M${r2(mx - w * 0.8)} ${r2(my - 0.02)}L${r2(mx + w * 0.8)} ${r2(my - 0.02)}L${r2(mx + w * 0.68)} ${r2(my + 0.19 * k)}Q${r2(mx)} ${r2(my + 0.24 * k)} ${r2(mx - w * 0.68)} ${r2(my + 0.19 * k)}Z" fill="#fff"/>`
+  s += `<path d="M${r2(mx - 0.4 * k)} ${r2(my + h * 0.74)}Q${r2(mx)} ${r2(my + h * 0.38)} ${r2(mx + 0.4 * k)} ${r2(my + h * 0.74)}Q${r2(mx)} ${r2(my + h)} ${r2(mx - 0.4 * k)} ${r2(my + h * 0.74)}Z" fill="#ff7e86"/>`
+  s += iline(d, 0.075)
+  return s
+}
+
+function softBlob(G, c, rx, ry, col, a, deg = 0) {
+  return `<path d="${ellipse(c, rx, ry, deg)}" fill="${G.radE(c, rx, ry, [[0, col, a], [0.55, col, a * 0.55], [1, col, 0]], deg)}"/>`
+}
+function blush(G, cx, cy, rx = 0.66, ry = 0.42) {
+  return softBlob(G, [cx, cy], rx, ry, '#ff7468', 0.6)
+}
+
+function head(G, c, o, view, kit, LT) {
+  const skin = o.skin, hairCol = o.hairColour
+  const S = HAIR_STYLES[o.hair] || HAIR_STYLES.tufts
+  const hr = ramp(hairCol)
+  const skinFill = G.rad(add(c, mul(LT, 1.3)), 3.7, [[0, skin.light], [0.55, skin.base], [1, skin.shade]])
+  const hairFill = G.rad(add(c, add(mul(LT, 1.6), [0, -0.6])), 4.8, [[0, tint(hairCol, 0.32)], [0.45, hairCol], [1, tint(hairCol, -0.42)]])
+  const hairLine = tint(hairCol, -0.5)
+  const items = []
+  const side = view === 'side', three = view === 'three', back = view === 'back'
+
+  // ---- behind the head: ponytail / nape volume ----
+  if (S.tail) {
+    const swing = o.swing || 0
+    const base = side ? [c[0] - 1.55, c[1] - 2.3] : back ? [c[0], c[1] - 2.2] : [c[0] + (three ? -1.2 : 1.35), c[1] - 2.65]
+    const dir = side || three ? -1 : 1
+    const R0 = (v) => add(base, rot(v, swing))
+    const mid = R0([2.05 * dir, 1.55]), tip = R0([1.5 * dir, 4.6]), curl = R0([0.55 * dir, 4.0])
+    const tail = `M${P(R0([-0.6 * dir, -0.1]))}C${P(R0([2.35 * dir, -1.3]))} ${P(add(mid, [1.0 * dir, 0]))} ${P(tip)}Q${P(add(tip, [-0.75 * dir, 0.75]))} ${P(curl)}Q${P(add(mid, [-0.55 * dir, 0.3]))} ${P(R0([0.35 * dir, 0.85]))}Z`
+    if (!back) items.push({ d: tail, fill: G.lin(base, tip, [[0, tint(hairCol, 0.15)], [1, tint(hairCol, -0.3)]]) })
+    o._tail = { tail, base, mid, tip, dir, back }
+  }
+  if ((S.locks || back) && !side) {
+    const low = back ? 2.55 : 1.35
+    items.push({ d: `M${P([c[0] - 2.8, c[1] - 0.6])}C${P([c[0] - 3.05, c[1] + low * 0.6])} ${P([c[0] - 2.25, c[1] + low])} ${P([c[0] - 1.4, c[1] + low])}L${P([c[0] + 1.4, c[1] + low])}C${P([c[0] + 2.25, c[1] + low])} ${P([c[0] + 3.05, c[1] + low * 0.6])} ${P([c[0] + 2.8, c[1] - 0.6])}Z`, fill: hairFill })
+  }
+  if (S.curls && !side) items.push({ d: ellipse([c[0], c[1] - 0.8], 3.0, 2.65), fill: hairFill })
+
+  // ---- ears (behind the face in front / three; on it in side) ----
+  const ears = back ? [-1, 1] : view === 'front' ? [-1, 1] : three ? [-1] : []
+  for (const e of ears) {
+    const ex = c[0] + e * (three ? 2.3 : 2.55), ey = c[1] + 0.42
+    items.push({ d: ellipse([ex, ey], 0.66, 0.82), fill: skinFill })
+  }
+
+  // ---- the head ----
+  items.push({ d: headOutline(c, view), fill: skinFill })
+  if (three) items.push({ d: ellipse([c[0] + 1.45, c[1] + 0.95], 1.05, 0.95), fill: skinFill }) // near cheek fills the jaw
+  if (side) {
+    items.push({ d: ellipse([c[0] + 1.55, c[1] + 0.95], 1.1, 1.0), fill: skinFill })
+    items.push({ d: ellipse([c[0] + 2.42, c[1] + 0.62], 0.36, 0.3), fill: skinFill }) // nose in profile
+  }
+
+  // ---- face ----
+  let f = ''
+  for (const e of ears) {
+    const ex = c[0] + e * (three ? 2.3 : 2.55), ey = c[1] + 0.42
+    f += iline(`M${r2(ex - e * 0.05)} ${r2(ey - 0.38)}q${r2(e * -0.32)} 0.38 0 0.76`, 0.08, skin.deep)
+  }
+  if (!back) {
+    // soft shading: jaw / under-fringe
+    f += softBlob(G, [c[0] + (side ? 0.2 : 0), c[1] - 1.25], side ? 1.6 : 2.1, 0.75, skin.shade, 0.75)
+    // the side of the face away from the light
+    f += softBlob(G, [c[0] - LT[0] * 1.9, c[1] + 0.5], 1.0, 1.9, skin.shade, 0.5)
+    const fx = side ? 1.25 : three ? 0.62 : 0
+    const eyeY = c[1] + 0.32
+    if (side) {
+      f += eyes(G, c[0] + 1.25, eyeY, 0.3, 0.52, o.expr, o.blink)
+      f += brow(c[0] + 1.2, eyeY - 1.0, 0.36, hairCol, o.expr === 'focus' ? 0.15 : 0)
+      f += blush(G, c[0] + 0.85, c[1] + 1.15, 0.6, 0.38)
+      f += mouth(G, c[0] + 1.95, c[1] + 1.45, o.expr, 0.62)
+      // ear on the side of the head
+      const ex = c[0] - 0.3, ey = c[1] + 0.5
+      f += `<path d="${ellipse([ex, ey], 0.44, 0.58, -8)}" fill="${G.radE([ex - 0.08, ey - 0.08], 0.5, 0.64, [[0, skin.light], [1, skin.shade]])}"/>` + iline(ellipse([ex, ey], 0.44, 0.58, -8), 0.055, skin.deep)
+      f += iline(`M${r2(ex + 0.08)} ${r2(ey - 0.26)}q-0.24 0.26 0 0.52`, 0.06, skin.deep)
     } else {
-      const ry = expr === 'oh' ? 0.66 : 0.6
-      s += `<ellipse cx="${r2(ex)}" cy="${r2(eyeY)}" rx="${r2(0.43 * sx)}" ry="${ry}" fill="${ink}"/>`
-      s += `<circle cx="${r2(ex + 0.14 * sx)}" cy="${r2(eyeY - 0.22)}" r="0.17" fill="#fff"/>`
+      const xs = [c[0] - 1.1 + fx, c[0] + 1.1 + fx]
+      xs.forEach((ex, i) => {
+        const farEye = three && i === 0
+        const rx = 0.38 * (farEye ? 0.8 : 1), ry = o.expr === 'oh' ? 0.58 : 0.54
+        const wink = o.expr === 'wink' && i === 1
+        f += eyes(G, ex, eyeY, rx, ry, o.expr, o.blink, wink)
+        const inner = i === 0 ? 1 : -1
+        const tilt = o.expr === 'focus' ? 0.22 * inner : o.expr === 'oh' ? -0.14 : 0
+        f += brow(ex, eyeY - 0.9, 0.38 * (farEye ? 0.8 : 1), hairCol, tilt)
+      })
+      f += blush(G, c[0] - 1.6 + fx * 0.8, c[1] + 1.12)
+      f += blush(G, c[0] + 1.6 + fx * 0.8, c[1] + 1.12)
+      if (o.freckles && !SMALL) for (const cx of [c[0] - 1.6 + fx * 0.8, c[0] + 1.6 + fx * 0.8]) for (const [dx, dy] of [[-0.25, -0.05], [0.05, 0.12], [0.28, -0.08]]) f += `<circle cx="${r2(cx + dx)}" cy="${r2(c[1] + 1.02 + dy)}" r="0.07" fill="${skin.deep}"/>`
+      // button nose
+      const nx = c[0] + fx * 1.3, ny = c[1] + 0.95
+      f += `<path d="${ellipse([nx, ny], 0.28, 0.22)}" fill="${G.rad([nx - 0.08, ny - 0.08], 0.32, [[0, skin.light], [1, skin.deep]])}"/>`
+      f += `<circle cx="${r2(nx - 0.08)}" cy="${r2(ny - 0.07)}" r="0.07" fill="#fff" opacity="0.75"/>`
+      f += mouth(G, c[0] + fx * 1.1, c[1] + 1.48, o.expr)
     }
-    // short thick brows in hair colour (determined = angled down to the middle)
-    const inner = ex < c[0] + fl * fx ? 1 : -1
-    const dip = expr === 'focus' ? 0.3 : expr === 'oh' ? -0.18 : 0
-    const b1 = [ex - 0.42 * sx, eyeY - 1.0 + (inner < 0 ? dip : 0)]
-    const b2 = [ex + 0.42 * sx, eyeY - 1.0 + (inner > 0 ? dip : 0)]
-    s += `<path d="M${P(b1)}Q${r2(ex)} ${r2(eyeY - 1.28)} ${P(b2)}" fill="none" stroke="${tint(hairCol, -0.15)}" stroke-width="0.27" stroke-linecap="round"/>`
-  })
-  // blush + freckles
-  const cheeks = view === 'side' ? [c[0] + fl * 0.75] : [c[0] - 1.55 + fl * fx * 0.8, c[0] + 1.55 + fl * fx * 0.8]
-  for (const cx of cheeks) {
-    s += `<ellipse cx="${r2(cx)}" cy="${r2(c[1] + 1.15)}" rx="0.5" ry="0.3" fill="#ff8f80" opacity="0.5"/>`
-    if (freckles) for (const [dx, dy] of [[-0.25, -0.05], [0.05, 0.12], [0.28, -0.08]]) s += `<circle cx="${r2(cx + dx)}" cy="${r2(c[1] + 1.05 + dy)}" r="0.07" fill="${tint(skin.shade, -0.3)}"/>`
   }
-  // button nose with a tiny highlight
-  const nx = c[0] + fl * fx * 1.35 + (view === 'side' ? fl * 0.25 : 0), ny = c[1] + 0.98
-  s += `<ellipse cx="${r2(nx)}" cy="${r2(ny)}" rx="0.27" ry="0.21" fill="${skin.warm}"/><circle cx="${r2(nx - 0.07)}" cy="${r2(ny - 0.07)}" r="0.07" fill="#fff" opacity="0.7"/>`
-  // mouth
-  const mx = c[0] + fl * fx * 1.15, my = c[1] + 1.48
-  if (expr === 'oh') {
-    s += `<ellipse cx="${r2(mx)}" cy="${r2(my + 0.18)}" rx="0.27" ry="0.34" fill="#7a2420" stroke="${OUTLINE}" stroke-width="0.1"/>`
-  } else if (expr === 'calm' || expr === 'focus' || expr === 'wink') {
-    const k = expr === 'focus' ? 0.12 : 0.36
-    s += `<path d="M${r2(mx - 0.46)} ${r2(my)}Q${r2(mx)} ${r2(my + k)} ${r2(mx + 0.46)} ${r2(my)}" fill="none" stroke="#6a2a1a" stroke-width="0.18" stroke-linecap="round"/>`
+  items.push(f)
+
+  // ---- front hair ----
+  const hairItems = []
+  let hairDetail = ''
+  const strand = (a, b, w = 0.07, bend = 0.1) => SMALL ? '' : taper(a, b, w, bend, tint(hairCol, -0.32), 0.4)
+  const shine = (a, b, w = 0.12, bend = -0.15) => SMALL ? '' : taper(a, b, w, bend, tint(hairCol, 0.45), 0.7)
+  if (S.curls) {
+    const ring = back
+      ? [[-2.5, -0.2], [-2.6, -1.4], [-2.0, -2.5], [-1.0, -3.15], [0.1, -3.35], [1.2, -3.1], [2.15, -2.45], [2.65, -1.3], [2.5, -0.1], [-1.4, 0.9], [0, 1.2], [1.4, 0.9], [-1.0, -1.0], [0.6, -1.2]]
+      : side
+        ? [[-2.6, 0.6], [-2.8, -0.6], [-2.4, -1.8], [-1.5, -2.8], [-0.3, -3.25], [0.9, -3.0], [1.75, -2.35], [-1.6, 1.3], [-0.6, -1.6], [0.5, -2.0]]
+        : [[-2.6, 0.05], [-2.75, -1.2], [-2.2, -2.35], [-1.2, -3.05], [0, -3.3], [1.2, -3.05], [2.2, -2.35], [2.75, -1.2], [2.6, 0.05], [-1.65, -1.75], [-0.55, -2.05], [0.55, -2.05], [1.65, -1.75]]
+    const sh = three ? -0.25 : 0
+    for (const [x, y] of ring) hairItems.push({ d: ellipse([c[0] + x + sh, c[1] + y], 0.86, 0.84), fill: hairFill })
+    for (const [x, y] of ring) hairDetail += taper([c[0] + x + sh - 0.35, c[1] + y + 0.05], [c[0] + x + sh + 0.25, c[1] + y - 0.35], 0.09, -0.2, tint(hairCol, 0.4), 0.6)
+  } else if (side) {
+    // profile hair: hairline from the forehead, over the crown, down to the
+    // nape; tufts sweep back, the fringe flicks forward over the brow
+    const H = (x, y) => [c[0] + x, c[1] + y]
+    const clump = (b, t, w, bend = 0.3) => {
+      const bb = H(...b), tt = H(...t), nn = norm(perp(sub(tt, bb)))
+      return `M${P(add(bb, mul(nn, w)))}Q${P(add(lerp(bb, tt, 0.5), mul(nn, w * 0.8 + bend)))} ${P(tt)}Q${P(add(lerp(bb, tt, 0.5), mul(nn, -w * 0.5 + bend * 0.4)))} ${P(add(bb, mul(nn, -w)))}Z`
+    }
+    if (!S.smooth && !S.curls) {
+      for (const [b, t, w] of [[[-1.2, -2.75], [-2.55, -3.45], 0.6], [[-2.2, -1.85], [-3.45, -2.15], 0.6], [[-2.6, -0.55], [-3.35, -0.05], 0.5], [[0.0, -2.95], [-0.9, -3.75], 0.55]]) hairItems.push({ d: clump(b, t, w, 0.15), fill: hairFill })
+    }
+    const mass = smoothClosed([
+      [1.85, -1.3], [1.75, -2.35], [0.9, -3.05], [-0.4, -3.2], [-1.6, -2.85], [-2.55, -1.95], [-2.9, -0.6], [-2.75, 0.55], [-2.25, 1.35],
+      [-1.55, 1.2], [-1.05, 0.6], [-0.8, -0.3], [-0.2, -0.6], [0.35, -0.45], [0.55, 0.15], [0.85, -0.85], [1.35, -1.0],
+    ].map(([x, y]) => H(x, y)))
+    hairItems.push({ d: mass, fill: hairFill })
+    if (!S.smooth) {
+      for (const [b, t, w] of [[[1.05, -2.25], [2.15, -0.95], 0.6], [[0.2, -2.55], [1.45, -1.2], 0.6]]) {
+        const d = clump(b, t, w, -0.1)
+        hairItems.push({ d, fill: hairFill })
+      }
+    }
+    hairDetail += strand(H(-0.2, -2.6), H(-1.9, -0.6), 0.075, -0.35) + strand(H(0.5, -2.35), H(-0.9, -0.9), 0.06, -0.3)
+    hairDetail += softBlob(G, H(-0.6, -2.35), 1.15, 0.5, tint(hairCol, 0.45), 0.55, -10)
+  } else if (back) {
+    hairItems.push({ d: hairMass(c, { ...S, from: -150, to: 150, r: (S.r || 2.85) + 0.05 }), fill: hairFill })
+    hairItems.push({ d: ellipse([c[0], c[1] + 0.25], 2.45, 2.2), fill: hairFill })
+    for (const x of [-1.6, -0.55, 0.55, 1.6]) hairDetail += strand([c[0] + x * 0.65, c[1] - 2.3], [c[0] + x, c[1] + 1.75], 0.07, x * 0.15)
+    hairDetail += softBlob(G, [c[0] - 0.8, c[1] - 2.1], 1.3, 0.55, tint(hairCol, 0.45), 0.5, -20)
   } else {
-    const w = expr === 'happy' ? 0.62 : 0.7
-    s += `<path d="M${r2(mx - w)} ${r2(my - 0.08)}Q${r2(mx)} ${r2(my)} ${r2(mx + w)} ${r2(my - 0.08)}Q${r2(mx + w * 0.82)} ${r2(my + 0.95)} ${r2(mx)} ${r2(my + 0.95)}Q${r2(mx - w * 0.82)} ${r2(my + 0.95)} ${r2(mx - w)} ${r2(my - 0.08)}Z" fill="#7d2622" stroke="${OUTLINE}" stroke-width="0.12" stroke-linejoin="round"/>`
-    s += `<path d="M${r2(mx - w * 0.78)} ${r2(my - 0.04)}L${r2(mx + w * 0.78)} ${r2(my - 0.04)}L${r2(mx + w * 0.66)} ${r2(my + 0.16)}L${r2(mx - w * 0.66)} ${r2(my + 0.16)}Z" fill="#fff"/>`
-    s += `<path d="M${r2(mx - 0.36)} ${r2(my + 0.72)}Q${r2(mx)} ${r2(my + 0.36)} ${r2(mx + 0.36)} ${r2(my + 0.72)}Q${r2(mx)} ${r2(my + 0.95)} ${r2(mx - 0.36)} ${r2(my + 0.72)}Z" fill="#ff7c84"/>`
+    const sh = three ? -0.28 : 0
+    const cc = [c[0] + sh, c[1]]
+    if (o.hair === 'tufts' || o.hair === 'swept' || o.hair === 'ponytail') {
+      const d = hairShape(cc, o.hair, 1)
+      hairItems.push({ d, fill: hairFill })
+      const H = (x, y) => [cc[0] + x, cc[1] + y]
+      // tuft separations and flow strands (curving the way the hair falls)
+      if (o.hair === 'tufts') {
+        for (const [a, b, bend] of [[[-0.76, -3.4], [-0.95, -2.55], 0.1], [[0.4, -3.45], [0.15, -2.6], 0.12], [[1.94, -3.1], [1.5, -2.45], 0.1], [[-1.55, -3.3], [-1.85, -2.7], 0.08]]) hairDetail += strand(H(...a), H(...b), 0.07, bend)
+      }
+      if (o.hair === 'ponytail') {
+        // the part, and strands combed back to the ponytail
+        hairDetail += strand(H(-0.9, -1.95), H(0.9, -3.3), 0.05, -0.2) + strand(H(-0.4, -1.55), H(2.1, -1.4), 0.05, -0.35) + strand(H(0.4, -1.3), H(2.35, -0.6), 0.05, -0.25)
+      } else {
+        hairDetail += strand(H(-1.9, -2.2), H(-0.3, -1.75), 0.06, 0.25) + strand(H(0.2, -2.85), H(1.9, -1.9), 0.06, 0.2)
+      }
+      // fringe clump edges
+      if (o.hair === 'tufts') for (const [a, b] of [[[1.6, -1.5], [1.42, -1.08]], [[0.6, -1.52], [0.42, -1.12]], [[-0.4, -1.55], [-0.55, -1.2]], [[-1.4, -1.55], [-1.6, -1.15]]]) hairDetail += taper(H(...a), H(...b), 0.06, -0.05, hairLine, 0.7)
+      hairDetail += softBlob(G, H(-0.75, -2.75), 1.25, 0.5, tint(hairCol, 0.5), 0.6, -15)
+      hairDetail += shine(H(-1.6, -2.75), H(-0.2, -3.2), 0.1, -0.12)
+    } else {
+      for (const [deg, size, dir] of S.flicks) hairItems.push({ d: flickPath(cc, S, deg, size, dir), fill: hairFill })
+      hairItems.push({ d: hairMass(cc, S), fill: hairFill })
+      for (const [deg, endY, w, sweep] of S.fringe) {
+        const fc = fringeClump(cc, deg, endY, w, sweep + (three ? 0.3 : 0))
+        hairItems.push({ d: fc.d, fill: hairFill })
+        hairDetail += iline(fc.edge, 0.06, hairLine)
+      }
+      hairDetail += softBlob(G, polar(cc, -32, S.r - 0.55), 1.05, 0.42, tint(hairCol, 0.48), 0.6, -28)
+    }
+    // long side locks framing the face (ponytail style)
+    if (S.locks) for (const sd of three ? [1] : [-1, 1]) {
+      const r = [cc[0] + sd * 2.35, cc[1] - 1.2], t = [cc[0] + sd * 2.75, cc[1] + 1.65]
+      // hugs the outside of the cheek: the inner edge never crosses the face
+      hairItems.push({ d: `M${P([r[0] - 0.2 * sd, r[1] - 0.4])}C${P([t[0] + 0.5 * sd, cc[1] - 1.0])} ${P([t[0] + 0.3 * sd, cc[1] + 0.9])} ${P(t)}C${P([t[0] - 0.2 * sd, cc[1] + 1.1])} ${P([r[0] + 0.12 * sd, cc[1] + 0.4])} ${P([r[0] + 0.02 * sd, r[1] + 1.0])}Z`, fill: hairFill })
+      hairDetail += strand([r[0] + 0.1 * sd, r[1] + 0.3], [t[0] - 0.1 * sd, t[1] - 0.6], 0.05, 0.15 * sd)
+    }
   }
-  return s
-}
+  // ponytail in the back view sits over the hair
+  if (o._tail && o._tail.back) hairItems.push({ d: o._tail.tail, fill: G.lin(o._tail.base, o._tail.tip, [[0, tint(hairCol, 0.15)], [1, tint(hairCol, -0.3)]]) })
 
-function head(c, o, look, view, kit) {
-  const skin = o.skin
-  let s = ''
-  s += hair(c, o.hair, o.hairColour, look, view, 'back', kit)
-  // ears, set low (the near one only in three/side views)
-  const ears = view === 'side' ? [-look * 0.35] : view === 'three' ? [-look * 2.15] : [-2.38, 2.38]
-  if (view !== 'back') for (const dx of ears) {
-    const ex = c[0] + dx, ey = c[1] + 0.5
-    s += `<ellipse cx="${r2(ex)}" cy="${r2(ey)}" rx="0.58" ry="0.74" fill="${skin.base}" stroke="${OUTLINE}" stroke-width="0.2"/>`
-    s += `<path d="M${r2(ex + 0.05)} ${r2(ey - 0.35)}q-0.3 0.35 0 0.7" fill="none" stroke="${skin.shade}" stroke-width="0.16" stroke-linecap="round"/>`
+  // ponytail detail + scrunchie
+  if (o._tail) {
+    const { base, mid, tip, dir } = o._tail
+    hairDetail += strand(add(base, [0.9 * dir, 0.2]), add(tip, [0.1 * dir, -0.8]), 0.08, 0.25 * dir)
+    hairDetail += softBlob(G, lerp(base, mid, 0.55), 0.7, 0.3, tint(hairCol, 0.45), 0.5, Math.atan2(mid[1] - base[1], mid[0] - base[0]) * 57.3)
+    const sc = G.rad(add(base, [-0.15, -0.2]), 0.75, [[0, tint(kit.shirt, 0.25)], [1, tint(kit.shirt, -0.3)]])
+    hairDetail += group([{ d: ellipse(base, 0.34, 0.44, -30 * dir), fill: sc }])
   }
-  s += `<path d="${headShape(c)}" fill="${skin.base}"/>`
-  if (view !== 'back') s += face(c, skin, o.hairColour, look, view, o.expr, o.blink, o.freckles)
-  s += `<path d="${headShape(c)}" fill="none" stroke="${OUTLINE}" stroke-width="0.24"/>`
-  s += hair(c, o.hair, o.hairColour, look, view, 'front', kit)
-  return s
+  return group(items) + group(hairItems) + hairDetail
 }
 
 // ============================================================
-// BODY PARTS
+// BODY
 // ============================================================
-function hand(at, from, state, skin) {
-  const d = norm(sub(at, from)), n = perp(d)
-  const c = add(at, mul(d, 0.1))
-  let s = ''
+function hand(G, at, from, state, skin, bodyX, LT, far) {
+  const d = norm(sub(at, from)), nn0 = perp(d)
+  const inward = dot(nn0, [bodyX - at[0], 0]) >= 0 ? nn0 : mul(nn0, -1)
+  const g = G.rad(add(at, mul(LT, 0.4)), 0.95, [[0, tint(skin.light, far ? -0.1 : 0)], [0.6, tint(skin.base, far ? -0.1 : 0)], [1, tint(skin.shade, far ? -0.1 : 0)]])
+  const items = []
+  let det = ''
   if (state === 'fist' || state === 'grip') {
-    s += `<circle cx="${r2(c[0])}" cy="${r2(c[1])}" r="0.66" fill="${skin.base}" stroke="${OUTLINE}" stroke-width="0.18"/>`
-    // finger creases over whatever is held
-    for (const k of [-0.22, 0.05, 0.3]) {
-      const a = add(c, add(mul(n, k), mul(d, 0.05))), b = add(a, mul(d, 0.38))
-      s += line(a, b, skin.shade, 0.11)
+    const c = add(at, mul(d, 0.08))
+    items.push({ d: ellipse(c, 0.52, 0.48, Math.atan2(d[1], d[0]) * 57.3), fill: g })
+    const th = add(c, add(mul(inward, 0.36), mul(d, -0.08)))
+    items.push({ d: ellipse(th, 0.22, 0.17, Math.atan2(d[1], d[0]) * 57.3), fill: g })
+    if (!SMALL) for (const k of [-0.2, 0.08, 0.34]) {
+      const a = add(c, add(mul(inward, -k), mul(d, 0.12))), b = add(a, mul(d, 0.36))
+      det += iline(`M${P(a)}L${P(b)}`, 0.06, skin.deep)
     }
-    const th = add(c, add(mul(n, -0.42), mul(d, -0.12)))
-    s += `<ellipse cx="${r2(th[0])}" cy="${r2(th[1])}" rx="0.24" ry="0.2" fill="${skin.base}" stroke="${OUTLINE}" stroke-width="0.14"/>`
   } else {
-    // open mitten: rounded palm along the forearm + a thumb
-    const tip = add(c, mul(d, 0.35))
-    s += `<path d="${capsule(add(c, mul(d, -0.25)), tip, 0.56, 0.52)}" fill="${skin.base}" stroke="${OUTLINE}" stroke-width="0.18"/>`
-    const th = add(c, add(mul(n, 0.45), mul(d, -0.05)))
-    s += `<path d="${capsule(add(c, mul(n, 0.2)), th, 0.2, 0.17)}" fill="${skin.base}" stroke="${OUTLINE}" stroke-width="0.14"/>`
-    s += line(add(tip, mul(n, -0.12)), add(c, mul(n, -0.12)), skin.shade, 0.09)
+    const c = add(at, mul(d, 0.1))
+    const palm = spline([add(c, mul(d, -0.28)), add(c, mul(d, 0.36))])
+    items.push({ d: tube(palm, profile([[0, 0.34], [0.55, 0.43], [1, 0.4]]), 0, 1, 'round', 'round', 0.3, 10), fill: g })
+    const tb = add(c, add(mul(inward, 0.28), mul(d, -0.12))), tt = add(c, add(mul(inward, 0.68), mul(d, 0.06)))
+    items.push({ d: tube(spline([tb, tt]), () => 0.16, 0, 1, 'round', 'round', 0.3, 6), fill: g })
+    // finger splits at the tip
+    if (!SMALL) for (const k of [-0.2, 0.06]) {
+      const a = add(c, add(mul(inward, k), mul(d, 0.62))), b = add(c, add(mul(inward, k), mul(d, 0.32)))
+      det += taper(a, b, 0.035, 0, skin.deep, 0.8)
+    }
   }
-  return s
+  return { items, det }
 }
 
-function arm(sh, el, hd, state, kit, skin, view) {
-  const sleeveEnd = lerp(sh, el, 0.5)
-  let s = ''
-  s += limb(lerp(sh, el, 0.35), el, 0.55, 0.48, skin.base, skin.shade)
-  s += limb(el, lerp(el, hd, 0.84), 0.48, 0.42, skin.base, skin.shade)
-  s += hand(hd, el, state, skin)
-  // sleeve: flares off the shoulder, white trim at the hem
-  const d = norm(sub(el, sh)), n = perp(d)
-  const w0 = 0.9, w1 = 0.82
-  const a1 = add(sh, add(mul(n, w0), mul(d, -0.25))), a2 = add(sh, add(mul(n, -w0), mul(d, -0.25)))
-  const b1 = add(sleeveEnd, mul(n, w1)), b2 = add(sleeveEnd, mul(n, -w1))
-  const sleeve = `M${P(a1)}L${P(b1)}Q${P(add(sleeveEnd, mul(d, 0.12)))} ${P(b2)}L${P(a2)}Q${P(add(sh, mul(d, -0.75)))} ${P(a1)}Z`
-  s += `<path d="${sleeve}" fill="${kit.shirt}"/>`
-  const side = n[0] * LIGHT[0] + n[1] * LIGHT[1] >= 0 ? 1 : -1
-  const sa = add(sh, add(mul(n, side * w0 * 0.55), mul(d, -0.1))), sb = add(sleeveEnd, mul(n, side * w1 * 0.55))
-  s += `<path d="${capsule(sa, sb, w0 * 0.42, w1 * 0.42)}" fill="${kit.shade}"/>`
-  s += line(add(b1, mul(d, -0.12)), add(b2, mul(d, -0.12)), kit.trim, 0.22, 'butt')
-  s += `<path d="${sleeve}" fill="none" stroke="${OUTLINE}" stroke-width="0.2" stroke-linejoin="round"/>`
-  return s
-}
-
-function boot(foot, knee, facing) {
-  const down = norm(sub(foot, knee))
-  // toe points the way the shin leans, or the way the kid faces
-  const f = Math.abs(down[0]) > 0.45 ? Math.sign(down[0]) : facing
-  const x = foot[0], y = foot[1]
-  const heel = x - f * 0.55, toe = x + f * 1.05
-  const d = `M${r2(heel)} ${r2(y - 0.72)}Q${r2(x + f * 0.15)} ${r2(y - 0.95)} ${r2(x + f * 0.55)} ${r2(y - 0.62)}Q${r2(toe + f * 0.1)} ${r2(y - 0.5)} ${r2(toe)} ${r2(y - 0.12)}` +
-    `L${r2(toe - f * 0.05)} ${r2(y + 0.12)}L${r2(heel - f * 0.05)} ${r2(y + 0.12)}Q${r2(heel - f * 0.25)} ${r2(y - 0.35)} ${r2(heel)} ${r2(y - 0.72)}Z`
-  let s = `<path d="${d}" fill="${BOOT}" stroke="${OUTLINE}" stroke-width="0.2" stroke-linejoin="round"/>`
-  s += `<path d="M${r2(heel - f * 0.04)} ${r2(y + 0.02)}L${r2(toe - f * 0.06)} ${r2(y + 0.02)}" stroke="${SOLE}" stroke-width="0.2" stroke-linecap="round"/>`
-  s += `<path d="M${r2(x - f * 0.05)} ${r2(y - 0.82)}Q${r2(x + f * 0.4)} ${r2(y - 0.86)} ${r2(x + f * 0.65)} ${r2(y - 0.58)}" fill="none" stroke="${BOOT_HI}" stroke-width="0.16" stroke-linecap="round"/>`
-  for (let i = 0; i < 3; i++) {
-    const sx = x - f * 0.25 + f * i * 0.26
-    s += `<path d="M${r2(sx)} ${r2(y - 0.66)}L${r2(sx + f * 0.2)} ${r2(y - 0.18)}" stroke="#fff" stroke-width="0.12" stroke-linecap="round"/>`
+// An arm, split so the sleeve can belong to the shirt while the bare arm
+// sits behind or in front of the body as the pose needs.
+function armParts(G, sh, el, hd, state, kit, skin, bodyX, LT, far, neck) {
+  const dHand = norm(sub(hd, el))
+  const wrist = sub(hd, mul(dHand, 0.42))
+  const spl = spline([sh, el, wrist])
+  const se = spl.joints[1]
+  const rAt = profile([[0, 0.44], [se * 0.7, 0.4], [se, 0.35], [se + (1 - se) * 0.3, 0.38], [1, 0.3]])
+  const sk = far ? { light: tint(skin.light, -0.1), base: tint(skin.base, -0.1), shade: tint(skin.shade, -0.1), deep: tint(skin.deep, -0.1) } : skin
+  const kr = far ? ramp(tint(kit.shirt, -0.08)) : kit.r
+  const skinItems = [{ d: tube(spl, rAt), fill: limbGrad(G, sh, wrist, 0.5, sk, LT) }]
+  // sleeve: rooted inside the shoulder so the shirt's shoulder line runs on
+  const sEnd = se * 0.58
+  const end = at(spl, sEnd).p, midS = at(spl, sEnd * 0.5).p
+  const toNeck = norm(sub(neck, sh))
+  const root = add(sh, mul(toNeck, 0.6))
+  const sspl = spline([root, sh, midS, end])
+  const sj = sspl.joints[1]
+  const sr = profile([[0, 0.36], [sj, 0.68], [1, 0.8]])
+  const sleeveD = tube(sspl, sr, 0, 1, 'round', 'hem', 0.34)
+  const sleeveFill = limbGrad(G, sh, end, 0.85, kr, LT)
+  const t0 = 1 - 0.18 * (len(sub(end, sh)) > 0.4 ? 1 : 0.6)
+  const trimD = tube(sspl, (x) => sr(x) + 0.004, t0, 1, 'hem', 'hem', 0.34, 6)
+  const trimFill = limbGrad(G, at(sspl, t0).p, end, 0.85, kit.trimR, LT)
+  const hemDet = iline(hemLine(sspl, sr, t0, 0.34, 0.03), 0.06) + iline(hemLine(sspl, sr, 1, 0.34, 0), 0.08)
+  // armpit edge: the inside of the sleeve meets the shirt
+  let pit = ''
+  {
+    const pts = []
+    for (let i = 0; i <= 6; i++) {
+      const sx = 1 - (i / 6) * 0.45, q = at(sspl, sx), nn = perp(q.t)
+      const inner = dot(nn, sub([bodyX, q.p[1]], q.p)) >= 0 ? nn : mul(nn, -1)
+      pts.push(add(q.p, mul(inner, sr(sx))))
+    }
+    pit = iline(`M${pts.map(P).join('L')}`, 0.065)
   }
-  return s
-}
-
-function leg(hip, knee, foot, kit, skin, facing) {
-  let s = ''
-  s += limb(lerp(hip, knee, 0.55), knee, 0.66, 0.52, skin.base, skin.shade)
-  // long sock from just below the knee, two stripes near the top
-  const top = lerp(knee, foot, 0.1)
-  s += limb(knee, top, 0.5, 0.52, skin.base, skin.shade)
-  s += limb(top, lerp(top, foot, 0.92), 0.6, 0.47, kit.sock, kit.sockShade)
-  const d = sub(foot, top)
-  for (const u of [0.1, 0.26]) {
-    const c = lerp(top, foot, u), n = norm(perp(d)), w = 0.57 - u * 0.12
-    s += line(add(c, mul(n, w)), add(c, mul(n, -w)), kit.trim, 0.2, 'butt')
+  // soft contact shadow just below the sleeve
+  const a0 = at(spl, sEnd).p, a1 = at(spl, Math.min(1, sEnd + 0.16)).p
+  let skinDet = `<path d="${tube(spl, (x) => rAt(x) - 0.01, sEnd, Math.min(1, sEnd + 0.16), 'hem', 'hem', 0.34, 8)}" fill="${G.lin(a0, a1, [[0, skin.deep, 0.55], [1, skin.deep, 0]])}"/>`
+  const h = hand(G, hd, el, state, sk, bodyX, LT, far)
+  skinItems.push(...h.items)
+  skinDet += h.det
+  // shade on the underside of the sleeve, strongest at the hem
+  let sleeveShade = ''
+  {
+    const pts = [], q0 = at(sspl, 0.55), q1 = at(sspl, 1)
+    for (let i = 0; i <= 8; i++) {
+      const sx = 0.55 + (0.45 * i) / 8, q = at(sspl, sx), nn = perp(q.t)
+      const under = dot(nn, LT) < 0 ? nn : mul(nn, -1)
+      pts.push([add(q.p, mul(under, sr(sx))), add(q.p, mul(under, sr(sx) * 0.15))])
+    }
+    const poly = [...pts.map((x) => x[0]), ...pts.slice().reverse().map((x) => x[1])]
+    sleeveShade = `<path d="${smoothClosed(poly)}" fill="${G.lin(q0.p, q1.p, [[0, kit.r.deep, 0], [1, kit.r.deep, 0.55]])}"/>`
   }
-  s += `<path d="${capsule(top, lerp(top, foot, 0.92), 0.6, 0.47)}" fill="none" stroke="${OUTLINE}" stroke-width="0.17"/>`
-  s += boot(foot, knee, facing)
-  return s
+  // the bare arm below the sleeve, for when only the forearm crosses the body
+  const lowerItems = [{ d: tube(spl, rAt, sEnd - 0.01, 1, 'hem', 'round', 0.34), fill: limbGrad(G, at(spl, sEnd).p, wrist, 0.5, sk, LT) }, ...h.items]
+  return { skin: group(skinItems) + skinDet, lower: group(lowerItems) + h.det, sleeveD, trimD, trimFill, hemDet, sleeveShade, se }
 }
 
-// One leg opening of the shorts: a flared tube down the thigh.
-function shortsLeg(hip, knee, center, kit) {
-  const d = norm(sub(knee, hip)), n = perp(d)
-  const out = (hip[0] - center[0]) * n[0] + (hip[1] - center[1]) * n[1] >= 0 ? 1 : -1
-  const end = lerp(hip, knee, 0.68)
-  const a1 = add(hip, mul(n, 1.05)), a2 = add(hip, mul(n, -1.05))
-  const b1 = add(end, mul(n, 0.95)), b2 = add(end, mul(n, -0.95))
-  const p = `M${P(a1)}L${P(b1)}Q${P(add(end, mul(d, 0.1)))} ${P(b2)}L${P(a2)}Z`
-  let s = `<path d="${p}" fill="${SHORTS}"/>`
-  const side = n[0] * LIGHT[0] + n[1] * LIGHT[1] >= 0 ? 1 : -1
-  s += `<path d="M${P(add(hip, mul(n, side * 0.3)))}L${P(add(end, mul(n, side * 0.3)))}L${P(add(end, mul(n, side * 0.95)))}L${P(add(hip, mul(n, side * 1.05)))}Z" fill="${SHORTS_SHADE}"/>`
-  // team stripe down the outside of the leg
-  s += line(add(hip, mul(n, out * 0.8)), add(end, mul(n, out * 0.72)), kit.shirt, 0.26, 'butt')
-  s += `<path d="${p}" fill="none" stroke="${OUTLINE}" stroke-width="0.18" stroke-linejoin="round"/>`
-  return s
-}
-
-function shirtBody(neck, hip, kit, view, number, look, mirror) {
-  const up = norm(sub(neck, hip)), n = perp(up)
-  const narrow = view === 'side' ? 0.62 : view === 'three' ? 0.9 : 1
-  const sw = 1.95 * narrow, hw = 1.78 * narrow
-  const fl = look < 0 ? -1 : 1
-  const s1 = add(neck, add(mul(n, sw), mul(up, -0.2))), s2 = add(neck, add(mul(n, -sw), mul(up, -0.2)))
-  const hem = add(hip, mul(up, -0.05))
-  const h1 = add(hem, mul(n, hw)), h2 = add(hem, mul(n, -hw))
-  const top = add(neck, mul(up, 0.3))
-  const d = `M${P(s1)}Q${P(add(top, mul(n, sw * 0.75)))} ${P(top)}Q${P(add(top, mul(n, -sw * 0.75)))} ${P(s2)}L${P(h2)}Q${P(add(hem, mul(up, -0.25)))} ${P(h1)}Z`
-  let s = `<path d="${d}" fill="${kit.shirt}"/>`
-  // cel shading: the side away from the light + a fold under the chest
-  const side = n[0] * LIGHT[0] + n[1] * LIGHT[1] >= 0 ? 1 : -1
-  const e1 = side > 0 ? s1 : s2, e2 = side > 0 ? h1 : h2
-  s += `<path d="M${P(lerp(e1, e2, 0.05))}L${P(e2)}L${P(lerp(e2, side > 0 ? h2 : h1, 0.28))}Q${P(lerp(lerp(e1, e2, 0.5), add(neck, mul(n, side * sw * 0.2)), 0.45))} ${P(lerp(e1, side > 0 ? s2 : s1, 0.2))}Z" fill="${kit.shade}"/>`
-  s += `<path d="M${P(lerp(h2, h1, 0.28))}Q${P(add(lerp(hem, hip, 0.2), mul(up, 0.45)))} ${P(lerp(h2, h1, 0.62))}" fill="none" stroke="${kit.shade}" stroke-width="0.16" stroke-linecap="round"/>`
-  // number (front / three: chest; back: big on the back)
-  if (number != null && view !== 'side') {
-    const c = view === 'back' ? lerp(neck, hip, 0.5) : lerp(neck, hip, 0.47)
-    const size = view === 'back' ? 2.25 : 1.75
-    const sx = (view === 'three' ? 0.82 : 1) * (mirror ? -1 : 1)
-    const ox = view === 'three' ? fl * 0.35 : 0
-    s += `<text x="0" y="0" transform="translate(${r2(c[0] + ox)} ${r2(c[1] + size * 0.36)}) scale(${sx} 1)" font-size="${size}" font-weight="900" text-anchor="middle" fill="${kit.trim}" stroke="${kit.numberLine}" stroke-width="0.14" paint-order="stroke" font-family="Nunito, 'Arial Rounded MT Bold', system-ui, sans-serif">${number}</text>`
+function bootShape(foot, knee, view, side, LT, kitLine) {
+  const dShin = norm(sub(foot, knee))
+  const frontOn = false
+  const B = (x, y, td, up) => add(foot, add(mul(td, x), mul(up, y)))
+  if (frontOn) {
+    // boot seen from the front, toe turned slightly out
+    const td = rot([1, 0], side * 14), up = [0, 1]
+    const pts = [[-0.74, 0.04], [-0.86, -0.4], [-0.6, -0.88], [0, -0.96], [0.6, -0.88], [0.86, -0.4], [0.74, 0.04]].map(([x, y]) => B(x, y, td, up))
+    const body = smoothClosed([...pts, B(0, 0.1, td, up)])
+    const sole = `M${P(B(-0.78, -0.08, td, up))}L${P(B(0.78, -0.08, td, up))}Q${P(B(0.84, 0.06, td, up))} ${P(B(0.7, 0.12, td, up))}L${P(B(-0.7, 0.12, td, up))}Q${P(B(-0.84, 0.06, td, up))} ${P(B(-0.78, -0.08, td, up))}Z`
+    let det = `<path d="${sole}" fill="#cfd4d8"/>` + iline(`M${P(B(-0.76, -0.08, td, up))}L${P(B(0.76, -0.08, td, up))}`, 0.05)
+    for (let i = 0; i < 3; i++) det += taper(B(side * (0.32 + i * 0.13), -0.7, td, up), B(side * (0.42 + i * 0.13), -0.2, td, up), 0.05, 0, '#ffffff', 0.95)
+    det += taper(B(-0.35, -0.72, td, up), B(0.15, -0.8, td, up), 0.1, -0.08, '#ffffff', 0.35)
+    return { d: body, det }
   }
-  s += `<path d="${d}" fill="none" stroke="${OUTLINE}" stroke-width="0.26" stroke-linejoin="round"/>`
-  // white ring collar (back view: a plain band)
-  const cw = view === 'side' ? 0.55 : 0.85
-  const c1 = add(neck, add(mul(n, cw), mul(up, 0.1))), c2 = add(neck, add(mul(n, -cw), mul(up, 0.1)))
-  const dip = view === 'back' ? 0.15 : 0.55
-  s += `<path d="M${P(c1)}Q${P(add(neck, mul(up, -dip)))} ${P(c2)}" fill="none" stroke="${OUTLINE}" stroke-width="0.55" stroke-linecap="round"/>`
-  s += `<path d="M${P(c1)}Q${P(add(neck, mul(up, -dip)))} ${P(c2)}" fill="none" stroke="${kit.trim}" stroke-width="0.32" stroke-linecap="round"/>`
-  return s
+  // profile boot; toe points perpendicular to the shin, towards "forward + up"
+  const p1 = perp(dShin)
+  const standing = Math.abs(dShin[1]) > 0.75
+  const pref = (view === 'front' || view === 'back') ? (standing ? [side, 0] : [0, -1]) : [0.75, -0.65]
+  const td = dot(p1, pref) >= 0 ? p1 : mul(p1, -1)
+  const up = mul(dShin, 1) // +y = towards the sole
+  const sx = (view === 'front' || view === 'back') && standing ? 0.6 : view === 'three' ? 0.82 : 1
+  const Q = (x, y) => B(x * sx, y, td, up)
+  const body = `M${P(Q(-0.62, 0.02))}C${P(Q(-0.84, -0.3))} ${P(Q(-0.8, -0.8))} ${P(Q(-0.48, -0.93))}Q${P(Q(-0.05, -1.04))} ${P(Q(0.36, -0.84))}C${P(Q(0.74, -0.68))} ${P(Q(1.04, -0.62))} ${P(Q(1.24, -0.38))}Q${P(Q(1.44, -0.06))} ${P(Q(1.18, 0.06))}L${P(Q(-0.62, 0.06))}Z`
+  const sole = `M${P(Q(-0.66, -0.07))}L${P(Q(1.32, -0.1))}Q${P(Q(1.4, 0.02))} ${P(Q(1.18, 0.1))}L${P(Q(-0.6, 0.1))}Q${P(Q(-0.72, 0.02))} ${P(Q(-0.66, -0.07))}Z`
+  let det = `<path d="${sole}" fill="#cfd4d8"/>` + iline(`M${P(Q(-0.64, -0.07))}L${P(Q(1.3, -0.1))}`, 0.05)
+  for (let i = 0; i < 3; i++) det += taper(Q(-0.2 + i * 0.27, -0.74), Q(0.0 + i * 0.27, -0.22), 0.055, 0, '#ffffff', 0.95)
+  det += taper(Q(0.55, -0.66), Q(1.12, -0.44), 0.1, -0.06, '#ffffff', 0.35)
+  return { d: body, det }
 }
 
-// little curved effort ticks
-function effortLines(list, t) {
-  if (!list) return ''
-  const pulse = 0.65 + 0.35 * Math.sin((t || 0) * 5)
-  return list.map(([x, y, a]) =>
-    `<path d="M0 -0.45Q0.18 0 0 0.45" transform="translate(${x} ${y}) rotate(${a})" fill="none" stroke="#ffffff" stroke-width="0.2" stroke-linecap="round" opacity="${r2(pulse)}"/>`).join('')
+function legGroup(G, hip, knee, foot, kit, skin, view, side, LT, far) {
+  const ankle = add(foot, mul(norm(sub(knee, foot)), 0.62))
+  const spl = spline([hip, knee, ankle])
+  const sk = spl.joints[1]
+  const rAt = profile([[0, 0.66], [sk * 0.55, 0.6], [sk, 0.46], [sk + (1 - sk) * 0.38, 0.52], [1, 0.38]])
+  const skinR = far ? { light: tint(skin.light, -0.1), base: tint(skin.base, -0.1), shade: tint(skin.shade, -0.1), deep: tint(skin.deep, -0.1) } : skin
+  const sockR = far ? ramp(tint(kit.shirt, -0.1)) : kit.r
+  const items = []
+  items.push({ d: tube(spl, rAt), fill: limbGrad(G, hip, knee, 0.7, skinR, LT) })
+  const sS = sk + (1 - sk) * 0.1
+  const srad = (s) => rAt(s) + 0.05
+  const kneeP = at(spl, sS).p
+  items.push({ d: tube(spl, srad, sS, 1, 'hem', 'round', 0.3), fill: limbGrad(G, kneeP, ankle, 0.58, sockR, LT) })
+  // two stripes near the top of the sock
+  let det = ''
+  const sh = (u) => sS + (1 - sS) * u
+  for (const [u0, u1] of [[0.12, 0.25], [0.33, 0.46]]) {
+    items.push({ d: tube(spl, (s) => srad(s) + 0.004, sh(u0), sh(u1), 'hem', 'hem', 0.3, 6), fill: limbGrad(G, at(spl, sh(u0)).p, at(spl, sh(u1)).p, 0.6, kit.trimR, LT) })
+  }
+  const boot = bootShape(foot, knee, view, side, LT)
+  items.push({ d: boot.d, fill: G.lin(add(foot, [0, -1]), foot, [[0, far ? '#3c4246' : '#4d555a'], [0.55, far ? '#1f2326' : '#272c2f'], [1, '#141719']]) })
+  det += iline(hemLine(spl, srad, sS, 0.3, 0.0), 0.08)
+  if (!SMALL) for (const [u0, u1] of [[0.12, 0.25], [0.33, 0.46]]) det += iline(hemLine(spl, srad, sh(u0), 0.3, 0.04), 0.045) + iline(hemLine(spl, srad, sh(u1), 0.3, 0.04), 0.045)
+  // knee: a soft crease when the leg bends
+  const kp = at(spl, sk)
+  if (!SMALL) det += taper(add(kp.p, mul(perp(kp.t), 0.3)), add(kp.p, mul(perp(kp.t), -0.3)), 0.05, 0.12, skin.deep, 0.5)
+  det += boot.det
+  return { svg: group(items) + det, spl, rAt, sk }
+}
+
+// The torso, in a frame at the neck: x across (screen right when upright),
+// y down the spine. H = neck→hip length. Returns a path.
+function torsoPath(M, H, view, cx) {
+  const k = H / 2.95
+  if (view === 'side') {
+    const pts = [
+      [-0.55, 0.0], [-1.2, 0.2], [-1.45, 0.85 * k], [-1.38, 1.6 * k], [-1.3, 2.3 * k], [-1.36, H + 0.14],
+      [-0.4, H + 0.32], [0.5, H + 0.3], [1.4, H + 0.12], [1.5, H - 0.6], [1.58, 1.35 * k], [1.36, 0.7 * k], [0.95, 0.12], [0.5, -0.02], [0, -0.08],
+    ]
+    return smoothClosed(pts.map(([x, y]) => M(x, y)))
+  }
+  const wl = view === 'three' ? 0.78 : 0.92, wr = view === 'three' ? 0.72 : 0.92
+  const pts = [
+    [-0.8 * wl + cx, 0.0], [-1.3 * wl + cx, -0.02], [-1.72 * wl + cx, 0.14], [-1.92 * wl + cx, 0.55], [-1.98 * wl + cx, 1.1 * k], [-1.82 * wl + cx, 1.8 * k], [-1.86 * wl + cx * 0.6, H - 0.18],
+    [-0.9 + cx * 0.6, H - 0.02], [0 + cx * 0.6, H + 0.02], [0.9 + cx * 0.6, H - 0.02],
+    [1.86 * wr + cx * 0.6, H - 0.18], [1.8 * wr + cx, 1.85 * k], [1.98 * wr + cx, 1.1 * k], [1.92 * wr + cx, 0.55], [1.72 * wr + cx, 0.14], [1.3 * wr + cx, -0.02], [0.8 * wr + cx, 0.0],
+    [0.35 + cx, view === 'back' ? 0.12 : 0.32], [-0.35 + cx, view === 'back' ? 0.12 : 0.32],
+  ]
+  return smoothClosed(pts.map(([x, y]) => M(x, y)))
 }
 
 // ============================================================
 // renderKid
 // ============================================================
 /**
- * @param pose  a POSES name or joint object (blend with blendPoses)
- * @param team  team colour hex (shirt + socks + trims follow it)
- * @param opts  { number, hair, hairColour, skin (index|object), freckles,
+ * @param pose  a POSES name or joint object (blendPoses for transitions)
+ * @param team  team colour hex — shirt, socks, stripes, scrunchie follow it
+ * @param opts  { uid (unique id prefix for gradients), number, hair,
+ *               hairColour, skin (index|object), freckles, coach,
  *               expr: grin|happy|calm|oh|focus|wink, look: 1|-1,
- *               t (seconds, for idle life), still (no idle), effort }
+ *               mirror (drawn inside a flipped group), t, phase, still }
  */
 export function renderKid(pose, team, opts = {}) {
   const p = typeof pose === 'string' ? POSES[pose] || POSES.stand : pose
   const view = opts.view || p.view || 'front'
-  const look = opts.look ?? 1
-  const light = lum(team) > 0.66 // white / pale / yellow kits: dark trims
+  const flipSelf = opts.look === -1
+  const mirrored = !!opts.mirror !== flipSelf
+  const LT = mirrored ? norm([0.55, -0.83]) : norm([-0.55, -0.83]) // towards the light, on screen
+  const G = makeGrads(opts.uid || 'kid')
+  GID = { prefix: (opts.uid || 'kid') + 'p', n: 0, defs: G.defs }
+  SMALL = opts.lod === 'small'
+  const pale = lum(team) > 0.66
   const kit = {
     shirt: team,
-    shade: tint(team, light ? -0.14 : -0.2),
-    sock: team, sockShade: tint(team, light ? -0.14 : -0.2),
-    trim: light ? tint(team, -0.62) : '#ffffff',
-    numberLine: light ? tint(team, -0.2) : tint(team, -0.25),
+    r: ramp(team),
+    trim: pale ? tint(team, -0.62) : '#ffffff',
+    trimR: pale ? ramp(tint(team, -0.62)) : { light: '#ffffff', base: '#fbfbfa', shade: '#dedcd8', deep: '#c9c6c0' },
+    numberLine: tint(team, -0.3),
   }
   const skin = typeof opts.skin === 'object' ? opts.skin : SKINS[opts.skin || 0]
   const t = opts.t || 0
-  // idle life: a slow breath and a blink every few seconds
-  const breath = opts.still ? 0 : Math.sin(t * 2.4) * 0.07
-  const blink = !opts.still && (t + (opts.phase || 0)) % 3.7 < 0.13
+  const breath = opts.still ? 0 : Math.sin(t * 2.4 + (opts.phase || 0)) * 0.07
+  const blink = opts.blink ?? (!opts.still && (t + (opts.phase || 0)) % 3.7 < 0.13)
   const o = {
     hair: opts.hair || 'tufts', hairColour: opts.hairColour || HAIRS.brown, skin,
     expr: opts.expr || p.expr || 'grin', blink, freckles: opts.freckles,
+    swing: opts.still ? 0 : Math.sin(t * 2.1 + (opts.phase || 0)) * 3 + (opts.swing || 0),
   }
 
-  const up = norm(sub(p.neck, p.hip)), n = perp(up)
-  const spread = view === 'side' ? 0.2 : view === 'three' ? 0.82 : 1
-  const neck = add(p.neck, [0, breath]), headC = add(p.head, [0, breath * 1.3])
-  const shA = add(neck, add(mul(n, 1.62 * spread), mul(up, -0.4)))
-  const shB = add(neck, add(mul(n, -1.62 * spread), mul(up, -0.4)))
-  // the shoulder nearer each hand's side of the body
-  const [shL, shR] = shA[0] <= shB[0] ? [shA, shB] : [shB, shA]
-  const hpA = add(p.hip, mul(n, 0.85 * spread)), hpB = add(p.hip, mul(n, -0.85 * spread))
-  const [hipL, hipR] = hpA[0] <= hpB[0] ? [hpA, hpB] : [hpB, hpA]
-  const facing = view === 'front' || view === 'back' ? 0 : 1
-  const fBoot = facing || 1
+  const neck = add(p.neck, [0, breath])
+  const headC = add(add(p.neck, mul(sub(p.head, p.neck), 0.87)), [0, breath * 1.25])
+  const HS = 0.86 // head scale (chibi, but closer to 3 heads tall)
+  const dn = norm(sub(p.hip, neck)), nx = [dn[1], -dn[0]] // spine down, and across (screen right when upright)
+  const H = len(sub(p.hip, neck))
+  const M = (x, y) => add(neck, add(mul(nx, x), mul(dn, y)))
+  const cx = view === 'three' ? 0.28 : 0
+  // shoulder & hip joints by view
+  const shW = view === 'side' ? [-0.15, -0.3] : view === 'three' ? [-1.38, 1.0] : [-1.5, 1.5]
+  const hpW = view === 'side' ? [-0.12, 0.12] : view === 'three' ? [-0.78, 0.6] : [-0.85, 0.85]
+  const shoulder = { L: M(shW[0], 0.62), R: M(shW[1], 0.62) }
+  const hipJ = { L: M(hpW[0], H), R: M(hpW[1], H) }
+  const near = p.near || (view === 'side' ? 'R' : view === 'three' ? 'L' : null)
+  const far = near === 'L' ? 'R' : near === 'R' ? 'L' : null
+  const bodyX = p.hip[0]
 
-  const front = new Set(p.front || ['L', 'R'])
-  // side view: far arm (L) behind the body
-  if (view === 'side' && !p.front) front.delete('L')
-
-  let s = ''
+  let out = ''
   // ground shadow
-  const minX = Math.min(p.footL[0], p.footR[0], p.hip[0]) - 1.4, maxX = Math.max(p.footL[0], p.footR[0], p.hip[0]) + 1.6
-  s += `<ellipse cx="${r2((minX + maxX) / 2)}" cy="0.22" rx="${r2((maxX - minX) / 2 + 0.3)}" ry="0.55" fill="rgba(0,0,0,0.2)"/>`
+  const xs = [p.footL[0], p.footR[0], p.hip[0], p.handL[0], p.handR[0]]
+  const minX = Math.min(...xs) - 1.2, maxX = Math.max(...xs) + 1.4
+  const sc = [(minX + maxX) / 2, 0.2]
+  const srx = (maxX - minX) / 2 + 0.3
+  out += `<path d="${ellipse(sc, srx, 0.66)}" fill="${G.radE(sc, srx, 0.66, [[0, '#0b2a12', 0.42], [0.6, '#0b2a12', 0.2], [1, '#0b2a12', 0]])}"/>`
 
-  const armL = arm(view === 'side' ? shR : shL, p.elbowL, p.handL, p.handLState, kit, skin, view)
-  const armR = arm(shR, p.elbowR, p.handR, p.handRState, kit, skin, view)
-  if (!front.has('L')) s += armL
-  if (!front.has('R')) s += armR
-  // legs: far / lifted leg first
-  const legL = leg(hipL, p.kneeL, p.footL, kit, skin, fBoot)
-  const legR = leg(hipR, p.kneeR, p.footR, kit, skin, fBoot)
-  s += p.liftR ? legR + legL : legL + legR
-  // shorts: both leg openings then the waist
-  const pc = p.hip
-  s += shortsLeg(hipL, p.kneeL, pc, kit) + shortsLeg(hipR, p.kneeR, pc, kit)
-  const wL = add(hipL, mul(up, 0.55)), wR = add(hipR, mul(up, 0.55))
-  s += `<path d="${capsule(wL, wR, 1.0, 1.0)}" fill="${SHORTS}" stroke="${OUTLINE}" stroke-width="0.18"/>`
-  // shirt body, then arms in front, then head
-  s += shirtBody(neck, p.hip, kit, view, opts.number, look, opts.mirror)
-  for (const k of p.front || ['L', 'R']) {
-    if (!front.has(k)) continue
-    s += k === 'L' ? armL : armR
+  // Arms: a sleeve always belongs to the shirt silhouette. The bare arm is
+  // drawn behind the body when it hangs clear of it, in front when it
+  // crosses the torso (then the sleeve is laid back over it), and after
+  // the head when the pose reaches over it.
+  const arms = {}
+  for (const k of ['L', 'R']) arms[k] = armParts(G, shoulder[k], p['elbow' + k], p['hand' + k], p['hand' + k + 'State'], kit, skin, bodyX, LT, far === k, neck)
+  const tw = view === 'side' ? 1.45 : 1.72
+  const inside = (q) => {
+    const v = sub(q, neck), x = dot(v, nx), y = dot(v, dn)
+    return Math.abs(x - cx) < tw * 0.92 && y > -0.6 && y < H + 1.8
   }
-  // neck shadow under the chin
-  s += `<ellipse cx="${r2(neck[0])}" cy="${r2(neck[1] - 0.1)}" rx="0.95" ry="0.35" fill="${skin.shade}"/>`
-  s += head(headC, o, look, view, kit)
-  if (opts.effort !== false) s += effortLines(p.effort, t)
-  return s
+  const touches = (q) => {
+    const v = sub(q, neck), x = dot(v, nx), y = dot(v, dn)
+    return Math.abs(x - cx) < tw * 1.12 && y > -0.6 && y < H + 1.8
+  }
+  const crosses = (k) => inside(p['elbow' + k]) || inside(p['hand' + k])
+  const overHead = p.overHead || []
+  const place = {}
+  for (const k of ['L', 'R']) {
+    if (overHead.includes(k)) place[k] = 'overHead'
+    else if (far === k && view !== 'front') place[k] = 'behind'
+    else if (inside(p['elbow' + k])) place[k] = view === 'back' ? 'behind' : 'front'
+    else if (touches(p['hand' + k])) place[k] = view === 'back' ? 'behind' : 'frontLower'
+    else place[k] = 'behind'
+  }
+  for (const k of ['L', 'R']) if (place[k] === 'behind' || place[k] === 'frontLower' || place[k] === 'overHead') out += arms[k].skin
+  // legs: far / lifted first
+  const legOrder = p.liftR ? ['R', 'L'] : far ? [far, near] : ['L', 'R']
+  const legs = {}
+  for (const k of legOrder) {
+    legs[k] = legGroup(G, hipJ[k], p['knee' + k], p['foot' + k], kit, skin, view, k === 'L' ? -1 : 1, LT, far === k)
+    out += legs[k].svg
+  }
+
+  // one gradient for the whole shirt (torso AND sleeves), so it reads as one garment
+  const lit = mirrored ? 1 : -1
+  const shirtFill = G.lin(M(lit * 2.6 + cx, -0.4), M(-lit * 2.2 + cx, H + 0.5), [[0, kit.r.light], [0.3, kit.r.base], [0.8, kit.r.shade], [1, kit.r.deep]])
+  // ---- body group: neck, shorts, shirt ----
+  const body = []
+  let bodyDet = ''
+  const neckTop = lerp(neck, headC, 0.45)
+  body.push({ d: tube(spline([M(cx * 0.6, 0.35), neckTop]), () => 0.66), fill: G.lin(M(-0.7, 0), M(0.7, 0), [[0, skin.base], [1, skin.shade]]) })
+  // shorts: waistband + one tube per leg, merged into one garment
+  const shortsFill = G.lin(add(p.hip, mul(LT, 2.0)), add(p.hip, mul(LT, -2.0)), [[0, '#ffffff'], [0.5, '#f4f1eb'], [1, '#cbc4b8']])
+  const wx = view === 'side' ? [-1.3, 1.4] : view === 'three' ? [-1.6, 1.35] : [-1.72, 1.72]
+  const waist = smoothClosed([[wx[0], H - 0.55], [wx[1], H - 0.55], [wx[1] + 0.06, H + 0.15], [wx[1] - 0.05, H + 0.6], [0, H + 0.68], [wx[0] + 0.05, H + 0.6], [wx[0] - 0.06, H + 0.15]].map(([x, y]) => M(x, y)))
+  body.push({ d: waist, fill: shortsFill })
+  const shortsHem = {}
+  for (const k of legOrder) {
+    const sp = spline([hipJ[k], p['knee' + k]])
+    const sEnd = 0.66
+    const rr = profile([[0, 0.94], [1, 0.88]])
+    body.push({ d: tube(sp, rr, 0, sEnd, 'round', 'hem', 0.3), fill: shortsFill })
+    shortsHem[k] = { sp, rr, sEnd }
+  }
+  for (const k of legOrder) {
+    const { sp, rr, sEnd } = shortsHem[k]
+    bodyDet += iline(hemLine(sp, rr, sEnd, 0.3, 0.0), 0.075)
+    // team stripe down the outside of each leg
+    const outSide = view === 'side' ? 0 : (k === 'L' ? -1 : 1)
+    const pts = []
+    for (let i = 0; i <= 6; i++) {
+      const s = (sEnd * i) / 6, { p: q, t: tt } = at(sp, s), nn = perp(tt)
+      const sgn = outSide === 0 ? 1 : (dot(nn, [outSide, 0]) >= 0 ? 1 : -1)
+      const a = outSide === 0 ? -0.13 : 0.62, b = outSide === 0 ? 0.13 : 0.86
+      pts.push([add(q, mul(nn, sgn * rr(s) * a)), add(q, mul(nn, sgn * rr(s) * b))])
+    }
+    const strip = [...pts.map((x) => x[0]), ...pts.reverse().map((x) => x[1])]
+    bodyDet += `<path d="M${strip.map(P).join('L')}Z" fill="${kit.shirt}"/>`
+  }
+  // crotch seam
+  if (view === 'front' || view === 'back' || view === 'three') bodyDet += iline(`M${P(M(cx * 0.6, H + 0.2))}L${P(M(cx * 0.6, H + 0.62))}`, 0.06)
+  // shirt
+  const tp = torsoPath(M, H, view, cx)
+  for (const k of ['L', 'R']) {
+    body.push({ d: arms[k].sleeveD, fill: shirtFill }, { d: arms[k].trimD, fill: arms[k].trimFill, outline: false })
+    // hem + a soft shadow on the underside of the sleeve, before the torso covers their inner ends
+    body.push(arms[k].sleeveShade + arms[k].hemDet)
+  }
+  body.push({ d: tp, fill: shirtFill })
+  // soft shadow under the head, folds, hem line
+  bodyDet += softBlob(G, M(cx * 0.7 + (view === 'side' ? 0.3 : 0), 0.45), 1.45, 0.75, kit.r.deep, 0.7)
+  // a gentle fold where the shirt gathers at the waist
+  if (view !== 'side') bodyDet += taper(M(-0.9 + cx, H - 0.25), M(0.5 + cx, H - 0.05), 0.07, 0.12, kit.r.deep, 0.35)
+  // number
+  if (opts.number != null && view !== 'side' && !opts.coach) {
+    const back = view === 'back'
+    const c = M(cx * 1.15, back ? H * 0.45 : H * 0.42)
+    const size = back ? 1.9 : 1.32
+    const sxn = (view === 'three' ? 0.82 : 1) * (mirrored ? -1 : 1)
+    const ang = (Math.atan2(dn[1], dn[0]) * 180) / Math.PI - 90
+    bodyDet += `<text x="0" y="0" transform="translate(${r2(c[0])} ${r2(c[1])}) rotate(${r2(ang)}) scale(${sxn} 1) translate(0 ${r2(size * 0.36)})" font-size="${size}" font-weight="900" text-anchor="middle" fill="${kit.trim}" stroke="${kit.numberLine}" stroke-width="0.1" paint-order="stroke" font-family="Nunito, 'Arial Rounded MT Bold', system-ui, sans-serif">${opts.number}</text>`
+  }
+  // ring collar
+  if (view !== 'back') {
+    const cw = view === 'side' ? 0.5 : 0.82, cxx = view === 'side' ? 0.35 : cx
+    const a = M(cxx - cw, 0.02), b = M(cxx + cw, 0.02)
+    const d1 = `M${P(a)}Q${P(M(cxx, 0.62))} ${P(b)}`
+    const ring = `${d1}L${P(M(cxx + cw + 0.08, -0.16))}Q${P(M(cxx, 0.3))} ${P(M(cxx - cw - 0.08, -0.16))}Z`
+    bodyDet += `<path d="${ring}" fill="${G.lin(M(0, -0.2), M(0, 0.6), [[0, '#ffffff'], [1, '#dcd9d3']])}"/>` + iline(d1, 0.07) + iline(`M${P(M(cxx - cw - 0.08, -0.16))}Q${P(M(cxx, 0.3))} ${P(M(cxx + cw + 0.08, -0.16))}`, 0.06)
+    if (pale) bodyDet += iline(d1, 0.18, kit.trim)
+  } else {
+    bodyDet += iline(`M${P(M(-0.8, 0.02))}Q${P(M(0, 0.2))} ${P(M(0.8, 0.02))}`, 0.2, kit.trim)
+  }
+  // shirt hem line over the shorts
+  bodyDet += iline(`M${P(M(view === 'side' ? -1.3 : -1.7, H - 0.12))}Q${P(M(0, H + 0.12))} ${P(M(view === 'side' ? 1.38 : 1.7, H - 0.14))}`, 0.06)
+  // coach: whistle on a lanyard
+  if (opts.coach) {
+    const w = M(0.35 + cx, 1.55)
+    bodyDet += iline(`M${P(M(-0.55 + cx, 0.1))}Q${P(M(-0.2 + cx, 1.2))} ${P(w)}Q${P(M(0.75 + cx, 1.0))} ${P(M(0.65 + cx, 0.1))}`, 0.07, '#2f6fed')
+    bodyDet += group([{ d: ellipse(w, 0.32, 0.2), fill: G.lin(add(w, [0, -0.2]), add(w, [0, 0.2]), [[0, '#f2f4f6'], [1, '#8e979e']]) }])
+  }
+  out += group(body) + bodyDet
+
+  // arms crossing in front of the body, sleeve laid back over them
+  const laySleeve = (k) => `<path d="${arms[k].sleeveD}" fill="${shirtFill}"/>` + arms[k].sleeveShade + `<path d="${arms[k].trimD}" fill="${arms[k].trimFill}"/>` + iline(arms[k].sleeveD, 0.08) + arms[k].hemDet
+  for (const k of ['L', 'R']) if (place[k] === 'front') out += arms[k].skin + laySleeve(k)
+  for (const k of ['L', 'R']) if (place[k] === 'frontLower') out += arms[k].lower
+
+  // head
+  out += `<g transform="translate(${r2(headC[0])} ${r2(headC[1])}) scale(${HS}) translate(${r2(-headC[0])} ${r2(-headC[1])})">${head(G, headC, o, view, kit, LT)}</g>`
+  for (const k of ['L', 'R']) if (place[k] === 'overHead') out += arms[k].lower
+
+  // effort ticks
+  if (p.effort && opts.effort !== false) {
+    const pulse = 0.6 + 0.4 * Math.sin(t * 5)
+    out += p.effort.map(([x, y, a]) => `<path d="M0 -0.45Q0.2 0 0 0.45" transform="translate(${x} ${y}) rotate(${a})" fill="none" stroke="#ffffff" stroke-width="0.2" stroke-linecap="round" opacity="${r2(pulse)}"/>`).join('')
+  }
+
+  const svg = `<defs>${G.defs.join('')}</defs>${out}`
+  return flipSelf ? `<g transform="scale(-1 1)">${svg}</g>` : svg
 }
 
 // Blend two poses (for transitions). Views switch at the halfway point.

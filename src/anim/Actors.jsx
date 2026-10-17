@@ -3,7 +3,7 @@
 // overlays (pressed-grass trails, effects, speech bubbles).
 // All are pure: they draw one frame from values the player hands in.
 // ============================================================
-import { useId } from 'react'
+import { useId, useEffect } from 'react'
 import { TEAM, WAKE, LIMB } from './theme.js'
 import { PLAYER_R, BALL_R } from './compile.js'
 import { renderKid, blendPoses, POSES, SKINS, HAIRS } from './kid.js'
@@ -79,16 +79,35 @@ const hashId = (id) => {
 }
 const smoothstep = (u) => u * u * (3 - 2 * u)
 
-function kidPoseAt(actor, t) {
+// Pose at time t. Blends between poses are quantised to 1/10 steps so
+// renders can be cached (a transition costs at most 10 drawings, once).
+function kidPoseAt(actor, t, stagger = 0) {
   let cur = actor.pose0 in POSES ? actor.pose0 : 'stand'
   for (const p of actor.poses) {
     if (t < p.t) break
     const next = p.name in POSES ? p.name : 'stand'
     const u = smoothstep(Math.min(1, (t - p.t) / (p.dur || 0.7)))
     if (u >= 1) { cur = next; continue }
-    return blendPoses(cur, next, u)
+    // each kid steps on a slightly different beat, so kids changing pose
+    // together don't all redraw in the same frame
+    const q = Math.min(1, Math.max(0, Math.round(u * 10 + stagger) / 10))
+    if (q >= 1) { cur = next; continue }
+    return { pose: blendPoses(cur, next, q), key: `${cur}>${next}@${q}` }
   }
-  return POSES[cur]
+  return { pose: POSES[cur], key: cur }
+}
+
+// Small LRU of rendered kid SVG strings. A held pose re-uses one string
+// (two with a blink), so React leaves the DOM alone between frames.
+const KID_CACHE = new Map()
+const KID_CACHE_MAX = 600
+function cachedKid(key, render) {
+  let svg = KID_CACHE.get(key)
+  if (svg) { KID_CACHE.delete(key); KID_CACHE.set(key, svg); return svg }
+  svg = render()
+  KID_CACHE.set(key, svg)
+  if (KID_CACHE.size > KID_CACHE_MAX) KID_CACHE.delete(KID_CACHE.keys().next().value)
+  return svg
 }
 
 export function StretchFigure({ actor, x, y, t, frame = 0, fps = 30 }) {
@@ -100,26 +119,50 @@ export function StretchFigure({ actor, x, y, t, frame = 0, fps = 30 }) {
   const vx = ((actor.x[f1] - actor.x[f0]) * fps) / Math.max(1, f1 - f0)
   const vy = ((actor.y[f1] - actor.y[f0]) * fps) / Math.max(1, f1 - f0)
   const speed = Math.hypot(vx, vy)
-  let pose, flip = !!actor.flip
+  let pose, poseKey, flip = !!actor.flip
   if (speed > 1.2) {
-    const u = (Math.sin(t * (6 + speed * 0.25) + (h % 7)) + 1) / 2
+    const u = Math.round(((Math.sin(t * (6 + speed * 0.25) + (h % 7)) + 1) / 2) * 6) / 6
     pose = blendPoses('strideA', 'strideB', u)
+    poseKey = `stride@${u}`
     if (Math.abs(vx) > 0.4) flip = vx < 0
   } else {
-    pose = kidPoseAt(actor, t)
+    ({ pose, key: poseKey } = kidPoseAt(actor, t, ((h % 4) - 1.5) * 0.22))
   }
-  const s = actor.scale || 1.8
-  const svg = renderKid(pose, colour, {
+  const phase = (h % 13) * 0.29
+  let moving = speed > 1.2
+  // blink only while holding a pose (keeps the number of drawings down)
+  const blink = !moving && !String(poseKey).includes('@') && (t + phase) % 3.7 < 0.13
+  const look = {
     number: isCoach ? null : (h % 11) + 2,
+    coach: isCoach,
     hair: isCoach ? 'swept' : KID_HAIR[h % KID_HAIR.length],
     hairColour: isCoach ? HAIRS.dark : KID_HAIR_COL[(h >>> 3) % KID_HAIR_COL.length],
     skin: (h >>> 5) % SKINS.length,
     freckles: h % 5 === 0,
-    t, phase: (h % 13) * 0.29,
-    mirror: flip,
-  })
+  }
+  const key = `${colour}|${h}|${poseKey}|${flip ? 1 : 0}|${blink ? 1 : 0}`
+  // Each drawing is cached as a string: a held pose re-uses the identical
+  // string, so React leaves the DOM (and the painted pixels) alone.
+  const draw = (k, ps, bl, fl) => cachedKid(k, () => renderKid(ps, colour, { ...look, uid: `kd${hashId(k).toString(36)}_`, still: true, blink: bl, mirror: fl, lod: 'small' }))
+  const svg = draw(key, pose, blink, flip)
+  // While the browser is idle, draw the next second of pose changes so a
+  // transition only swaps strings instead of computing them mid-frame.
+  useEffect(() => {
+    if (typeof requestIdleCallback !== 'function') return
+    const id = requestIdleCallback((dl) => {
+      for (let dt = 0.1; dt <= 1.2 && dl.timeRemaining() > 4; dt += 0.05) {
+        const nx = kidPoseAt(actor, t + dt, ((h % 4) - 1.5) * 0.22)
+        const k = `${colour}|${h}|${nx.key}|${flip ? 1 : 0}|0`
+        if (!KID_CACHE.has(k)) draw(k, nx.pose, false, flip)
+      }
+    })
+    return () => cancelIdleCallback(id)
+  }, [Math.floor(t * 2)]) // eslint-disable-line react-hooks/exhaustive-deps
+  const s = actor.scale || 1.8
   return <g transform={`translate(${x} ${y}) scale(${flip ? -s : s} ${s})`} dangerouslySetInnerHTML={{ __html: svg }} />
 }
+// The area every kid drawing fits inside, in kid units (feet at 0,0).
+const KID_BOX = [-8, -15, 16, 16.4]
 
 // Pressed grass: a pale streak where a played ball ran along the ground
 // (longer-lived the harder it was hit) and footprints where players ran, each springing back on its own clock — so a trail
@@ -273,9 +316,11 @@ export function Bubbles({ bubbles, t, actors, frame }) {
         const pop = Math.min(1, (t - b.t0) / 0.15)
         const out = Math.min(1, (b.t1 - t) / 0.2)
         const ax = a.x[frame], ay = a.y[frame]
-        const above = ay > 12
+        // illustrated kids are tall: their bubble sits above the head
+        const lift = a.figure ? (a.scale || 1.8) * 13.4 : 7.2
+        const above = a.figure || ay > 12
         const bx = Math.max(w / 2 + 1, Math.min(99 - w / 2, ax))
-        const by = above ? ay - 7.2 : ay + 7.2
+        const by = above ? Math.max(3.5, ay - lift) : ay + 7.2
         return (
           <g key={i} opacity={out} transform={`translate(${bx} ${by}) scale(${0.6 + 0.4 * pop})`}>
             <path d={above ? `M ${ax - bx - 1.2} 2.2 L ${ax - bx} 4.4 L ${ax - bx + 1.2} 2.2 Z` : `M ${ax - bx - 1.2} -2.2 L ${ax - bx} -4.4 L ${ax - bx + 1.2} -2.2 Z`} fill="#fff" />
