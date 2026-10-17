@@ -27,10 +27,12 @@ export const KIT = {
   ladder: '#ffd54d',
 }
 
-export const STROKE = {
-  pass: '#ffffff',
-  shot: '#ffe066',
-  fade: 1.3, // seconds a finished line lingers
+// Pressed grass left by the ball and by players' feet. Flattened blades
+// catch the light, so marks are a pale sheen that fades as the grass
+// springs back (`life` seconds; `ease` > 1 = recovers fast, then lingers).
+export const WAKE = {
+  ball: { color: '#e4f7d2', opacity: 0.42, width: 1.5, life: 2.6, ease: 1.6 },
+  feet: { color: '#e4f7d2', opacity: 0.34, rx: 0.55, ry: 0.32, life: 1.8, ease: 1.4 },
 }
 
 export const LIMB = '#24333b'

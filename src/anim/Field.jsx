@@ -170,12 +170,6 @@ export function Defs() {
         <rect width="1.4" height="1.4" fill="rgba(255,255,255,0.12)" />
         <path d="M 0 0 L 0 1.4 M 0 0 L 1.4 0" stroke="rgba(255,255,255,0.45)" strokeWidth="0.18" />
       </pattern>
-      <marker id="sc-arrow" viewBox="0 0 6 6" refX="4.2" refY="3" markerWidth="3.2" markerHeight="3.2" orient="auto-start-reverse">
-        <path d="M 0 0.6 L 5.4 3 L 0 5.4 Z" fill="#fff" />
-      </marker>
-      <marker id="sc-arrow-shot" viewBox="0 0 6 6" refX="4.2" refY="3" markerWidth="3.2" markerHeight="3.2" orient="auto-start-reverse">
-        <path d="M 0 0.6 L 5.4 3 L 0 5.4 Z" fill="#ffe066" />
-      </marker>
       {/* light from the top left: a soft highlight, and shade towards the far edge */}
       <radialGradient id="sc-ball-shade" cx="0.36" cy="0.32" r="0.78">
         <stop offset="0" stopColor="#fff" stopOpacity="0.55" />

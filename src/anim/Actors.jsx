@@ -1,9 +1,10 @@
 // ============================================================
 // Actor components — players, balls, stretch figures, and the
-// coaching-board overlays (trails, effects, speech bubbles).
+// overlays (pressed-grass trails, effects, speech bubbles).
 // All are pure: they draw one frame from values the player hands in.
 // ============================================================
-import { TEAM, STROKE, LIMB } from './theme.js'
+import { useId } from 'react'
+import { TEAM, WAKE, LIMB } from './theme.js'
 import { PLAYER_R, BALL_R } from './compile.js'
 import { jointsAt } from './figures.js'
 import { Q_ID, panelOutlines } from './ball.js'
@@ -83,31 +84,52 @@ export function StretchFigure({ actor, x, y, t }) {
   )
 }
 
-// Coaching-board lines: solid arrow = pass, gold arrow = shot,
-// dashed = run without the ball, wavy = dribble. They draw on as the
-// move happens, then fade so the board never gets cluttered.
-export function Strokes({ strokes, t, frame, mode }) {
+// Pressed grass: a pale streak where the ball rolled and footprints
+// where players ran, each springing back on its own clock — so a trail
+// fades from its oldest end, like real turf recovering. On a seamless
+// loop, marks made near the end are still visible as it restarts.
+// `mode` 'ball' shows only the ball's streak.
+export function Wake({ wake, t, duration, loop, mode }) {
+  // The streak is drawn into a mask, then coloured once: overlapping
+  // segments would otherwise double up their transparency into beads.
+  const maskId = useId()
+  const age = (tp) => {
+    let a = t - tp
+    if (a < 0 && loop) a += duration
+    return a
+  }
+  const left = (a, w) => (a < 0 || a > w.life ? 0 : Math.pow(1 - a / w.life, w.ease))
+  const B = WAKE.ball
+  const F = WAKE.feet
+  const segs = []
+  wake.ball.forEach((run, ri) => {
+    for (let i = 1; i < run.length; i++) {
+      const p = run[i - 1], q = run[i]
+      const k = left(age((p[2] + q[2]) / 2), B)
+      if (k <= 0.01) continue
+      const v = Math.round(255 * k)
+      segs.push(<line key={`${ri}-${i}`} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={`rgb(${v},${v},${v})`} strokeWidth={B.width * (0.55 + 0.45 * k)} />)
+    }
+  })
   return (
-    <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-      {strokes.map((s, i) => {
-        if (mode === 'ball' && (s.kind === 'run' || s.kind === 'dribble')) return null
-        if (t < s.t0 || t > s.t1 + STROKE.fade) return null
-        // pts are one per baked frame, so the drawn-so-far tip is an index
-        const upto = Math.min(s.pts.length - 1, frame - s.pts[0][2])
-        if (upto < 1) return null
-        const pts = []
-        for (let k = 0; k < upto; k += 2) pts.push(s.pts[k])
-        pts.push(s.pts[upto])
-        const after = Math.max(0, t - s.t1)
-        const op = (1 - after / STROKE.fade) * (s.kind === 'run' || s.kind === 'dribble' ? 0.75 : 0.85)
-        const d = pts.map((p) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')
-        const c = TEAM[s.team] || TEAM.a
-        if (s.kind === 'pass') return <polyline key={i} points={d} stroke={STROKE.pass} strokeWidth="0.42" opacity={op} markerEnd={after > 0 ? 'url(#sc-arrow)' : undefined} />
-        if (s.kind === 'shot') return <polyline key={i} points={d} stroke={STROKE.shot} strokeWidth="0.55" opacity={op} markerEnd={after > 0 ? 'url(#sc-arrow-shot)' : undefined} />
-        if (s.kind === 'knock') return <polyline key={i} points={d} stroke="#fff" strokeWidth="0.35" strokeDasharray="0.8 0.8" opacity={op} />
-        if (s.kind === 'dribble') return <polyline key={i} points={d} stroke={c.light} strokeWidth="0.4" opacity={op} />
-        return <polyline key={i} points={d} stroke={c.light} strokeWidth="0.4" strokeDasharray="1.3 1.1" opacity={op} />
-      })}
+    <g style={{ pointerEvents: 'none' }}>
+      {segs.length > 0 && (
+        <>
+          <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="64">
+            <g strokeLinecap="round">{segs}</g>
+          </mask>
+          <rect x="0" y="0" width="100" height="64" fill={B.color} opacity={B.opacity} mask={`url(#${maskId})`} />
+        </>
+      )}
+      {mode !== 'ball' && (
+        <g fill={F.color}>
+          {wake.feet.map((p, i) => {
+            const k = left(age(p[2]), F)
+            if (k <= 0.01) return null
+            return <ellipse key={i} cx={p[0]} cy={p[1]} rx={F.rx} ry={F.ry * (0.6 + 0.4 * k)} opacity={F.opacity * k} transform={`rotate(${deg(p[3])} ${p[0]} ${p[1]})`} />
+          })}
+        </g>
+      )}
     </g>
   )
 }

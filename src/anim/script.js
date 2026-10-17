@@ -19,7 +19,7 @@
 //   cast:  { p1: player('a', '1', 20, 30), … },
 //   balls: { b: 'p1' }  or  { b: [50, 32] }, // holder id, or loose at x,y
 //   beats: [ beat('Caption', 1.2, run(…), pass(…)), … ],
-//   trails: true | 'ball' | false,           // coaching-board lines
+//   trails: true | 'ball' | false,           // pressed grass: all / ball only / none
 // })
 export const scene = (s) => s
 

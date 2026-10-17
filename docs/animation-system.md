@@ -8,7 +8,7 @@ an animated, top-down coaching board. Authors never place the ball by hand.
 src/anim/script.js       authoring vocabulary (scene, beat, run, pass, …)
 src/anim/compile.js      compiler + physics: resolves the script into frames
 src/anim/Field.jsx       pitch + kit components (cones, goals, ladders, …)
-src/anim/Actors.jsx      player tokens, ball, stick figures, trails, effects
+src/anim/Actors.jsx      player tokens, ball, stick figures, pressed grass, effects
 src/anim/figures.js      stretch poses for cool-down figures
 src/anim/ball.js         ball panels + spin maths (quaternions)
 src/anim/theme.js        colours for teams, kit, lines — restyle everything here
@@ -156,6 +156,9 @@ All drawn top-down, as a coach sees them looking at the grass.
   Split a move across two beats with ellipses so the step bar tells the story.
 - Use `shout` for things the coach or players actually say; use captions for
   what the viewer should notice.
-- Trails are automatic: solid white arrow = pass, gold = shot, dashed = run,
-  wavy = dribble. They fade after ~1.3 s so the board never clutters.
+- Trails are automatic and "in the world": the ball flattens a pale streak in
+  the grass wherever it rolls (not while it's in the air) and players leave
+  footprints. The grass springs back from the oldest end (~2.6 s for the ball,
+  ~1.8 s for feet — tune in `WAKE`, theme.js). `trails: 'ball'` shows only the
+  ball's streak; `false` turns them off.
 - Prefer a fade loop over an unnatural "everyone jogs back to start" ending.

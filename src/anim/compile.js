@@ -37,6 +37,11 @@ const SPIN_MAX = 0.42
 const SPIN_BLUR = [0.4, 0.75] // spin range over which the panels blur out (a crisp pass sits just under it)
 const AIRBORNE = 0.35 // ball height above which it stops rolling on the grass
 const CURVE_SPIN = 0.12
+// Pressed grass: one ball-wake point per this many units rolled, and
+// footprints every STRIDE units, FOOT_SPREAD either side of the line.
+const WAKE_STEP = 0.6
+const STRIDE = 2.6
+const FOOT_SPREAD = 0.75
 const JUGGLE_SPIN = 0.1
 
 const TAU = Math.PI * 2
@@ -1017,44 +1022,65 @@ function bake(ctx) {
     }
   }
 
-  // ---- Coaching-board strokes ----
+  // ---- Pressed grass ----
+  // Instead of drawn lines, things leave marks in the grass: the ball
+  // flattens a streak wherever it rolls (not while it's in the air), and
+  // players leave footprints. Each mark records when it was made so the
+  // renderer can let the grass spring back from the oldest end.
   const fi = (t) => clamp(Math.round(t * FPS), 0, n - 1)
-  const strokes = []
+  const ballWake = []
   for (const b of B) {
-    for (const s of b.states) {
-      if (s.type !== 'flight' || s.kind === 'juggle') continue
-      const i0 = fi(s.t0), i1 = fi(s.t1)
-      if (i1 - i0 < 2) continue
-      const pts = []
-      for (let f = i0; f <= i1; f++) pts.push([b.x[f], b.y[f], f])
-      strokes.push({ kind: s.kind === 'shot' ? 'shot' : s.kind === 'knock' ? 'knock' : 'pass', t0: s.t0, t1: s.t1, pts })
+    let run = null
+    let last = null
+    for (let f = 0; f < n; f++) {
+      const p = [b.x[f], b.y[f]]
+      const onGrass = b.z[f] < AIRBORNE // (a ball in someone's hands is well above this)
+      if (!onGrass || (last && dist(last, p) > 4)) {
+        run = null
+        last = onGrass ? p : null
+        continue
+      }
+      if (last && dist(last, p) < WAKE_STEP) continue
+      if (!run) {
+        run = []
+        ballWake.push(run)
+        if (last) run.push([last[0], last[1], (f - 1) * dt])
+      }
+      run.push([p[0], p[1], f * dt])
+      last = p
     }
   }
+  ballWake.splice(0, ballWake.length, ...ballWake.filter((r) => r.length > 1))
+
+  const footprints = []
+  for (let i = 0; i < A.length; i++) {
+    const a = A[i]
+    if (a.figure) continue
+    let acc = STRIDE * 0.5
+    let side = 1
+    for (let f = 1; f < n; f++) {
+      const d = Math.hypot(a.x[f] - a.x[f - 1], a.y[f] - a.y[f - 1])
+      if (a.z[f] > 0.3 || a.dive[f]) {
+        acc = STRIDE // in the air: plant a foot as soon as they land
+        continue
+      }
+      acc += d
+      if (acc < STRIDE || d < 1e-3) continue
+      acc = 0
+      const dir = unit([a.x[f] - a.x[f - 1], a.y[f] - a.y[f - 1]])
+      footprints.push([a.x[f] - dir[1] * FOOT_SPREAD * side, a.y[f] + dir[0] * FOOT_SPREAD * side, f * dt, angleOf(dir)])
+      side = -side
+    }
+  }
+
+  // "dribbling" without the ball is still worth catching
   for (const a of A) {
     for (const s of a._tr.segs) {
-      if (s.dive) continue
+      if (s.kind !== 'dribble') continue
       const i0 = fi(s.t0), i1 = fi(s.t1)
-      let len = 0
-      for (let f = i0 + 1; f <= i1; f++) len += Math.hypot(a.x[f] - a.x[f - 1], a.y[f] - a.y[f - 1])
-      if (len < 5) continue
       let held = 0
       for (let f = i0; f <= i1; f++) if (B.some((b) => b.holder[f] === A.indexOf(a))) held++
-      const dribble = held > (i1 - i0) * 0.6
-      if (s.kind === 'dribble' && !dribble) warn(`${a.id} dribbles at ${s.t0.toFixed(2)}s without the ball`)
-      const pts = []
-      let acc = 0
-      for (let f = i0; f <= i1; f++) {
-        let px = a.x[f], py = a.y[f]
-        if (f > i0) acc += Math.hypot(a.x[f] - a.x[f - 1], a.y[f] - a.y[f - 1])
-        if (dribble && f > i0 && f < i1) {
-          const tg = unit([a.x[Math.min(i1, f + 1)] - a.x[f - 1], a.y[Math.min(i1, f + 1)] - a.y[f - 1]])
-          const w = 0.7 * Math.sin((acc / 3.2) * TAU)
-          px += -tg[1] * w
-          py += tg[0] * w
-        }
-        pts.push([px, py, f])
-      }
-      strokes.push({ kind: dribble ? 'dribble' : 'run', team: a.team, t0: s.t0, t1: s.t1, pts })
+      if (held <= (i1 - i0) * 0.6) warn(`${a.id} dribbles at ${s.t0.toFixed(2)}s without the ball`)
     }
   }
 
@@ -1157,7 +1183,7 @@ function bake(ctx) {
     trails: raw.trails ?? true,
     actors: A,
     balls: B,
-    strokes,
+    wake: { ball: ballWake, feet: footprints },
     effects: fx,
     bubbles: bub,
     highlights: hl,

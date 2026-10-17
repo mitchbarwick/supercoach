@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { compileScene } from '../anim/compile.js'
 import { Defs, Pitch, FieldBase, FieldKit } from '../anim/Field.jsx'
 import { qNlerp } from '../anim/ball.js'
-import { PlayerToken, BallToken, StretchFigure, Strokes, Effects, Highlights, Bubbles } from '../anim/Actors.jsx'
+import { PlayerToken, BallToken, StretchFigure, Wake, Effects, Highlights, Bubbles } from '../anim/Actors.jsx'
 
 const lerp = (a, b, u) => a + (b - a) * u
 const lerpAngle = (a, b, u) => {
@@ -154,7 +154,7 @@ export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ...svgProps }) {
       <Pitch />
       <FieldBase field={scene.field} />
       <g opacity={alpha}>
-        {scene.trails && <Strokes strokes={scene.strokes} t={t} frame={f} mode={scene.trails} />}
+        {scene.trails && <Wake wake={scene.wake} t={t} duration={scene.duration} loop={!scene.fade} mode={scene.trails} />}
       </g>
       <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
       <g opacity={alpha}>
