@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { compileScene } from '../anim/compile.js'
 import { Defs, Pitch, FieldBase, FieldKit } from '../anim/Field.jsx'
+import { qNlerp } from '../anim/ball.js'
 import { PlayerToken, BallToken, StretchFigure, Strokes, Effects, Highlights, Bubbles } from '../anim/Actors.jsx'
 
 const lerp = (a, b, u) => a + (b - a) * u
@@ -57,8 +58,9 @@ function usePlayback(duration, startPaused, startAt = 0) {
   return { ref, t, playing, setPlaying, speed, setSpeed, seek }
 }
 
-// `freezeAt` (seconds) shows a single paused frame — used by the dev lab.
-export default function PitchAnimation({ diagram, freezeAt }) {
+// `freezeAt` (seconds) shows a single paused frame and `viewBox` crops
+// in on part of the pitch — both used by the dev lab.
+export default function PitchAnimation({ diagram, freezeAt, viewBox }) {
   const scene = useMemo(() => (diagram ? compileScene(diagram) : null), [diagram])
   const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   const pb = usePlayback(scene?.duration || 1, reduced || freezeAt != null, freezeAt || 0)
@@ -76,7 +78,7 @@ export default function PitchAnimation({ diagram, freezeAt }) {
   return (
     <div className="pitch-wrap" ref={pb.ref}>
       <div className="pitch-stage" style={{ aspectRatio: '100 / 64' }}>
-        <PitchBoard scene={scene} t={t} role="img" aria-label={`Drill animation: ${caption}`} />
+        <PitchBoard scene={scene} t={t} viewBox={viewBox} role="img" aria-label={`Drill animation: ${caption}`} />
       </div>
 
       <div className="pitch-bar">
@@ -175,7 +177,14 @@ export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ...svgProps }) {
           ),
         )}
         {scene.balls.map((b) => (
-          <BallToken key={b.id} x={lerp(b.x[f], b.x[f2], u)} y={lerp(b.y[f], b.y[f2], u)} z={lerp(b.z[f], b.z[f2], u)} rot={lerp(b.rot[f], b.rot[f2], u)} />
+          <BallToken
+            key={b.id}
+            x={lerp(b.x[f], b.x[f2], u)}
+            y={lerp(b.y[f], b.y[f2], u)}
+            z={lerp(b.z[f], b.z[f2], u)}
+            q={qNlerp([b.qw[f], b.qx[f], b.qy[f], b.qz[f]], [b.qw[f2], b.qx[f2], b.qy[f2], b.qz[f2]], u)}
+            blur={lerp(b.blur[f], b.blur[f2], u)}
+          />
         ))}
         <Effects effects={scene.effects} t={t} goals={scene.field.goals} />
         <Bubbles bubbles={scene.bubbles} t={t} actors={scene.actors} frame={f} />

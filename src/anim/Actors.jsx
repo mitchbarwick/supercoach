@@ -6,6 +6,7 @@
 import { TEAM, STROKE, LIMB } from './theme.js'
 import { PLAYER_R, BALL_R } from './compile.js'
 import { jointsAt } from './figures.js'
+import { Q_ID, panelOutlines } from './ball.js'
 
 const deg = (r) => (r * 180) / Math.PI
 
@@ -37,19 +38,28 @@ export function PlayerToken({ x, y, z, h, team, label, dive, hasBall }) {
 }
 
 // Ball: its shadow stays on the grass while the ball itself lifts and
-// grows a touch, so height reads instantly even on a phone.
-export function BallToken({ x, y, z, rot }) {
+// grows a touch, so height reads instantly even on a phone. The panels
+// are the real 3D pattern turned by the ball's spin (`q`, see ball.js),
+// so a rolling ball tumbles over rather than spinning like a wheel.
+// When it's spinning too fast to follow (`blur` → 1), the panels smear
+// to grey, as they do to the eye.
+export function BallToken({ x, y, z, q, blur = 0 }) {
   const k = 1 / (1 + z * 0.2)
   const by = y - z * 0.9
   const r = BALL_R * (1 + z * 0.045)
+  const panels = blur < 1 ? panelOutlines(q || Q_ID) : []
   return (
     <g>
       <ellipse cx={x + 0.35 + z * 0.12} cy={y + 0.55} rx={1.25 * (0.5 + 0.5 * k)} ry={0.75 * (0.5 + 0.5 * k)} fill={`rgba(0,0,0,${0.3 * k})`} />
-      <g transform={`translate(${x} ${by}) rotate(${rot})`}>
-        <circle r={r} fill="#fff" stroke="#1f262b" strokeWidth="0.28" />
-        <path d="M -0.42 -0.3 L 0 -0.6 L 0.42 -0.3 L 0.27 0.22 L -0.27 0.22 Z" fill="#1f262b" transform={`scale(${r / BALL_R})`} />
-        <path d={`M ${-r * 0.92} 0.35 L ${-r * 0.55} 0.55`} stroke="#1f262b" strokeWidth="0.22" />
-        <path d={`M ${r * 0.92} 0.35 L ${r * 0.55} 0.55`} stroke="#1f262b" strokeWidth="0.22" />
+      <g transform={`translate(${x} ${by})`}>
+        <circle r={r} fill="#fff" />
+        <g fill="#1f262b" opacity={1 - blur}>
+          {panels.map((pts, i) => (
+            <polygon key={i} points={pts.map((p) => `${(p[0] * r).toFixed(3)},${(p[1] * r).toFixed(3)}`).join(' ')} />
+          ))}
+        </g>
+        {blur > 0 && <circle r={r} fill={`rgba(31,38,43,${0.22 * blur})`} />}
+        <circle r={r} fill="url(#sc-ball-shade)" stroke="#1f262b" strokeOpacity="0.75" strokeWidth="0.16" />
       </g>
     </g>
   )

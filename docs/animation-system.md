@@ -10,11 +10,13 @@ src/anim/compile.js      compiler + physics: resolves the script into frames
 src/anim/Field.jsx       pitch + kit components (cones, goals, ladders, …)
 src/anim/Actors.jsx      player tokens, ball, stick figures, trails, effects
 src/anim/figures.js      stretch poses for cool-down figures
+src/anim/ball.js         ball panels + spin maths (quaternions)
 src/anim/theme.js        colours for teams, kit, lines — restyle everything here
 src/components/PitchAnimation.jsx   the player (controls, step bar, slow-mo)
 src/data/scenes/*.js     one scene per drill, keyed by drill id
 scripts/check-scenes.mjs validator — `npm run check:scenes`
 #/anim-lab               dev-only gallery of every animation with warnings
+#/anim-lab?set=ball      ball test scenes (src/data/scenes/lab.js), cropped close
 ```
 
 ## Why it works this way
@@ -30,6 +32,11 @@ where the receiver used to be. In Drill Script:
 - **Ball actions chain.** A pass can't leave until the ball has reached the
   passer, so `pass(a,b), pass(b,c), pass(c,a)` in one beat plays as three
   first-time passes with no timing maths.
+- **The ball spins like a ball.** It's a classic 12-pentagon football drawn in
+  3D. On the grass it rolls exactly with the distance it travels (the panels
+  tumble over, never spin flat); in the air it keeps the kick's spin —
+  backspin on chips, sidespin on curled balls; in the hands it's still. Too
+  fast to follow (shots, the instant of a strike) and the panels blur to grey.
 - **Players are aware.** Each token has a facing "nose". Players turn to face
   where they run, the pass they're about to play, or the ball they're watching.
   Defenders watch the ball by default.

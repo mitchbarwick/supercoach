@@ -176,6 +176,13 @@ export function Defs() {
       <marker id="sc-arrow-shot" viewBox="0 0 6 6" refX="4.2" refY="3" markerWidth="3.2" markerHeight="3.2" orient="auto-start-reverse">
         <path d="M 0 0.6 L 5.4 3 L 0 5.4 Z" fill="#ffe066" />
       </marker>
+      {/* light from the top left: a soft highlight, and shade towards the far edge */}
+      <radialGradient id="sc-ball-shade" cx="0.36" cy="0.32" r="0.78">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
+        <stop offset="0.32" stopColor="#fff" stopOpacity="0" />
+        <stop offset="0.75" stopColor="#1f262b" stopOpacity="0.06" />
+        <stop offset="1" stopColor="#1f262b" stopOpacity="0.2" />
+      </radialGradient>
     </defs>
   )
 }

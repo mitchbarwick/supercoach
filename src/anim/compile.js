@@ -18,6 +18,7 @@
 // Pure JS (no React) so scripts/check-scenes.mjs can validate every
 // scene in Node.
 // ============================================================
+import { Q_ID, qMul, qNorm, qConj, qFromRotVec, qToRotVec } from './ball.js'
 
 export const FPS = 60
 export const PLAYER_R = 2.5 // token radius
@@ -29,6 +30,14 @@ const PACE = { walk: 6, jog: 11, run: 16, sprint: 22 } // units / second
 const BALL_SPEED = { ground: 32, lofted: 22, toss: 18, shot: 46, knock: 26, rebound: 30 }
 const BLEND = 0.14 // seconds to settle the ball into a new holder's feet
 const MAX_PLAYER_SPEED = 42
+// Ball spin, in radians per frame. Panels sit ~63° apart, so turning
+// much more than this per frame would strobe (wagon-wheel effect);
+// faster balls hit the cap and blur instead.
+const SPIN_MAX = 0.42
+const SPIN_BLUR = [0.4, 0.75] // spin range over which the panels blur out (a crisp pass sits just under it)
+const AIRBORNE = 0.35 // ball height above which it stops rolling on the grass
+const CURVE_SPIN = 0.12
+const JUGGLE_SPIN = 0.1
 
 const TAU = Math.PI * 2
 const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1])
@@ -724,7 +733,15 @@ function bake(ctx) {
     x: new Float32Array(n),
     y: new Float32Array(n),
     z: new Float32Array(n),
-    rot: new Float32Array(n),
+    // orientation quaternion (see ball.js) and how blurred the panels are
+    qw: new Float32Array(n),
+    qx: new Float32Array(n),
+    qy: new Float32Array(n),
+    qz: new Float32Array(n),
+    blur: new Float32Array(n),
+    _q: Q_ID,
+    _spin: [0, 0, 0],
+    _steps: new Float32Array(n),
     holder: new Int16Array(n).fill(-1),
     _si: 0,
   }))
@@ -784,6 +801,48 @@ function bake(ctx) {
     return null
   })
   const prevZ = B.map((b) => HEIGHT[b.states[0].h] ?? 0)
+
+  // The ball's spin follows what it's doing. On the grass it rolls
+  // without slipping (spin axis flat, square to its travel, one radian
+  // per radius travelled). In the air it keeps the spin the kick gave
+  // it: backspin on lofted balls, a little topspin on driven ones, and
+  // sidespin (about the vertical) on anything curled. In someone's
+  // hands it doesn't spin at all.
+  const kickSpin = (s, f) => {
+    if (s.kind === 'juggle') {
+      const hv = s.by != null && idx[s.by] != null ? vecOf(A[idx[s.by]].h[f]) : [1, 0]
+      return [-hv[1] * JUGGLE_SPIN, hv[0] * JUGGLE_SPIN, 0]
+    }
+    const d = sub(s._end, s._start)
+    const per = Math.hypot(d[0], d[1]) / (Math.max(1e-3, s.t1 - s.t0) * FPS) / BALL_R
+    const dir = unit(d)
+    const roll = [dir[1] * per, -dir[0] * per, 0]
+    const k = s.kind === 'toss' || s.hands ? -0.15 : s.arc > 0.5 ? -0.35 : 0.5
+    return [roll[0] * k, roll[1] * k, s.curve ? Math.sign(s.curve) * CURVE_SPIN : 0]
+  }
+  const spinBall = (b, s, f, from, to, z) => {
+    let target
+    let ease = 0.5
+    if (s.type === 'held' && s.h !== 'feet') {
+      target = [0, 0, 0]
+      ease = 0.25
+    } else if (z < AIRBORNE || s.type !== 'flight') {
+      const d = from ? sub(to, from) : [0, 0]
+      target = [d[1] / BALL_R, -d[0] / BALL_R, s.type === 'flight' && s.curve ? Math.sign(s.curve) * CURVE_SPIN : 0]
+    } else {
+      if (!s._spin) s._spin = kickSpin(s, f)
+      target = s._spin
+      ease = 0.6
+    }
+    const w = b._spin.map((c, i) => c + (target[i] - c) * ease)
+    b._spin = w
+    const ang = Math.hypot(w[0], w[1], w[2])
+    const step = ang > SPIN_MAX ? w.map((c) => (c * SPIN_MAX) / ang) : w
+    if (f > 0) b._q = qNorm(qMul(qFromRotVec(step), b._q))
+    b._steps[f] = f > 0 ? Math.min(ang, SPIN_MAX) : 0
+    b.blur[f] = clamp((ang - SPIN_BLUR[0]) / (SPIN_BLUR[1] - SPIN_BLUR[0]), 0, 1)
+    ;[b.qw[f], b.qx[f], b.qy[f], b.qz[f]] = b._q
+  }
   const touchPhase = A.map(() => 0)
 
   for (let f = 0; f < n; f++) {
@@ -953,8 +1012,7 @@ function bake(ctx) {
       b.x[f] = x
       b.y[f] = y
       b.z[f] = Math.max(0, z)
-      const pb = prevBall[j]
-      b.rot[f] = (f ? b.rot[f - 1] : 0) + (pb ? (dist(pb, [x, y]) / BALL_R) * (180 / Math.PI) : 0)
+      spinBall(b, s, f, prevBall[j], [x, y], b.z[f])
       prevBall[j] = [x, y]
     }
   }
@@ -1063,7 +1121,32 @@ function bake(ctx) {
     delete a._a
     delete a._tr
   }
-  for (const b of B) delete b.states
+  // A seamless loop has to end with the ball turned the way it started,
+  // or the panels jump at the wrap. Share the difference out over the
+  // frames where it's spinning anyway, so a resting ball never creeps.
+  for (const b of B) {
+    const total = b._steps.reduce((p, c) => p + c, 0)
+    if (!fade && total > 1e-6) {
+      const last = n - 1
+      const fix = qToRotVec(qMul([b.qw[0], b.qx[0], b.qy[0], b.qz[0]], qConj([b.qw[last], b.qx[last], b.qy[last], b.qz[last]])))
+      let acc = 0
+      for (let f = 0; f < n; f++) {
+        acc += b._steps[f]
+        const q = qNorm(qMul(qFromRotVec(fix.map((c) => (c * acc) / total)), [b.qw[f], b.qx[f], b.qy[f], b.qz[f]]))
+        ;[b.qw[f], b.qx[f], b.qy[f], b.qz[f]] = q
+      }
+    }
+    for (let f = 0; f < n; f++) {
+      if (!Number.isFinite(b.qw[f] + b.qx[f] + b.qy[f] + b.qz[f])) {
+        warn(`ball ${b.id}: spin went invalid at ${(f / FPS).toFixed(2)}s`)
+        break
+      }
+    }
+    delete b.states
+    delete b._q
+    delete b._spin
+    delete b._steps
+  }
 
   return {
     duration,

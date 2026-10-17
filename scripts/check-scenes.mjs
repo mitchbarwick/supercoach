@@ -5,11 +5,16 @@
 //   npm run check:scenes rondo      just one
 import { SCENES } from '../src/data/scenes/index.js'
 import { HERO } from '../src/data/scenes/hero.js'
+import { BALL_LAB } from '../src/data/scenes/lab.js'
 import { compileScene } from '../src/anim/compile.js'
 
 const only = process.argv[2]
 let bad = 0
-for (const [id, s] of Object.entries({ ...SCENES, 'landing-hero': HERO })) {
+for (const [id, s] of Object.entries({
+  ...SCENES,
+  'landing-hero': HERO,
+  ...Object.fromEntries(Object.entries(BALL_LAB).map(([id, l]) => [`lab:${id}`, l.diagram])),
+})) {
   if (only && id !== only) continue
   let out
   try {
