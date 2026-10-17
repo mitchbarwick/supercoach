@@ -1,6 +1,6 @@
 // Session setup wizard — the "Jasmine flow" entry point.
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { FOCUS_AREAS, EQUIPMENT, AGE_GROUPS } from '../data/drills.js'
 import { buildSession } from '../engine/sessionBuilder.js'
 import { aiConfigured } from '../ai/azure.js'
@@ -25,31 +25,54 @@ export default function SessionSetup() {
   // squad size, duration and kit come prefilled so a returning coach
   // can tap straight through.
   const prefs = useStore((s) => s.prefs)
-  const [step, setStep] = useState(0)
-  const [duration, setDuration] = useState(prefs?.duration || 45)
-  const [players, setPlayers] = useState(prefs?.players || 10)
-  const [ageGroup, setAgeGroup] = useState(prefs?.ageGroup || null)
-  const [equipment, setEquipment] = useState(prefs?.equipment?.length ? prefs.equipment : ['balls', 'cones', 'vests'])
+  // Settings → Team / Kit: fixed details that skip their wizard step.
+  const team = useStore((s) => s.team) || {}
+  const kit = useStore((s) => s.kit)
+  const fixedAge = AGE_GROUPS.some((a) => a.id === team.ageGroup) ? team.ageGroup : null
+  const fixedKit = Array.isArray(kit) ? kit : null
+
+  // Starting numbers for an age group: the coach's usual numbers when it's
+  // their usual group, otherwise the age-band defaults. The Team squad size,
+  // when set, is always the starting head-count.
+  const startingFor = (id) => {
+    const usual = prefs?.ageGroup === id
+    const d = AGE_DEFAULTS[id] || {}
+    return {
+      duration: (usual && prefs.duration) || d.duration || 45,
+      players: team.players || (usual && prefs.players) || d.players || 10,
+    }
+  }
+  const initial = fixedAge ? startingFor(fixedAge) : { duration: prefs?.duration || 45, players: team.players || prefs?.players || 10 }
+
+  const [stepIdx, setStepIdx] = useState(0)
+  const [duration, setDuration] = useState(initial.duration)
+  const [players, setPlayers] = useState(initial.players)
+  const [ageGroup, setAgeGroup] = useState(fixedAge || prefs?.ageGroup || null)
+  const [chosenKit, setEquipment] = useState(prefs?.equipment?.length ? prefs.equipment : ['balls', 'cones', 'vests'])
+  const equipment = fixedKit || chosenKit
   const [focus, setFocus] = useState([])
   const [anything, setAnything] = useState(true)
   const [aiState, setAiState] = useState('idle') // 'idle' | 'loading' | 'error'
   const [aiError, setAiError] = useState('')
 
-  const steps = ['Age', 'Session', 'Focus', 'Kit']
+  const steps = [
+    !fixedAge && 'Age',
+    'Session',
+    'Focus',
+    !fixedKit && 'Kit',
+  ].filter(Boolean)
+  const stepName = steps[stepIdx]
+  const isLast = stepIdx === steps.length - 1
+  const setStep = setStepIdx
 
   const toggle = (list, id, setter) =>
     setter(list.includes(id) ? list.filter((x) => x !== id) : [...list, id])
 
   const pickAge = (id) => {
     setAgeGroup(id)
-    if (prefs?.ageGroup === id) {
-      // Her usual group — keep her usual numbers, not the generic defaults.
-      if (prefs.duration) setDuration(prefs.duration)
-      if (prefs.players) setPlayers(prefs.players)
-    } else {
-      const d = AGE_DEFAULTS[id]
-      if (d) { setDuration(d.duration); setPlayers(d.players) }
-    }
+    const start = startingFor(id)
+    setDuration(start.duration)
+    setPlayers(start.players)
     setStep(1)
   }
 
@@ -78,11 +101,12 @@ export default function SessionSetup() {
 
   const goBack = () => {
     setAiState('idle')
-    setStep(step - 1)
+    setStep(stepIdx - 1)
   }
 
-  const next = () => (step < steps.length - 1 ? setStep(step + 1) : generate())
-  const canNext = step !== 2 || focus.length > 0 || anything
+  const next = () => (!isLast ? setStep(stepIdx + 1) : generate())
+  const canNext = stepName !== 'Focus' || focus.length > 0 || anything
+  const ageLabel = AGE_GROUPS.find((a) => a.id === ageGroup)?.label
 
   const pickAnything = () => {
     setAnything(true)
@@ -101,10 +125,10 @@ export default function SessionSetup() {
       </div>
 
       <div className="wizard-dots">
-        {steps.map((s, i) => <div key={s} className={`dot ${i <= step ? 'on' : ''}`} />)}
+        {steps.map((s, i) => <div key={s} className={`dot ${i <= stepIdx ? 'on' : ''}`} />)}
       </div>
 
-      {step === 0 && (
+      {stepName === 'Age' && (
         <div className="card fade-in">
           <label className="field-label">Age group</label>
           {prefs?.ageGroup && (
@@ -120,8 +144,14 @@ export default function SessionSetup() {
         </div>
       )}
 
-      {step === 1 && (
+      {stepName === 'Session' && (
         <div className="card fade-in">
+          {fixedAge && (
+            <div className="setup-fixed">
+              <span>👕 <strong>{ageLabel}</strong>{fixedKit ? <span style={{ whiteSpace: 'nowrap' }}>{` · 🎒 ${fixedKit.length} kit item${fixedKit.length === 1 ? '' : 's'}`}</span> : ''}</span>
+              <Link to="/settings" className="muted" style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap' }}>Change</Link>
+            </div>
+          )}
           <label className="field-label">How long is your session?</label>
           <div className="chip-row" style={{ marginBottom: 22 }}>
             {DURATIONS.map((d) => (
@@ -134,7 +164,7 @@ export default function SessionSetup() {
           <div>
             <div className="row" style={{ marginBottom: 6 }}>
               <span className="val">{players}</span>
-              <span className="muted">including any keepers</span>
+              <span className="muted">{team.players && players !== team.players ? `usually ${team.players} · including any keepers` : 'including any keepers'}</span>
             </div>
             <input
               type="range"
@@ -148,7 +178,7 @@ export default function SessionSetup() {
         </div>
       )}
 
-      {step === 2 && (
+      {stepName === 'Focus' && (
         <div className="card fade-in">
           <label className="field-label">What does the team need to work on?</label>
           <p className="field-hint">Pick up to three — the plan will prioritise these. Or pick anything.</p>
@@ -166,13 +196,16 @@ export default function SessionSetup() {
               </button>
             ))}
           </div>
+          {fixedKit && (
+            <p className="muted" style={{ marginTop: 16 }}>🎒 Using your kit list from Settings ({fixedKit.length} item{fixedKit.length === 1 ? '' : 's'}).</p>
+          )}
           {favourites.length > 0 && (
             <p className="muted" style={{ marginTop: 16 }}>⭐ You have {favourites.length} favourite drill{favourites.length > 1 ? 's' : ''} — they'll be picked first when they fit.</p>
           )}
         </div>
       )}
 
-      {step === 3 && (
+      {stepName === 'Kit' && (
         <div className="card fade-in">
           <label className="field-label">What equipment do you have?</label>
           <p className="field-hint">Only drills you can actually run will make the plan.</p>
@@ -186,7 +219,7 @@ export default function SessionSetup() {
         </div>
       )}
 
-      {step === steps.length - 1 && aiState === 'error' && (
+      {isLast && aiState === 'error' && (
         <div className="card fade-in" style={{ borderColor: 'var(--coral-600)' }}>
           <p style={{ color: 'var(--coral-700)', fontWeight: 800 }}>⚠️ Couldn't build your session</p>
           <p className="muted" style={{ marginTop: 6 }}>{aiError}</p>
@@ -194,12 +227,12 @@ export default function SessionSetup() {
         </div>
       )}
 
-      {step > 0 && (
+      {(stepIdx > 0 || stepName !== 'Age') && (
         <div className="sticky-cta">
           <div className="inner">
-            <button className="btn btn-ghost" onClick={goBack} disabled={aiState === 'loading'}>Back</button>
+            {stepIdx > 0 && <button className="btn btn-ghost" onClick={goBack} disabled={aiState === 'loading'}>Back</button>}
             <button className="btn btn-primary btn-block" onClick={next} disabled={!canNext || aiState === 'loading'}>
-              {aiState === 'loading' ? '✨ Designing your session…' : step === steps.length - 1 ? '✨ Build my session' : 'Continue'}
+              {aiState === 'loading' ? '✨ Designing your session…' : isLast ? '✨ Build my session' : 'Continue'}
             </button>
           </div>
         </div>

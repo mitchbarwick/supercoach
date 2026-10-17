@@ -140,6 +140,15 @@ app.http('prefs', {
       players: Number(body.players) || null,
       duration: Number(body.duration) || null,
       equipment: Array.isArray(body.equipment) ? body.equipment.slice(0, 20) : null,
+      // Settings → Team / Kit
+      team: body.team && typeof body.team === 'object'
+        ? {
+            ageGroup: typeof body.team.ageGroup === 'string' ? body.team.ageGroup.slice(0, 20) : null,
+            players: Number(body.team.players) || null,
+            colour: typeof body.team.colour === 'string' && /^#[0-9a-f]{6}$/i.test(body.team.colour) ? body.team.colour : null,
+          }
+        : null,
+      kit: Array.isArray(body.kit) ? body.kit.filter((x) => typeof x === 'string').slice(0, 20) : null,
     }
     await patchUser(user.sub, { prefs })
     return json(request, 200, { prefs })

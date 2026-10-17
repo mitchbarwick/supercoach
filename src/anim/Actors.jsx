@@ -31,7 +31,7 @@ export function PlayerToken({ x, y, z, h, team, label, dive, hasBall }) {
           <circle r={PLAYER_R} fill={c.fill} stroke={c.dark} strokeWidth="0.5" />
         )}
       </g>
-      <text x={x} y={y - lift + (small ? 0.85 : 1.05)} textAnchor="middle" fontSize={small ? 2.2 : 2.9} fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif" style={{ pointerEvents: 'none' }}>
+      <text x={x} y={y - lift + (small ? 0.85 : 1.05)} textAnchor="middle" fontSize={small ? 2.2 : 2.9} fontWeight="900" fill={c.text || '#fff'} fontFamily="Nunito, sans-serif" style={{ pointerEvents: 'none' }}>
         {label}
       </text>
     </g>

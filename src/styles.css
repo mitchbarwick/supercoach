@@ -675,3 +675,49 @@ input.text-input {
   .stat-grid { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .stat-value { font-size: 24px; }
 }
+
+/* ---- Settings: Team & Kit ---- */
+.stepper {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1.5px solid var(--line); border-radius: 999px; background: var(--card); padding: 4px;
+}
+.stepper button {
+  width: 40px; height: 40px; border-radius: 999px; border: none; background: var(--bg);
+  font-size: 22px; font-weight: 800; color: var(--ink-900); line-height: 1;
+}
+.stepper button:hover:not(:disabled) { background: var(--green-100); color: var(--green-700); }
+.stepper button:disabled { opacity: 0.35; }
+.stepper .val { min-width: 44px; text-align: center; }
+
+.swatch-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.swatch {
+  width: 40px; height: 40px; border-radius: 999px; padding: 0;
+  border: 1.5px solid rgba(16, 24, 32, 0.14);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.swatch:hover { transform: scale(1.08); }
+.swatch.on { box-shadow: 0 0 0 3px var(--card), 0 0 0 5.5px var(--ink-900); }
+.swatch-custom {
+  background: conic-gradient(#ff5a5f, #f5d90a, #0b7a4b, #2f6fed, #6a3fb5, #ff5a5f);
+  color: #fff; font-size: 22px; font-weight: 900; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.team-preview {
+  display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center;
+  padding: 14px 16px; border-radius: var(--radius-md);
+  background: #2f8f58; color: #fff; font-weight: 800; font-size: 14px;
+}
+.team-preview-side { display: inline-flex; align-items: center; gap: 6px; }
+.team-token {
+  width: 30px; height: 30px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 14px; border: 2px solid rgba(0, 0, 0, 0.28);
+}
+.team-preview-side .team-token + .team-token { margin-left: -6px; }
+.team-preview-side .team-token:last-of-type { margin-right: 4px; }
+
+.setup-fixed {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 14px; color: var(--ink-700); margin-bottom: 12px;
+}

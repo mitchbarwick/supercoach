@@ -6,9 +6,9 @@
 // before handing it to assembleTimeline() for final timing.
 // Mirrors buildSession()'s contract: {blocks, totalPlanned, request}.
 // ============================================================
-import { DRILLS, getDrill, AGE_BLOCK_CAPS, drillDurationRange, drillsClash } from '../data/drills.js'
+import { DRILLS, getDrill, AGE_BLOCK_CAPS, drillDurationRange, drillsClash, drillStyle, sameStyle } from '../data/drills.js'
 import { chat, aiConfigured } from './azure.js'
-import { buildCtx, computeSkeleton, fits, assembleTimeline, sessionRoles, resolveShape } from '../engine/sessionBuilder.js'
+import { buildCtx, computeSkeleton, fits, assembleTimeline, sessionRoles } from '../engine/sessionBuilder.js'
 
 export class SessionDesignError extends Error {
   constructor(message, opts) {
@@ -20,27 +20,26 @@ export class SessionDesignError extends Error {
 
 function trimForPrompt(drill) {
   const { id, name, category, focus, family, ages, equipment, players, baseDuration, blurb, good, avoidWith } = drill
-  return { id, name, category, focus, family, ages, equipment, players, baseDuration, blurb, good, ...(avoidWith ? { avoidWith } : {}) }
+  return { id, name, category, focus, family, style: drillStyle(drill), ages, equipment, players, baseDuration, blurb, good, ...(avoidWith ? { avoidWith } : {}) }
 }
 
-const ROLE_LABEL = { warmup: 'warm-up', drill: 'main drill', game: 'small-sided game', cooldown: 'cool-down' }
+const ROLE_LABEL = { warmup: 'warm-up', drill: 'hard work — main drill', game: 'fun game', cooldown: 'cool-down' }
 
 // One line of the "exact structure" list per block role, annotating which
-// game is the arrival / mid / closing game so the model places them correctly.
+// game is the opening / closing game so the model places them correctly.
 function describeRoles(roles) {
-  const closingIdx = roles[roles.length - 2] === 'game' ? roles.length - 2 : -1
-  // The arrival game is the first 'game' when it comes before any main drill
-  // (game-open shape) — with the movement prep in front, that's index 1.
-  const firstGame = roles.indexOf('game')
-  const arrivalIdx = firstGame !== -1 && firstGame < roles.indexOf('drill') ? firstGame : -1
+  const games = roles.reduce((acc, r, i) => (r === 'game' ? [...acc, i] : acc), [])
+  const closingIdx = games.length ? games[games.length - 1] : -1
+  const openingIdx = games.length === 2 ? games[0] : -1
   return roles.map((role, i) => {
     let note = ''
     if (role === 'game') {
-      if (i === arrivalIdx) note = ' — the ARRIVAL game: kids play the moment the prep is done, no instruction'
-      else if (i === closingIdx) note = ' — the CLOSING game: end the session on a game, "let them play"'
-      else note = ' — a mid-session game that breaks up the main drills'
-    } else if (role === 'warmup' && arrivalIdx !== -1) {
-      note = ' — a SHORT injury-prevention movement prep (11+ style) that OPENS the session, before the arrival game'
+      if (i === openingIdx) note = ' — the OPENING fun game, straight after the warm-up: energy up, minimal instruction'
+      else if (i === closingIdx) note = ' — the CLOSING fun game: end the session on a game, "let them play"'
+    } else if (role === 'warmup') {
+      note = ' — prefer an injury-prevention (FIFA 11+-style) warm-up'
+    } else if (role === 'drill') {
+      note = ' — where the focus areas get coached'
     } else if (role === 'cooldown') {
       note = ', last'
     }
@@ -57,7 +56,6 @@ function buildMessages(ctx, skeleton, pool) {
     .sort((a, b) => ctx.recency[b] - ctx.recency[a])
 
   const roles = sessionRoles(skeleton)
-  const young = ctx.ageGroup === 'U6-U8' || ctx.ageGroup === 'U9-U11'
 
   const system =
     'You are SuperCoach, an assistant that plans full grassroots football training sessions for volunteer coaches. ' +
@@ -68,15 +66,15 @@ function buildMessages(ctx, skeleton, pool) {
     'Design a training session with this exact block sequence, in this exact order — ' +
       'do not add, remove, or reorder sections:',
     ...describeRoles(roles),
-    young && skeleton.openWithGame
-      ? 'This is a young squad: a SHORT injury-prevention movement prep (11+ style) opens the session when the sequence includes one, the arrival game follows immediately, and the session CLOSES on a game — this is deliberate, keep it.'
-      : 'Older squads open on a warm-up — prefer an injury-prevention (FIFA 11+-style) warm-up as the standard opener — and (when present) close on a game.',
+    'The pattern is deliberate: warm-up → fun game → hard work → fun game → cool-down (the cool-down is only included when there is time). Keep it.',
+    skeleton.cooldown ? null : 'This session is too short for a cool-down — the closing game runs to the end.',
     'For each "game" slot choose a drill whose category is exactly "game".',
     'Never choose the same drillId more than once.',
     'Hard rule: a drill listing another drill\'s id in "avoidWith" is the SAME game under a different name — never pick both in one session.',
-    'Keep the session varied: avoid choosing two drills that share the same "family" — ' +
-      'drills in one family train the same thing the same way, so repeating a family makes the ' +
-      'session monotonous. Prefer a spread of different families across the main drills and games.',
+    'Hard rule: two blocks next to each other must NOT share the same "style" — the style is what the activity looks and feels like ' +
+      '(e.g. Rondo and Defend the Castle are both "keep-ball" circles, so they can never run back to back).',
+    'Keep the session varied: prefer a different "style" AND a different "family" for every block — ' +
+      'repeating a format makes the session monotonous even when the drills have different names.',
     'The library below has already been filtered to drills that suit this squad\'s age and setup, ' +
       'so every listed drill is age-appropriate — just choose the best mix.',
   ].filter(Boolean).join('\n')
@@ -102,9 +100,7 @@ function buildMessages(ctx, skeleton, pool) {
     '',
     'Timing guidance — the app inserts its own drink breaks and sizes the games and cool-down automatically; ' +
       'do not include breaks and don\'t worry about the exact length of any game or the cool-down:',
-    skeleton.openWithGame
-      ? `- The arrival game and any mid-session game are kept short automatically — just pick good games.`
-      : `- Warm-up should be about ${skeleton.warmLen} minutes.`,
+    `- Warm-up should be about ${skeleton.warmLen} minutes; the opening game is kept short automatically.`,
     `- The ${skeleton.targetDrillCount} main drills together should total about ${skeleton.mainBudget} minutes.`,
     `- Attention span: ${ctx.ageGroup} players can hold focus on one drill for at most ${(AGE_BLOCK_CAPS[ctx.ageGroup] || AGE_BLOCK_CAPS['U9-U11']).drill} minutes — never plan a single drill longer than that (games can run longer).`,
     `- Player grouping: some drills declare players.multiple (e.g. pairs need even numbers, triangles need multiples of 3). With ${ctx.players} players, only pick drills the squad can split into evenly.`,
@@ -142,7 +138,7 @@ function coerceBlurb(value, fallback) {
   return value.trim().slice(0, 300)
 }
 
-export function validateAiChoices(raw, ctx, skeleton) {
+export function validateAiChoices(raw, ctx, skeleton, pool = DRILLS.filter((d) => fits(d, ctx))) {
   let parsed
   try {
     parsed = JSON.parse(extractJson(raw))
@@ -155,43 +151,17 @@ export function validateAiChoices(raw, ctx, skeleton) {
     throw new SessionDesignError('The AI coach\'s plan was missing choices — please try again.')
   }
 
-  // The expected ordered block sequence for this squad — the shared contract
-  // between the rule-based builder, this validator, and the prompt above.
+  // The expected ordered block sequence — the shared contract between the
+  // rule-based builder, this validator, and the prompt above.
   const roles = sessionRoles(skeleton)
-  const closingGameIdx = roles[roles.length - 2] === 'game' ? roles.length - 2 : -1
-  const expectedGames = roles.filter((r) => r === 'game').length
-
-  if (choices[0]?.role !== roles[0] || choices[choices.length - 1]?.role !== 'cooldown') {
+  if (choices.length !== roles.length || roles.some((r, i) => choices[i]?.role !== r)) {
     throw new SessionDesignError('The AI coach\'s plan wasn\'t structured correctly — please try again.')
   }
-
-  const middle = choices.slice(1, -1)
-  const drillEntries = middle.filter((c) => c.role === 'drill')
-  const gameEntries = middle.filter((c) => c.role === 'game')
-  // A game-open session may carry a short movement-prep warm-up right after
-  // the arrival game — the only non-drill/game block allowed in the middle.
-  const warmupEntries = middle.filter((c) => c.role === 'warmup')
-  // A leading arrival game lives at index 0, so count every game across the
-  // whole plan when checking the game count.
-  const totalGames = choices.filter((c) => c.role === 'game').length
-  if (totalGames !== expectedGames) {
-    throw new SessionDesignError('The AI coach\'s plan had the wrong number of game blocks — please try again.')
-  }
-  if (drillEntries.length !== skeleton.targetDrillCount) {
-    throw new SessionDesignError('The AI coach\'s plan had the wrong number of main drills — please try again.')
-  }
-  if (drillEntries.length + gameEntries.length + warmupEntries.length !== middle.length) {
-    throw new SessionDesignError('The AI coach\'s plan contained an unexpected block type — please try again.')
-  }
-  // Enforce the exact per-age block order (rejects, e.g., the old warm-up-first
-  // shape for a young squad that should open on a game).
-  for (let i = 0; i < roles.length; i++) {
-    if (choices[i]?.role !== roles[i]) {
-      throw new SessionDesignError('The AI coach\'s plan wasn\'t structured correctly — please try again.')
-    }
-  }
+  const gameIdx = roles.reduce((acc, r, i) => (r === 'game' ? [...acc, i] : acc), [])
+  const closingGameIdx = skeleton.wantGame ? gameIdx[gameIdx.length - 1] : -1
 
   const seen = new Set()
+  let prev = null
   const resolve = (choice, expectedCategory) => {
     const drill = getDrill(choice?.drillId)
     if (!drill) throw new SessionDesignError('The AI coach referenced a drill that doesn\'t exist — please try again.')
@@ -209,7 +179,13 @@ export function validateAiChoices(raw, ctx, skeleton) {
     if (!fits(drill, ctx)) {
       throw new SessionDesignError('The AI coach picked a drill that doesn\'t fit your setup — please try again.')
     }
+    // Back-to-back same-style blocks — only rejected when the pool had a
+    // different-style option for that slot (mirrors the rule-based builder).
+    if (prev && sameStyle(prev, drill) && pool.some((d) => d.category === expectedCategory && !seen.has(d.id) && !sameStyle(d, prev))) {
+      throw new SessionDesignError('The AI coach put two very similar activities back to back — please try again.')
+    }
     seen.add(drill.id)
+    prev = drill
     return drill
   }
 
@@ -221,13 +197,9 @@ export function validateAiChoices(raw, ctx, skeleton) {
     const choice = choices[i]
     if (role === 'warmup') {
       const drill = resolve(choice, 'warmup')
-      // In a game-open session the warm-up slot is the opening movement
-      // prep: a fixed short block sized by the skeleton — like the arrival
-      // game, its length is not AI-chosen so the budget stays predictable.
-      const duration = skeleton.openWithGame ? skeleton.prepLen : coerceDuration(choice.duration, skeleton.warmLen)
       fixedBlocks.push({
         type: 'warmup', drillId: drill.id, title: drill.name, emoji: drill.emoji,
-        duration,
+        duration: coerceDuration(choice.duration, skeleton.warmLen),
         blurb: coerceBlurb(choice.blurb, drill.blurb),
       })
     } else if (role === 'drill') {
@@ -244,18 +216,11 @@ export function validateAiChoices(raw, ctx, skeleton) {
     } else if (role === 'game') {
       const drill = resolve(choice, 'game')
       if (i === closingGameIdx) {
-        // The closing game's duration is always computed as remaining time by
-        // assembleTimeline — this keeps total session length matching the
-        // coach's request regardless of what the AI proposes.
+        // The closing game's duration is always remaining time (assembleTimeline).
         gameChoice = { drillId: drill.id, title: drill.name, emoji: drill.emoji, blurb: coerceBlurb(choice.blurb, drill.blurb) }
       } else {
-        // Arrival / mid-session games are fixed short blocks, sized by the
-        // skeleton — not AI-chosen — so the budget stays predictable. The
-        // arrival game is the first game in the sequence (index 0, or 1
-        // when the opening movement prep precedes it).
-        const isArrival = skeleton.openWithGame && i === roles.indexOf('game')
-        const duration = isArrival ? skeleton.arrivalLen : skeleton.midLen
-        fixedBlocks.push({ type: 'game', drillId: drill.id, title: drill.name, emoji: drill.emoji, duration, blurb: coerceBlurb(choice.blurb, drill.blurb) })
+        // The opening game is a fixed short block sized by the skeleton.
+        fixedBlocks.push({ type: 'game', drillId: drill.id, title: drill.name, emoji: drill.emoji, duration: skeleton.openGameLen, blurb: coerceBlurb(choice.blurb, drill.blurb) })
       }
     } else if (role === 'cooldown') {
       const drill = resolve(choice, 'cooldown')
@@ -264,9 +229,8 @@ export function validateAiChoices(raw, ctx, skeleton) {
     }
   })
 
-  const openLen = skeleton.openWithGame ? skeleton.arrivalLen + skeleton.prepLen : skeleton.warmLen
   const plannedFixedMinutes = fixedBlocks.reduce((sum, b) => sum + b.duration, 0)
-  if (plannedFixedMinutes > openLen + skeleton.mainBudget + skeleton.midLen + 6) {
+  if (plannedFixedMinutes > skeleton.warmLen + skeleton.openGameLen + skeleton.mainBudget + 6) {
     throw new SessionDesignError('The AI coach\'s plan overran your time budget — please try again.')
   }
 
@@ -281,45 +245,59 @@ export async function designSessionWithAI(opts) {
   const ctx = buildCtx(opts)
   const pool = DRILLS.filter((d) => fits(d, ctx))
   const gamesAvailable = pool.filter((d) => d.category === 'game').length
-  const warmupsAvailable = pool.filter((d) => d.category === 'warmup').length
-  // Downgrade the desired game shape to what this setup can actually supply,
-  // so the prompt and validator agree on a buildable sequence.
-  const skeleton = { ...resolveShape(computeSkeleton(opts.duration, ctx.players, ctx.ageGroup), gamesAvailable, warmupsAvailable), total: opts.duration }
+  // Fit the game slots to what this setup can actually supply, so the prompt
+  // and validator agree on a buildable sequence.
+  const skeleton = computeSkeleton(opts.duration, ctx.players, ctx.ageGroup, gamesAvailable)
 
-  if (!pool.some((d) => d.category === 'cooldown')) {
+  if (skeleton.cooldown && !pool.some((d) => d.category === 'cooldown')) {
     throw new SessionDesignError('No cooldown drills match your current equipment/players — try adjusting your setup.')
   }
-  // A warm-up is only needed when the session opens on one (older squads, or
-  // young squads with no game available).
-  if (!skeleton.openWithGame && !pool.some((d) => d.category === 'warmup')) {
+  if (!pool.some((d) => d.category === 'warmup')) {
     throw new SessionDesignError('No warmup drills match your current equipment/players — try adjusting your setup.')
   }
 
-  let raw
-  try {
-    raw = await chat(buildMessages(ctx, skeleton, pool.map(trimForPrompt)), {
-      maxTokens: 800,
-      responseFormat: 'json_object',
-      temperature: 0.5,
-      timeoutMs: 25000,
-    })
-  } catch (err) {
-    if (err.status === 401 || err.status === 403) {
-      throw new SessionDesignError('Your Azure API key was rejected — check the key in Settings.', { cause: err })
+  // One automatic retry when the reply breaks a planning rule (wrong shape,
+  // two same-style activities back to back, …): the model gets told what
+  // went wrong, so the coach rarely has to press "Try again" themselves.
+  const messages = buildMessages(ctx, skeleton, pool.map(trimForPrompt))
+  let lastError = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let raw
+    try {
+      raw = await chat(messages, {
+        maxTokens: 800,
+        responseFormat: 'json_object',
+        temperature: 0.5,
+        timeoutMs: 25000,
+      })
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        throw new SessionDesignError('Your Azure API key was rejected — check the key in Settings.', { cause: err })
+      }
+      if (err.status === 404) {
+        throw new SessionDesignError('Azure couldn\'t find that deployment — check the endpoint/deployment name in Settings.', { cause: err })
+      }
+      if (err.timeout) {
+        throw new SessionDesignError('The AI coach took too long to respond. Please try again.', { cause: err })
+      }
+      throw new SessionDesignError('Could not reach the AI coach. Check your connection and try again.', { cause: err })
     }
-    if (err.status === 404) {
-      throw new SessionDesignError('Azure couldn\'t find that deployment — check the endpoint/deployment name in Settings.', { cause: err })
+    if (!raw) {
+      throw new SessionDesignError('The AI coach returned an empty response. Please try again.')
     }
-    if (err.timeout) {
-      throw new SessionDesignError('The AI coach took too long to respond. Please try again.', { cause: err })
+    try {
+      const { fixedBlocks, gameChoice, cooldownChoice } = validateAiChoices(raw, ctx, skeleton, pool)
+      const cool = cooldownChoice ? skeleton.coolLen : 0
+      const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, opts.duration, cool, skeleton.gameMax)
+      return { blocks, totalPlanned, request: { ...opts } }
+    } catch (err) {
+      if (!(err instanceof SessionDesignError)) throw err
+      lastError = err
+      messages.push(
+        { role: 'assistant', content: raw },
+        { role: 'user', content: `That plan was rejected: ${err.message.replace(/ — please try again\.?$/, '')}. Fix it and reply with the full corrected JSON only.` },
+      )
     }
-    throw new SessionDesignError('Could not reach the AI coach. Check your connection and try again.', { cause: err })
   }
-  if (!raw) {
-    throw new SessionDesignError('The AI coach returned an empty response. Please try again.')
-  }
-
-  const { fixedBlocks, gameChoice, cooldownChoice } = validateAiChoices(raw, ctx, skeleton)
-  const { blocks, totalPlanned } = assembleTimeline(fixedBlocks, gameChoice, cooldownChoice, opts.duration, skeleton.coolLen, skeleton.gameMax)
-  return { blocks, totalPlanned, request: { ...opts } }
+  throw lastError
 }

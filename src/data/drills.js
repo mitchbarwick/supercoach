@@ -2996,6 +2996,66 @@ export function drillsClash(a, b) {
   return (a.avoidWith || []).includes(b.id) || (b.avoidWith || []).includes(a.id);
 }
 
+// ---- Activity style -------------------------------------------------
+// `family` says what a drill trains; `style` says what it LOOKS and FEELS
+// like to the kids — the format of the activity. Two drills from different
+// families can still be the same experience: Rondo (keep-ball in a circle)
+// and Defend the Castle (protect the thing in the middle of a circle) are
+// both "stand round a circle, keep it away from the people in the middle".
+// The planner never puts two same-style activities back to back, and
+// prefers a different style for every block of a session.
+const FAMILY_STYLE = {
+  'injury-prevention': 'movement-prep',
+  'dynamic-warmup': 'movement-prep',
+  'agility-circuit': 'movement-prep',
+  'command-reaction': 'call-and-react',
+  'tag-evasion': 'chase-tag',
+  'rescue-tag': 'chase-tag',
+  'breakout-dribble': 'chase-tag',
+  'pairs-mirror': 'partner-work',
+  'collection-gates': 'ball-mastery',
+  'turn-and-burn': 'ball-mastery',
+  'relay-race': 'race',
+  'nest-raid': 'race',
+  '1v1-duel': 'duel',
+  'defending-technique': 'duel',
+  'triangle-possession': 'keep-ball',
+  'rebounder-reps': 'passing-pattern',
+  'passing-golf': 'target-challenge',
+  'shooting-reps': 'finishing',
+  'volley-technique': 'finishing',
+  'combination-finishing': 'finishing',
+  'shootout-game': 'finishing',
+  'keeper-drills': 'keeper-work',
+  'small-sided-game': 'match',
+  'tactical-play': 'match',
+  'walking-football': 'match',
+  'cooldown-stretch': 'stretch',
+  'cooldown-skill': 'skill-wind-down',
+};
+
+// Per-drill overrides where a drill's format differs from its family's.
+const DRILL_STYLE = {
+  'defend-the-castle': 'keep-ball',      // circle + protect the middle ≈ rondo
+  'triangle-passing': 'passing-pattern', // unopposed pattern, not keep-ball
+  'pass-move-triangles': 'passing-pattern',
+  'knock-it-off': 'target-challenge',     // aim at targets, not at a goal
+  'crossbar-challenge': 'target-challenge',
+  'get-it-back': 'call-and-react',        // number called → race for the ball
+  'numbers-game': 'call-and-react',
+};
+
+export function drillStyle(drill) {
+  if (!drill) return null;
+  return drill.style || DRILL_STYLE[drill.id] || FAMILY_STYLE[drill.family] || drill.family || drill.id;
+}
+
+// Would these two feel like the same activity if run one after the other?
+export function sameStyle(a, b) {
+  if (!a || !b) return false;
+  return drillStyle(a) === drillStyle(b);
+}
+
 // The age-appropriate script for a drill: falls back to the closest
 // defined band if a drill somehow lacks one for the requested age group,
 // then to the blurb as a last resort so the UI never renders blank.

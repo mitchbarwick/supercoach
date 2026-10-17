@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react'
 import { api } from '../api/client.js'
 import { AGE_GROUPS, FOCUS_AREAS } from '../data/drills.js'
 import { accountsEnabled } from '../config.js'
+import { applyTeamColours } from '../anim/theme.js'
 
 const KEY = 'supercoach-v1'
 const MAX_RECENT_UNSAVED = 10
@@ -33,6 +34,13 @@ const defaults = {
   // ---- phase 3 ----
   auth: null,           // {token, user:{name,email,picture,isAdmin}}
   prefs: null,          // {ageGroup, players, duration, equipment} — remembered setup choices
+  // Settings → Team: fixed details about the coach's squad. ageGroup set =
+  // the setup wizard skips the age step; players is the default head-count
+  // (still confirmed every session); colour tints every drill diagram.
+  team: { ageGroup: null, players: null, colour: null },
+  // Settings → Kit: the coach's standing kit list. null = ask every session;
+  // an array = use it and skip the kit step in the setup wizard.
+  kit: null,
   programs: [],         // [{id,name,saved,createdAt,lastRunAt,runs,session}]
   currentProgramId: null,
   syncedAt: 0,
@@ -44,6 +52,7 @@ const defaults = {
 
 let state = load()
 const listeners = new Set()
+applyTeamColours(state.team?.colour)
 
 function load() {
   try {
@@ -129,6 +138,20 @@ function trimPrograms(programs) {
     .sort((a, b) => b.lastRunAt - a.lastRunAt)
     .slice(0, MAX_RECENT_UNSAVED)
   return [...saved, ...recent].sort((a, b) => b.lastRunAt - a.lastRunAt)
+}
+
+// Team + kit ride along with the remembered setup prefs so they reach every
+// device. Local state stays the source of truth: an older API that drops
+// these fields never wipes them here (see adoptServerPrefs).
+const prefsPayload = (s = state) => ({ ...s.prefs, team: s.team, kit: s.kit })
+function adoptServerPrefs(prefs, s) {
+  const patch = { prefs: prefs || s.prefs }
+  if (prefs?.team && typeof prefs.team === 'object') patch.team = { ...defaults.team, ...prefs.team }
+  // Only trust the server's kit once it has stored Team/Kit settings at all
+  // (an account that never saved them reports kit: null by default).
+  if (patch.team && 'kit' in prefs && (prefs.kit === null || Array.isArray(prefs.kit))) patch.kit = prefs.kit
+  if (patch.team) applyTeamColours(patch.team.colour)
+  return patch
 }
 
 let favTimer = null
@@ -228,7 +251,20 @@ export const actions = {
 
   setPrefs(prefs) {
     setState((s) => ({ prefs: { ...s.prefs, ...prefs } }))
-    mirror((t) => api.putPrefs(t, getState().prefs))
+    mirror((t) => api.putPrefs(t, prefsPayload(getState())))
+  },
+
+  /** Settings → Team. Partial updates merge; colour re-tints the diagrams. */
+  setTeam(patch) {
+    setState((s) => ({ team: { ...defaults.team, ...s.team, ...patch } }))
+    if ('colour' in patch) applyTeamColours(getState().team.colour)
+    mirror((t) => api.putPrefs(t, prefsPayload(getState())))
+  },
+
+  /** Settings → Kit. null = ask every session, array = standing kit list. */
+  setKit(kit) {
+    setState({ kit: Array.isArray(kit) ? [...kit] : null })
+    mirror((t) => api.putPrefs(t, prefsPayload(getState())))
   },
 
   toggleTick(blockId) {
@@ -262,11 +298,11 @@ export const actions = {
   async signedIn({ token: t, user, prefs, favourites }) {
     const local = getState()
     const mergedFavs = [...new Set([...(favourites || []), ...local.favourites])]
-    setState({
+    setState((s) => ({
       auth: { token: t, user },
       favourites: mergedFavs,
-      prefs: prefs || local.prefs,
-    })
+      ...adoptServerPrefs(prefs, s),
+    }))
     // Signed in as soon as the token arrives — merging this device's data
     // into the account runs in the background so the sign-in screen
     // doesn't wait on it. The three uploads are independent; the list is
@@ -276,7 +312,9 @@ export const actions = {
         await Promise.all([
           local.programs.length ? api.pushPrograms(t, local.programs) : null,
           mergedFavs.length !== (favourites || []).length ? api.putFavourites(t, mergedFavs) : null,
-          !prefs && local.prefs ? api.putPrefs(t, local.prefs) : null,
+          (!prefs && local.prefs) || (prefs && !prefs.team && (local.team?.ageGroup || local.team?.colour || local.team?.players || local.kit))
+            ? api.putPrefs(t, prefsPayload(getState()))
+            : null,
         ])
         const { programs } = await api.listPrograms(t)
         // keep anything made on this device while the sync was running
@@ -298,7 +336,7 @@ export const actions = {
       const [{ user, prefs, favourites }, { programs }] = await Promise.all([api.me(t), api.listPrograms(t)])
       setState((s) => ({
         auth: { ...s.auth, user },
-        prefs: prefs || s.prefs,
+        ...adoptServerPrefs(prefs, s),
         favourites: [...new Set([...(favourites || []), ...s.favourites])],
         programs: trimPrograms(programs),
         syncedAt: Date.now(),
