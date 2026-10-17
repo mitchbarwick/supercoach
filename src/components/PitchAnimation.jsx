@@ -98,9 +98,12 @@ export default function PitchAnimation({ diagram, freezeAt, viewBox }) {
           <div className="phase-banner" aria-live="polite">{caption}</div>
           {scene.area && <span className="area-tag">{scene.area}</span>}
           <div className="pitch-controls">
-            <button onClick={() => pb.setSpeed(pb.speed === 1 ? 0.5 : 1)} aria-label={pb.speed === 1 ? 'Slow motion' : 'Normal speed'} className={pb.speed !== 1 ? 'on' : ''}>
-              {pb.speed === 1 ? '½×' : '1×'}
-            </button>
+            {/* Speed: both choices always visible, the active one lit —
+                tortoise = slow motion to study it, hare = normal speed. */}
+            <div className="speed-toggle" role="radiogroup" aria-label="Animation speed">
+              <button role="radio" aria-checked={pb.speed !== 1} aria-label="Slow" title="Slow" className={pb.speed !== 1 ? 'on' : ''} onClick={() => pb.setSpeed(0.5)}>🐢</button>
+              <button role="radio" aria-checked={pb.speed === 1} aria-label="Normal speed" title="Normal speed" className={pb.speed === 1 ? 'on' : ''} onClick={() => pb.setSpeed(1)}>🐇</button>
+            </div>
             <button onClick={() => pb.setPlaying(!pb.playing)} aria-label={pb.playing ? 'Pause' : 'Play'}>{pb.playing ? '⏸' : '▶️'}</button>
             <button onClick={() => { pb.seek(0); pb.setPlaying(true) }} aria-label="Restart">↺</button>
           </div>
