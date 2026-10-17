@@ -84,8 +84,8 @@ export function StretchFigure({ actor, x, y, t }) {
   )
 }
 
-// Pressed grass: a pale streak where the ball rolled and footprints
-// where players ran, each springing back on its own clock — so a trail
+// Pressed grass: a pale streak where a played ball ran along the ground
+// (longer-lived the harder it was hit) and footprints where players ran, each springing back on its own clock — so a trail
 // fades from its oldest end, like real turf recovering. On a seamless
 // loop, marks made near the end are still visible as it restarts.
 // `mode` 'ball' shows only the ball's streak.
@@ -98,14 +98,14 @@ export function Wake({ wake, t, duration, loop, mode }) {
     if (a < 0 && loop) a += duration
     return a
   }
-  const left = (a, w) => (a < 0 || a > w.life ? 0 : Math.pow(1 - a / w.life, w.ease))
+  const left = (a, w, mul = 1) => (a < 0 || a > w.life * mul ? 0 : Math.pow(1 - a / (w.life * mul), w.ease))
   const B = WAKE.ball
   const F = WAKE.feet
   const segs = []
   wake.ball.forEach((run, ri) => {
     for (let i = 1; i < run.length; i++) {
       const p = run[i - 1], q = run[i]
-      const k = left(age((p[2] + q[2]) / 2), B)
+      const k = left(age((p[2] + q[2]) / 2), B, q[3])
       if (k <= 0.01) continue
       const v = Math.round(255 * k)
       segs.push(<line key={`${ri}-${i}`} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={`rgb(${v},${v},${v})`} strokeWidth={B.width * (0.55 + 0.45 * k)} />)

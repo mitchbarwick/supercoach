@@ -40,6 +40,9 @@ const CURVE_SPIN = 0.12
 // Pressed grass: one ball-wake point per this many units rolled, and
 // footprints every STRIDE units, FOOT_SPREAD either side of the line.
 const WAKE_STEP = 0.6
+// A streak's life scales with how hard the ball was struck: ×1 for a
+// normal pass (~32 units/s), shorter for a soft one, longer for a shot.
+const wakeLife = (speed) => clamp(0.7 + (speed - 20) / 40, 0.7, 1.5)
 const STRIDE = 2.6
 const FOOT_SPREAD = 0.75
 const JUGGLE_SPIN = 0.1
@@ -747,6 +750,7 @@ function bake(ctx) {
     _q: Q_ID,
     _spin: [0, 0, 0],
     _steps: new Float32Array(n),
+    _played: new Float32Array(n), // speed of the pass/shot it's in, 0 at someone's feet
     holder: new Int16Array(n).fill(-1),
     _si: 0,
   }))
@@ -1017,16 +1021,19 @@ function bake(ctx) {
       b.x[f] = x
       b.y[f] = y
       b.z[f] = Math.max(0, z)
+      if (s.type === 'flight' && s.kind !== 'juggle') b._played[f] = dist(s._start, s._end) / Math.max(1e-3, s.t1 - s.t0)
       spinBall(b, s, f, prevBall[j], [x, y], b.z[f])
       prevBall[j] = [x, y]
     }
   }
 
   // ---- Pressed grass ----
-  // Instead of drawn lines, things leave marks in the grass: the ball
-  // flattens a streak wherever it rolls (not while it's in the air), and
-  // players leave footprints. Each mark records when it was made so the
-  // renderer can let the grass spring back from the oldest end.
+  // Instead of drawn lines, things leave marks in the grass: a played
+  // ball (pass, shot, clearance — not one being dribbled, whose path the
+  // footprints already show) flattens a streak wherever it runs along
+  // the ground, and players leave footprints. Each mark records when it
+  // was made, and the streak how hard the ball was hit, so the renderer
+  // can let the grass spring back from the oldest end.
   const fi = (t) => clamp(Math.round(t * FPS), 0, n - 1)
   const ballWake = []
   for (const b of B) {
@@ -1035,18 +1042,20 @@ function bake(ctx) {
     for (let f = 0; f < n; f++) {
       const p = [b.x[f], b.y[f]]
       const onGrass = b.z[f] < AIRBORNE // (a ball in someone's hands is well above this)
-      if (!onGrass || (last && dist(last, p) > 4)) {
+      const played = b._played[f]
+      if (!onGrass || !played || (last && dist(last, p) > 4)) {
         run = null
-        last = onGrass ? p : null
+        last = onGrass ? p : null // so a streak starts right at the kicker's foot
         continue
       }
       if (last && dist(last, p) < WAKE_STEP) continue
+      const life = wakeLife(played)
       if (!run) {
         run = []
         ballWake.push(run)
-        if (last) run.push([last[0], last[1], (f - 1) * dt])
+        if (last) run.push([last[0], last[1], f * dt, life])
       }
-      run.push([p[0], p[1], f * dt])
+      run.push([p[0], p[1], f * dt, life])
       last = p
     }
   }
@@ -1172,6 +1181,7 @@ function bake(ctx) {
     delete b._q
     delete b._spin
     delete b._steps
+    delete b._played
   }
 
   return {

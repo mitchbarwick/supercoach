@@ -156,9 +156,11 @@ All drawn top-down, as a coach sees them looking at the grass.
   Split a move across two beats with ellipses so the step bar tells the story.
 - Use `shout` for things the coach or players actually say; use captions for
   what the viewer should notice.
-- Trails are automatic and "in the world": the ball flattens a pale streak in
-  the grass wherever it rolls (not while it's in the air) and players leave
-  footprints. The grass springs back from the oldest end (~2.6 s for the ball,
-  ~1.8 s for feet — tune in `WAKE`, theme.js). `trails: 'ball'` shows only the
+- Trails are automatic and "in the world": a passed or shot ball flattens a
+  pale streak in the grass while it runs along the ground (not in the air, and
+  not while dribbled — the footprints show that) and players leave footprints.
+  The grass springs back from the oldest end: ~2.6 s for a normal pass, less
+  for a soft one, up to ~1.5× for a shot; ~1.8 s for feet (tune in `WAKE`,
+  theme.js). `trails: 'ball'` shows only the
   ball's streak; `false` turns them off.
 - Prefer a fade loop over an unnatural "everyone jogs back to start" ending.
