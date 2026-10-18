@@ -8,7 +8,7 @@
 // ============================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { compileScene } from '../anim/compile.js'
-import { Defs, Pitch, FieldBase, FieldKit } from '../anim/Field.jsx'
+import { Defs, Pitch, GrassBleed, FieldBase, FieldKit } from '../anim/Field.jsx'
 import { qNlerp } from '../anim/ball.js'
 import { PlayerToken, BallToken, StretchFigure, Wake, Effects, Highlights, Bubbles } from '../anim/Actors.jsx'
 import Icon from '../icons/Icon.jsx'
@@ -129,7 +129,12 @@ function groupSteps(beats, duration) {
 // Draws one frame of a compiled scene. `viewBox` crops in on part of
 // the 100 x 64 pitch (the landing hero zooms on the middle); any other
 // props go on the <svg>.
-export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ...svgProps }) {
+// `ground` ([x, y, w, h]) lets the players spill out of the frame: the
+// grass and kit are clipped to that rect, extended with matching stripes
+// if it runs past the pitch (touchlines hidden, so the frame reads as
+// open grass), while players, ball and bubbles draw
+// unclipped (the svg overflows). Used by the landing hero.
+export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ground = null, ...svgProps }) {
   const ff = Math.min(scene.n - 1, t * scene.fps)
   const f = Math.floor(ff)
   const f2 = Math.min(scene.n - 1, f + 1)
@@ -153,14 +158,22 @@ export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ...svgProps }) {
   const holders = new Set(scene.balls.map((b) => b.holder[f]).filter((h) => h >= 0))
 
   return (
-    <svg viewBox={viewBox} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" {...svgProps}>
+    <svg viewBox={viewBox} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style={ground ? { overflow: 'visible' } : undefined} {...svgProps}>
       <Defs />
-      <Pitch />
-      <FieldBase field={scene.field} />
-      <g opacity={alpha}>
-        {scene.trails && <Wake wake={scene.wake} t={t} duration={scene.duration} loop={!scene.fade} mode={scene.trails} />}
+      {ground && (
+        <clipPath id="sc-ground">
+          <rect x={ground[0]} y={ground[1]} width={ground[2]} height={ground[3]} />
+        </clipPath>
+      )}
+      <g clipPath={ground ? 'url(#sc-ground)' : undefined}>
+        {ground && <GrassBleed x0={ground[0]} x1={ground[0] + ground[2]} />}
+        <Pitch lines={!ground} />
+        <FieldBase field={scene.field} />
+        <g opacity={alpha}>
+          {scene.trails && <Wake wake={scene.wake} t={t} duration={scene.duration} loop={!scene.fade} mode={scene.trails} />}
+        </g>
+        <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
       </g>
-      <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
       <g opacity={alpha}>
         <Highlights highlights={scene.highlights} t={t} actors={scene.actors} frame={f} />
         {/* illustrated kids, back to front so nearer kids overlap further ones */}

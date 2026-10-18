@@ -6,14 +6,28 @@
 // ============================================================
 import { PITCH, KIT } from './theme.js'
 
-export function Pitch() {
+export function Pitch({ lines = true }) {
   return (
     <g>
       <rect x="0" y="0" width="100" height="64" fill={PITCH.grass} />
       {[0, 1, 2, 3, 4].map((i) => (
         <rect key={i} x={i * 20} y="0" width="10" height="64" fill={PITCH.stripe} />
       ))}
-      <rect x="3" y="3" width="94" height="58" fill="none" stroke={PITCH.line} strokeWidth="0.55" rx="1.5" opacity="0.8" />
+      {lines && <rect x="3" y="3" width="94" height="58" fill="none" stroke={PITCH.line} strokeWidth="0.55" rx="1.5" opacity="0.8" />}
+    </g>
+  )
+}
+
+// Grass beyond the pitch edges (x0..x1), striped in step with <Pitch/>,
+// for frames wider than the 100-unit pitch.
+export function GrassBleed({ x0, x1 }) {
+  const first = Math.floor(x0 / 20) * 20
+  const stripes = []
+  for (let x = first; x < x1; x += 20) if (x < 0 || x >= 100) stripes.push(x)
+  return (
+    <g>
+      <rect x={x0} y="-64" width={x1 - x0} height="192" fill={PITCH.grass} />
+      {stripes.map((x) => <rect key={x} x={x} y="-64" width="10" height="192" fill={PITCH.stripe} />)}
     </g>
   )
 }

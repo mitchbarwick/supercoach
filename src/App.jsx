@@ -40,6 +40,8 @@ export default function App() {
   // interstitial — neither should also expose site navigation before the
   // visitor has actually chosen sign-in or guest.
   const showingLanding = (pathname === '/' && !auth && !guestEntered && accountsEnabled()) || pathname === '/guest'
+  // On the landing page the top bar floats, transparent, over the hero pitch.
+  const overHero = showingLanding && pathname === '/'
   // The drill page brings its own top bar (back · share · favourite).
   const onDrillPage = pathname.startsWith('/drill/')
 
@@ -65,7 +67,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {!onDrillPage && <header className="topbar">
+      {!onDrillPage && <header className={`topbar${overHero ? ' topbar-hero' : ''}`}>
         <Link to="/" className="brand" onClick={closeMenu}>
           <SpinningBall /> SuperCoach
         </Link>

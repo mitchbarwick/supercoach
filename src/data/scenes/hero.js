@@ -3,13 +3,17 @@
 // passes aren't always on the money so they step across for them,
 // player 2 shows off some keepy-ups, and the coach bounces on the
 // sideline cheering. No captions; the hero crops in on the middle
-// of the pitch, so keep the action inside roughly x 24..76, y 12..44.
+// of the pitch, so keep the action inside roughly x 26..74, y 18..34.
+// The hero's bottom edge runs along y = 44 (COACH_Y), so the coach
+// stands half on the grass, half off it.
 import { scene, beat, player, coach, run, pass, chip, juggle, shout } from '../../anim/script.js'
+
+export const COACH_Y = 44
 
 // The coach can't stand still: a few little hops on the spot.
 const cheer = (text, opts = {}) => [
   shout('c', text, { dur: 1.2, ...opts }),
-  run('c', [50, 42], { bounce: 2, bounceH: 1.6, dur: 0.9, ...opts }),
+  run('c', [50, COACH_Y], { bounce: 2, bounceH: 1.6, dur: 0.9, ...opts }),
 ]
 
 export const HERO = scene({
@@ -18,7 +22,7 @@ export const HERO = scene({
   cast: {
     p1: player('a', '1', 36, 25, { face: [64, 25] }),
     p2: player('a', '2', 64, 25, { face: [36, 25] }),
-    c: coach(50, 42, { face: [50, 25] }),
+    c: coach(50, COACH_Y, { face: [50, 25] }),
   },
   balls: { ball: 'p1' },
   beats: [

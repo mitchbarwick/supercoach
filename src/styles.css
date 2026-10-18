@@ -31,6 +31,7 @@
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; min-height: 100%; }
 body {
+  overflow-x: clip; /* full-bleed sections use 100vw, which includes the scrollbar */
   font-family: var(--font);
   background: var(--bg);
   color: var(--ink-900);
@@ -73,6 +74,18 @@ input, select, textarea { font-family: inherit; }
 .icon-btn:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .icon-btn:disabled:hover { box-shadow: none; transform: none; }
+
+/* Landing: floats over the hero pitch, white on green */
+.topbar.topbar-hero {
+  position: absolute; left: 0; right: 0; margin: 0;
+  padding-left: max(16px, calc(50% - 304px)); padding-right: max(16px, calc(50% - 304px));
+  background: linear-gradient(rgba(7, 59, 37, 0.35), rgba(7, 59, 37, 0));
+  backdrop-filter: none; border-bottom: none;
+}
+@media (min-width: 900px) {
+  .topbar.topbar-hero { padding-left: calc(50% - 364px); padding-right: calc(50% - 364px); }
+}
+.topbar.topbar-hero .brand { color: #fff; text-shadow: 0 1px 2px rgba(7, 59, 37, 0.35); }
 
 /* ---- Top nav menu ---- */
 .topnav { display: flex; align-items: center; gap: 4px; }
@@ -143,13 +156,15 @@ input, select, textarea { font-family: inherit; }
 }
 
 /* ---- Landing / welcome screen ---- */
-.landing { padding: 6px 0 18px; }
-.landing-hero { text-align: center; padding: 16px 8px 20px; }
+.landing { padding: 0 0 18px; }
+.landing-hero { text-align: center; padding: 0 8px 20px; }
+/* Edge to edge, flush with the top of the screen; the coach overhangs
+   the bottom edge, so no overflow clipping here (the svg clips the grass). */
 .landing-anim {
-  max-width: 340px; margin: 0 auto; border-radius: var(--radius-lg);
-  overflow: hidden; box-shadow: var(--shadow-md); aspect-ratio: 100 / 64;
+  width: 100vw; margin-left: calc(50% - 50vw);
+  height: clamp(290px, 34vw, 460px);
 }
-.landing-hero h1 { font-size: 30px; font-weight: 900; letter-spacing: -0.5px; margin-top: 16px; }
+.landing-hero h1 { font-size: 30px; font-weight: 900; letter-spacing: -0.5px; margin-top: 40px; }
 .landing-hero p {
   color: var(--ink-500); font-size: 16px; margin-top: 10px;
   max-width: 420px; margin-left: auto; margin-right: auto;
