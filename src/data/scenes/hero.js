@@ -16,6 +16,7 @@ import { scene, beat, player, coach, run, dribble, pass, face, shout } from '../
 
 export const COACH_Y = 44
 const C = [50, COACH_Y]
+const LOOK_AT_PHONE = [57, 47] // the phone is in the coach's right hand
 const LOOK_AT_KIDS = [50, 24]
 
 // The two set-ups the cones move between
@@ -31,9 +32,8 @@ const AT = {
 const beats = []
 const add = (...b) => { beats.push(beat(...b)); return beats.length - 1 }
 
-// The coach keeps facing the kids; the phone in their hand lights up.
-const checkPhone = () => add(1.4)
-const call = (text) => add(1.2, shout('c', text, { delay: 0.1, dur: 1.05 }), run('c', C, { bounce: 1, bounceH: 1.2, dur: 0.5 }))
+const checkPhone = () => add(1.4, face('c', LOOK_AT_PHONE))
+const call = (text) => add(1.2, face('c', LOOK_AT_KIDS), shout('c', text, { delay: 0.1, dur: 1.05 }), run('c', C, { bounce: 1, bounceH: 1.2, dur: 0.5 }))
 
 // Cones: where each starts, then who carries it where. `pick` / `drop`
 // are beats: the kid has it from the end of `pick` to the end of `drop`.

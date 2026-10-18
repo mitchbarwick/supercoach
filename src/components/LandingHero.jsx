@@ -30,17 +30,6 @@ const SWAP = 0.25 // seconds to pick up / put down
 const clamp01 = (u) => Math.min(1, Math.max(0, u))
 const mix = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]
 
-// Heading (radians) a player faces at time t.
-function headingAt(scene, id, t) {
-  const a = scene.actors.find((x) => x.id === id)
-  const ff = Math.min(scene.n - 1, t * scene.fps)
-  const f = Math.floor(ff), f2 = Math.min(scene.n - 1, f + 1)
-  let d = a.h[f2] - a.h[f]
-  while (d > Math.PI) d -= Math.PI * 2
-  while (d < -Math.PI) d += Math.PI * 2
-  return a.h[f] + d * (ff - f)
-}
-
 function actorAt(scene, id, t) {
   const a = scene.actors.find((x) => x.id === id)
   const ff = Math.min(scene.n - 1, t * scene.fps)
@@ -68,13 +57,10 @@ function coneAt(scene, cone, t) {
   return { p, held: false }
 }
 
-// The coach's phone, held out in their right hand: just to the right of
-// the token's nose, turning with them. Its screen lights up (and it
+// The coach's phone, in their right hand. Its screen lights up (and it
 // comes up a little) while they read the session plan.
-const PHONE_AT = [3.0, 2.9] // along the heading, to the right of it
 function CoachPhone({ scene, t }) {
   const [x, y] = actorAt(scene, 'c', t)
-  const h = (headingAt(scene, 'c', t) * 180) / Math.PI
   let lit = 0
   for (const i of PHONE_BEATS) {
     const b = scene.beats[i]
@@ -82,7 +68,7 @@ function CoachPhone({ scene, t }) {
   }
   const s = 1 + lit * 0.25
   return (
-    <g transform={`translate(${x} ${y}) rotate(${h}) translate(${PHONE_AT[0]} ${PHONE_AT[1]}) rotate(90) scale(${s})`}>
+    <g transform={`translate(${x + 3.1} ${y + 1.5}) rotate(-14) scale(${s})`}>
       <rect x="-1.05" y="-1.75" width="2.1" height="3.5" rx="0.45" fill="#1a1f24" />
       <rect x="-0.82" y="-1.5" width="1.64" height="3" rx="0.25" fill="#36424c" />
       <g opacity={lit}>
@@ -151,12 +137,11 @@ export default function LandingHero({ title, children }) {
           t={t}
           viewBox={ground.join(' ')}
           ground={ground}
-          over={<>
-            {cones.map((c, i) => c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} r={1.15} lift={0.01} />)}
-            <CoachPhone scene={scene} t={t} />
-          </>}
+          over={cones.map((c, i) => c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} r={1.15} lift={0.01} />)}
         >
           {cones.map((c, i) => !c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} />)}
+          {/* under the coach, so it sits in their hand */}
+          <CoachPhone scene={scene} t={t} />
         </PitchBoard>
       </div>
       <div className="landing-hero-copy">{title}</div>
