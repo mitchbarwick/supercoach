@@ -6,6 +6,7 @@ import { DEFAULT_TEAM_COLOUR, teamPair } from '../anim/theme.js'
 import { aiConfigured } from '../ai/azure.js'
 import { accountsEnabled } from '../config.js'
 import AccountButton from '../components/AccountButton.jsx'
+import Icon from '../icons/Icon.jsx'
 
 // Common kit colours — plus a custom picker for anything else.
 const KIT_COLOURS = [
@@ -48,7 +49,7 @@ function TeamCard({ onSaved }) {
 
   return (
     <div className="card">
-      <div className="section-h">👕 Team</div>
+      <div className="section-h"><Icon name="shirt" /> Team</div>
       <p className="muted" style={{ fontSize: 14, marginTop: -4, marginBottom: 16 }}>Fixed details about your squad, so you're not asked every time.</p>
 
       <label className="field-label">Age group</label>
@@ -130,7 +131,7 @@ function KitCard({ onSaved }) {
 
   return (
     <div className="card">
-      <div className="section-h">🎒 Kit {fixed && <span className="tag green">{kit.length} item{kit.length === 1 ? '' : 's'}</span>}</div>
+      <div className="section-h"><Icon name="backpack" /> Kit {fixed && <span className="tag green">{kit.length} item{kit.length === 1 ? '' : 's'}</span>}</div>
       <p className="muted" style={{ fontSize: 14, marginTop: -4, marginBottom: 14 }}>
         Set the kit you've always got and session setup stops asking. Only drills you can run with it make the plan.
       </p>
@@ -142,7 +143,7 @@ function KitCard({ onSaved }) {
         <div className="chip-row fade-in">
           {EQUIPMENT.map((e) => (
             <button key={e.id} className={`chip ${kit.includes(e.id) ? 'on' : ''}`} onClick={() => toggle(e.id)}>
-              {e.emoji} {e.label}
+              <Icon name={e.icon} size={18} /> {e.label}
             </button>
           ))}
         </div>
@@ -176,7 +177,7 @@ export default function Settings() {
 
       {accountsEnabled() && (
         <div className="card">
-          <div className="section-h">👤 Account {auth && <span className="tag green">Signed in</span>}</div>
+          <div className="section-h"><Icon name="user-round" /> Account {auth && <span className="tag green">Signed in</span>}</div>
           {auth ? (
             <>
               <AccountButton />
@@ -199,7 +200,7 @@ export default function Settings() {
       <KitCard onSaved={flashSaved} />
 
       <div className="card">
-        <div className="section-h">✨ Azure AI Foundry {aiConfigured() && <span className="tag green">Connected</span>}</div>
+        <div className="section-h"><Icon name="sparkles" /> Azure AI Foundry {aiConfigured() && <span className="tag green">Connected</span>}</div>
         <label className="field-label" style={{ marginTop: 10 }}>Endpoint</label>
         <input className="text-input" placeholder="https://your-resource.openai.azure.com" value={form.endpoint} onChange={(e) => setForm({ ...form, endpoint: e.target.value })} />
         <label className="field-label" style={{ marginTop: 14 }}>Deployment name</label>
@@ -210,7 +211,7 @@ export default function Settings() {
         <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={save}>Save connection</button>
       </div>
 
-      {saved && <div className="toast">Saved ✓</div>}
+      {saved && <div className="toast"><Icon name="check" size={16} /> Saved</div>}
     </div>
   )
 }

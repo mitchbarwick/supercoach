@@ -7,6 +7,7 @@ import PitchAnimation from '../components/PitchAnimation.jsx'
 import DrillFeedback from '../components/DrillFeedback.jsx'
 import AccountButton from '../components/AccountButton.jsx'
 import ShareButton from '../components/ShareButton.jsx'
+import Icon from '../icons/Icon.jsx'
 import { drillShareUrl } from '../share/share.js'
 import { useStore, actions } from '../store/useStore.js'
 import { accountsEnabled } from '../config.js'
@@ -15,7 +16,7 @@ import { getCoachingTips, aiConfigured } from '../ai/azure.js'
 function Section({ icon, title, children }) {
   return (
     <div className="card">
-      <div className="section-h">{icon} {title}</div>
+      <div className="section-h"><Icon name={icon} /> {title}</div>
       {children}
     </div>
   )
@@ -68,7 +69,7 @@ export default function DrillDetail() {
   if (!drill) {
     return (
       <div className="empty-state">
-        <div className="big">🤔</div>
+        <div className="big"><Icon name="circle-help" size={44} /></div>
         <h2>Drill not found</h2>
       </div>
     )
@@ -97,7 +98,7 @@ export default function DrillDetail() {
           aria-label={inPlan ? 'Back to plan' : 'Back'}
           title={inPlan ? 'Back to plan' : 'Back'}
         >
-          <span aria-hidden="true">{inPlan ? '☰' : '←'}</span>
+          <Icon name={inPlan ? 'menu' : 'arrow-left'} size={18} />
         </button>
         <div className="row" style={{ gap: 8 }}>
           <ShareButton
@@ -105,7 +106,7 @@ export default function DrillDetail() {
             title={`${drill.name} · SuperCoach`}
             text={`Check out this drill — ${drill.name}:`}
             label=""
-            icon="🔗"
+            icon="share-2"
             className="icon-btn"
             ariaLabel="Share drill"
           />
@@ -120,7 +121,7 @@ export default function DrillDetail() {
             aria-label="Toggle favourite"
             aria-pressed={isFav}
           >
-            {isFav ? '❤️' : '🤍'}
+            <Icon name="heart" size={18} filled={isFav} style={isFav ? { color: 'var(--coral-600)' } : undefined} />
           </button>
         </div>
       </header>
@@ -153,27 +154,27 @@ export default function DrillDetail() {
         <div className="chip-row" style={{ marginBottom: 16 }}>
           {drill.focus.map((f) => {
             const fa = FOCUS_AREAS.find((x) => x.id === f)
-            return fa ? <span key={f} className="tag green">{fa.emoji} {fa.label}</span> : null
+            return fa ? <span key={f} className="tag green"><Icon name={fa.icon} size={14} /> {fa.label}</span> : null
           })}
           <span className="tag grey">
-            👥 {drill.players.min}–{drill.players.max} players
+            <Icon name="users" size={14} /> {drill.players.min}–{drill.players.max} players
             {drill.players.multiple === 2 && ' · even numbers'}
             {drill.players.multiple >= 3 && ` · groups of ${drill.players.multiple}`}
           </span>
           {(() => {
             const r = drillDurationRange(drill, ageGroup)
-            return <span className="tag grey">⏱ {r.min === r.max ? `~${r.min}` : `${r.min}–${r.max}`} min</span>
+            return <span className="tag grey"><Icon name="timer" size={14} /> {r.min === r.max ? `~${r.min}` : `${r.min}–${r.max}`} min</span>
           })()}
-          <span className="tag blue">🧒 {ageRangeLabel(drill)}</span>
+          <span className="tag blue"><Icon name="baby" size={14} /> {ageRangeLabel(drill)}</span>
         </div>
       )}
 
       {!inPlan && drill.good && (
         <div className="chip-row" style={{ marginBottom: 16 }}>
-          <span className={`tag ${drill.good.goals ? 'green' : 'grey'}`}>{drill.good.goals ? '✓' : '✗'} Goals</span>
-          <span className={`tag ${drill.good.opponent ? 'green' : 'grey'}`}>{drill.good.opponent ? '✓' : '✗'} Opponent</span>
-          <span className={`tag ${drill.good.opportunities ? 'green' : 'grey'}`}>{drill.good.opportunities ? '✓' : '✗'} Opportunities</span>
-          <span className={`tag ${drill.good.directional ? 'green' : 'grey'}`}>{drill.good.directional ? '✓' : '✗'} Directional</span>
+          <span className={`tag ${drill.good.goals ? 'green' : 'grey'}`}><Icon name={drill.good.goals ? 'check' : 'x'} size={14} /> Goals</span>
+          <span className={`tag ${drill.good.opponent ? 'green' : 'grey'}`}><Icon name={drill.good.opponent ? 'check' : 'x'} size={14} /> Opponent</span>
+          <span className={`tag ${drill.good.opportunities ? 'green' : 'grey'}`}><Icon name={drill.good.opportunities ? 'check' : 'x'} size={14} /> Opportunities</span>
+          <span className={`tag ${drill.good.directional ? 'green' : 'grey'}`}><Icon name={drill.good.directional ? 'check' : 'x'} size={14} /> Directional</span>
         </div>
       )}
 
@@ -181,14 +182,14 @@ export default function DrillDetail() {
         <PitchAnimation diagram={drill.diagram} />
       </div>
 
-      <Section icon="🗣️" title="Say this to the players">
+      <Section icon="speech" title="Say this to the players">
         {guest ? (
           <div className="locked-content">
             <p className="locked-content-body" style={{ fontSize: 15.5, color: 'var(--ink-700)', fontStyle: 'italic' }}>
               "{sayToKids(drill, ageGroup)}"
             </p>
             <div className="locked-content-overlay">
-              <span style={{ fontSize: 22 }}>🔒</span>
+              <Icon name="lock" size={22} />
               <strong>Sign in to unlock coaching scripts for every drill</strong>
               <AccountButton />
             </div>
@@ -198,7 +199,7 @@ export default function DrillDetail() {
         )}
       </Section>
 
-      <Section icon="📐" title="Set it up">
+      <Section icon="ruler" title="Set it up">
         <ul className="nice-list numbered">
           {drill.setup.map((s, i) => <li key={i}><span className="dot">{i + 1}</span><span>{s}</span></li>)}
         </ul>
@@ -212,7 +213,7 @@ export default function DrillDetail() {
             .join(' + ')
           return (
             <div className="setup-callout">
-              <strong>👥 With your {squadSize} players:</strong>{' '}
+              <strong><Icon name="users" size={16} /> With your {squadSize} players:</strong>{' '}
               {plan.size === 1
                 ? <>everyone works at once</>
                 : <>set up <strong>{plan.count} of these at once</strong> (groups of {plan.size})</>}
@@ -223,44 +224,44 @@ export default function DrillDetail() {
         })()}
       </Section>
 
-      <Section icon="▶️" title="How it works">
+      <Section icon="play" title="How it works">
         <ul className="nice-list">
           {drill.howToPlay.map((s, i) => <li key={i}><span className="dot">•</span><span>{s}</span></li>)}
         </ul>
       </Section>
 
       {drill.yourRole && (
-        <Section icon="🧑‍🏫" title="Your job during this drill">
+        <Section icon="clipboard-check" title="Your job during this drill">
           <p style={{ fontSize: 15, color: 'var(--ink-700)' }}>{drill.yourRole}</p>
         </Section>
       )}
 
-      <Section icon="🎯" title="What to coach">
+      <Section icon="target" title="What to coach">
         <ul className="nice-list">
-          {coachingPointsForAge.map((s, i) => <li key={i}><span className="dot">✓</span><span>{s}</span></li>)}
+          {coachingPointsForAge.map((s, i) => <li key={i}><span className="dot"><Icon name="check" size={16} /></span><span>{s}</span></li>)}
         </ul>
         {aiTips && (
           <div className="ai-note" style={{ marginTop: 14 }}>
-            <strong>✨ For your {ageGroup} group:</strong>
+            <strong><Icon name="sparkles" size={16} /> For your {ageGroup} group:</strong>
             {aiTips.split('\n').filter(Boolean).map((t, i) => <p key={i} style={{ marginTop: 6 }}>{t.replace(/^[-•]\s*/, '• ')}</p>)}
           </div>
         )}
       </Section>
 
       {drill.variants && (
-        <Section icon="🧤" title="Keep the whole team busy">
+        <Section icon="gk-glove" title="Keep the whole team busy">
           <p className="muted" style={{ marginBottom: 12, fontSize: 14 }}>
             This one&apos;s keeper-focused — here&apos;s how nobody stands around watching.
           </p>
           <div className="row" style={{ alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <span className="tag blue" style={{ marginBottom: 8 }}>🧤 Goalkeeper</span>
+              <span className="tag blue" style={{ marginBottom: 8 }}><Icon name="gk-glove" size={14} /> Goalkeeper</span>
               <ul className="nice-list" style={{ marginTop: 8 }}>
                 {drill.variants.keeper.map((s, i) => <li key={i}><span className="dot">•</span><span>{s}</span></li>)}
               </ul>
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <span className="tag green" style={{ marginBottom: 8 }}>⚽ Rest of the team</span>
+              <span className="tag green" style={{ marginBottom: 8 }}><Icon name="users" size={14} /> Rest of the team</span>
               <ul className="nice-list" style={{ marginTop: 8 }}>
                 {drill.variants.outfield.map((s, i) => <li key={i}><span className="dot">•</span><span>{s}</span></li>)}
               </ul>
@@ -269,24 +270,24 @@ export default function DrillDetail() {
         </Section>
       )}
 
-      <Section icon="🎚️" title="Make it easier / harder">
+      <Section icon="sliders-horizontal" title="Make it easier / harder">
         <div className="row" style={{ alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="tag blue" style={{ marginBottom: 8 }}>Easier</span>
             <ul className="nice-list" style={{ marginTop: 8 }}>
-              {drill.adaptations.easier.map((s, i) => <li key={i}><span className="dot">↓</span><span>{s}</span></li>)}
+              {drill.adaptations.easier.map((s, i) => <li key={i}><span className="dot"><Icon name="arrow-down" size={16} /></span><span>{s}</span></li>)}
             </ul>
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="tag coral" style={{ marginBottom: 8 }}>Harder</span>
             <ul className="nice-list" style={{ marginTop: 8 }}>
-              {drill.adaptations.harder.map((s, i) => <li key={i}><span className="dot">↑</span><span>{s}</span></li>)}
+              {drill.adaptations.harder.map((s, i) => <li key={i}><span className="dot"><Icon name="arrow-up" size={16} /></span><span>{s}</span></li>)}
             </ul>
           </div>
         </div>
       </Section>
 
-      <Section icon="📝" title="Your notes">
+      <Section icon="notebook-pen" title="Your notes">
         <textarea
           className="note-input"
           placeholder="How did it go? What would you tweak next time?"
@@ -314,7 +315,7 @@ export default function DrillDetail() {
                 navigate(`/drill/${prevBlock.drillId}?block=${prevBlock.id}`, { replace: true })
               }}
             >
-              <span aria-hidden="true">←</span>
+              <Icon name="arrow-left" size={18} />
             </button>
             <button
               className="btn btn-primary plan-bar-next"
@@ -329,7 +330,7 @@ export default function DrillDetail() {
               }}
             >
               <span className="next-btn-text">
-                <span className="next-btn-main">{nextBlock ? 'Next →' : 'Done ✓'}</span>
+                <span className="next-btn-main">{nextBlock ? <>Next <Icon name="arrow-right" size={16} /></> : <>Done <Icon name="check" size={16} /></>}</span>
                 <span className="next-btn-sub">{nextBlock ? nextBlock.title : 'Finish the session'}</span>
               </span>
             </button>

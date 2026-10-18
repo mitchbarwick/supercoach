@@ -12,19 +12,20 @@ import Emergency from './pages/Emergency.jsx'
 import EmergencyGuide from './pages/EmergencyGuide.jsx'
 import Admin from './pages/Admin.jsx'
 import SpinningBall from './components/SpinningBall.jsx'
+import Icon from './icons/Icon.jsx'
 import { useStore } from './store/useStore.js'
 import { accountsEnabled } from './config.js'
 
 // Dev-only gallery of every drill animation (#/anim-lab); never shipped.
 const AnimLab = import.meta.env.DEV ? lazy(() => import('./pages/AnimLab.jsx')) : null
-// Dev-only review of the emoji → icon mapping (#/icon-lab); never shipped.
+// Dev-only gallery of every icon (#/icon-lab); never shipped.
 const IconLab = import.meta.env.DEV ? lazy(() => import('./pages/IconLab.jsx')) : null
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Home', emoji: '⚽', end: true },
-  { to: '/plan', label: 'Plan', emoji: '📋' },
-  { to: '/library', label: 'Library', emoji: '📚' },
-  { to: '/settings', label: 'Settings', emoji: '⚙️' },
+  { to: '/', label: 'Home', icon: 'house', end: true },
+  { to: '/plan', label: 'Plan', icon: 'clipboard-list' },
+  { to: '/library', label: 'Library', icon: 'library' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
 export default function App() {
@@ -78,7 +79,7 @@ export default function App() {
               aria-controls="main-nav"
               onClick={() => setMenuOpen((v) => !v)}
             >
-              <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
+              <Icon name={menuOpen ? 'x' : 'menu'} size={20} />
             </button>
             <nav
               id="main-nav"
@@ -93,7 +94,7 @@ export default function App() {
                   onClick={closeMenu}
                   className={({ isActive }) => `topnav-link ${isActive ? 'on' : ''}`}
                 >
-                  <span className="topnav-emoji" aria-hidden="true">{item.emoji}</span>
+                  <Icon name={item.icon} size={18} className="topnav-icon" />
                   <span className="topnav-label">{item.label}</span>
                 </NavLink>
               ))}
@@ -103,7 +104,7 @@ export default function App() {
                   onClick={closeMenu}
                   className={({ isActive }) => `topnav-link ${isActive ? 'on' : ''}`}
                 >
-                  <span className="topnav-emoji" aria-hidden="true">📊</span>
+                  <Icon name="chart-column" size={18} className="topnav-icon" />
                   <span className="topnav-label">Admin</span>
                 </NavLink>
               )}
@@ -114,7 +115,7 @@ export default function App() {
                   className={({ isActive }) => `topnav-emergency ${isActive ? 'on' : ''}`}
                   title="Emergency injury support"
                 >
-                  <span className="topnav-emoji" aria-hidden="true">🚨</span>
+                  <Icon name="siren" size={18} className="topnav-icon" />
                   <span className="topnav-label">Emergency</span>
                 </NavLink>
               )}

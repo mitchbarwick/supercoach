@@ -11,29 +11,29 @@
 import { SCENES } from './scenes/index.js';
 
 export const FOCUS_AREAS = [
-  { id: 'fitness', label: 'Fitness & agility', emoji: '⚡' },
-  { id: 'dribbling', label: 'Dribbling & ball skills', emoji: '🎯' },
-  { id: '1v1', label: '1 v 1 skills', emoji: '🤺' },
-  { id: 'passing', label: 'Passing', emoji: '🔁' },
-  { id: 'triangles', label: 'Triangles & movement', emoji: '🔺' },
-  { id: 'shooting', label: 'Shooting & finishing', emoji: '🥅' },
-  { id: 'defending', label: 'Defending', emoji: '🛡️' },
-  { id: 'goalkeeping', label: 'Goalkeeping', emoji: '🧤' },
-  { id: 'teamwork', label: 'Teamwork & games', emoji: '🤝' },
+  { id: 'fitness', label: 'Fitness & agility', icon: 'activity' },
+  { id: 'dribbling', label: 'Dribbling & ball skills', icon: 'dribble' },
+  { id: '1v1', label: '1 v 1 skills', icon: 'one-v-one' },
+  { id: 'passing', label: 'Passing', icon: 'arrow-right-left' },
+  { id: 'triangles', label: 'Triangles & movement', icon: 'share-2' },
+  { id: 'shooting', label: 'Shooting & finishing', icon: 'football-goal' },
+  { id: 'defending', label: 'Defending', icon: 'shield' },
+  { id: 'goalkeeping', label: 'Goalkeeping', icon: 'gk-glove' },
+  { id: 'teamwork', label: 'Teamwork & games', icon: 'handshake' },
 ];
 
 export const EQUIPMENT = [
-  { id: 'balls', label: 'Balls', emoji: '⚽' },
-  { id: 'cones', label: 'Cones', emoji: '🔶' },
-  { id: 'vests', label: 'Bibs / vests', emoji: '🦺' },
-  { id: 'goals', label: 'Goals', emoji: '🥅' },
-  { id: 'ladder', label: 'Agility ladder', emoji: '🪜' },
-  { id: 'hurdles', label: 'Hurdles', emoji: '🚧' },
-  { id: 'discs', label: 'Marker discs', emoji: '⭕' },
-  { id: 'flags', label: 'Corner flags', emoji: '🚩' },
-  { id: 'rebounder', label: 'Rebounder / kickback net', emoji: '🕸️' },
-  { id: 'mannequins', label: 'Training mannequins', emoji: '🧍' },
-  { id: 'hoops', label: 'Flat hoops / rings', emoji: '🔵' },
+  { id: 'balls', label: 'Balls', icon: 'football' },
+  { id: 'cones', label: 'Cones', icon: 'traffic-cone' },
+  { id: 'vests', label: 'Bibs / vests', icon: 'bib' },
+  { id: 'goals', label: 'Goals', icon: 'football-goal' },
+  { id: 'ladder', label: 'Agility ladder', icon: 'agility-ladder' },
+  { id: 'hurdles', label: 'Hurdles', icon: 'hurdle' },
+  { id: 'discs', label: 'Marker discs', icon: 'marker-disc' },
+  { id: 'flags', label: 'Corner flags', icon: 'corner-flag' },
+  { id: 'rebounder', label: 'Rebounder / kickback net', icon: 'rebounder' },
+  { id: 'mannequins', label: 'Training mannequins', icon: 'person-standing' },
+  { id: 'hoops', label: 'Flat hoops / rings', icon: 'circle' },
 ];
 
 export const AGE_GROUPS = [

@@ -4,11 +4,11 @@
 // This is guidance for coaches, NOT a substitute for medical training or care.
 
 export const INJURY_CATEGORIES = [
-  { id: 'head', label: 'Head & face', emoji: '🧠' },
-  { id: 'leg', label: 'Legs & feet', emoji: '🦵' },
-  { id: 'arm', label: 'Arms & shoulders', emoji: '💪' },
-  { id: 'body', label: 'Body & back', emoji: '🫁' },
-  { id: 'medical', label: 'Medical & other', emoji: '🩺' },
+  { id: 'head', label: 'Head & face', icon: 'brain' },
+  { id: 'leg', label: 'Legs & feet', icon: 'leg' },
+  { id: 'arm', label: 'Arms & shoulders', icon: 'biceps-flexed' },
+  { id: 'body', label: 'Body & back', icon: 'person-standing' },
+  { id: 'medical', label: 'Medical & other', icon: 'stethoscope' },
 ]
 
 // severity: 'urgent' = treat as potentially serious every time
@@ -18,7 +18,7 @@ export const INJURIES = [
   {
     id: 'concussion',
     name: 'Head knock / suspected concussion',
-    emoji: '🧠',
+    icon: 'brain',
     category: 'head',
     severity: 'urgent',
     blurb: 'Any blow to the head, even without loss of consciousness.',
@@ -57,7 +57,7 @@ export const INJURIES = [
   {
     id: 'neck-back',
     name: 'Neck or back injury',
-    emoji: '🦴',
+    icon: 'bone',
     category: 'body',
     severity: 'urgent',
     blurb: 'Suspected spinal injury after a fall, collision or awkward landing.',
@@ -90,7 +90,7 @@ export const INJURIES = [
   {
     id: 'collapse',
     name: 'Collapse / unresponsive player',
-    emoji: '⚠️',
+    icon: 'triangle-alert',
     category: 'medical',
     severity: 'urgent',
     blurb: 'A player collapses, especially without contact — treat as cardiac until proven otherwise.',
@@ -122,7 +122,7 @@ export const INJURIES = [
   {
     id: 'ankle',
     name: 'Rolled / sprained ankle',
-    emoji: '🦶',
+    icon: 'footprints',
     category: 'leg',
     severity: 'caution',
     blurb: 'Ankle turned over in a tackle, landing or change of direction.',
@@ -156,7 +156,7 @@ export const INJURIES = [
   {
     id: 'knee',
     name: 'Twisted knee',
-    emoji: '🦵',
+    icon: 'leg',
     category: 'leg',
     severity: 'caution',
     blurb: 'Knee twisted in a tackle, turn or awkward landing.',
@@ -189,7 +189,7 @@ export const INJURIES = [
   {
     id: 'hamstring',
     name: 'Hamstring strain',
-    emoji: '🏃',
+    icon: 'runner',
     category: 'leg',
     severity: 'caution',
     blurb: 'Sudden pain in the back of the thigh, usually mid-sprint.',
@@ -220,7 +220,7 @@ export const INJURIES = [
   {
     id: 'calf',
     name: 'Calf strain',
-    emoji: '🦿',
+    icon: 'leg',
     category: 'leg',
     severity: 'caution',
     blurb: 'Sharp pain in the calf when pushing off or jumping.',
@@ -249,7 +249,7 @@ export const INJURIES = [
   {
     id: 'groin',
     name: 'Groin strain',
-    emoji: '🩳',
+    icon: 'shorts',
     category: 'leg',
     severity: 'caution',
     blurb: 'Pain in the inner thigh after a stretch, tackle or shot.',
@@ -277,7 +277,7 @@ export const INJURIES = [
   {
     id: 'dead-leg',
     name: 'Dead leg (thigh knock)',
-    emoji: '🥊',
+    icon: 'hand-fist',
     category: 'leg',
     severity: 'caution',
     blurb: 'A knee or boot into the thigh muscle — a quad contusion.',
@@ -308,7 +308,7 @@ export const INJURIES = [
   {
     id: 'cramp',
     name: 'Muscle cramp',
-    emoji: '⚡',
+    icon: 'zap',
     category: 'leg',
     severity: 'minor',
     blurb: 'Sudden painful tightening, usually calf or hamstring, late in a session.',
@@ -337,7 +337,7 @@ export const INJURIES = [
   {
     id: 'winded',
     name: 'Winded (blow to the stomach)',
-    emoji: '💨',
+    icon: 'wind',
     category: 'body',
     severity: 'caution',
     blurb: 'Ball or elbow to the belly — breath knocked out of them.',
@@ -368,7 +368,7 @@ export const INJURIES = [
   {
     id: 'fracture',
     name: 'Suspected broken bone',
-    emoji: '🦴',
+    icon: 'bone-fracture',
     category: 'arm',
     severity: 'urgent',
     blurb: 'Possible fracture of an arm or leg after impact or a fall.',
@@ -401,7 +401,7 @@ export const INJURIES = [
   {
     id: 'shoulder',
     name: 'Dislocated shoulder',
-    emoji: '💪',
+    icon: 'biceps-flexed',
     category: 'arm',
     severity: 'urgent',
     blurb: 'Shoulder popped out after a fall on an outstretched arm.',
@@ -433,7 +433,7 @@ export const INJURIES = [
   {
     id: 'finger-wrist',
     name: 'Finger or wrist injury',
-    emoji: '🖐️',
+    icon: 'hand',
     category: 'arm',
     severity: 'caution',
     blurb: 'Jammed finger or a fall onto the hand — common for goalkeepers.',
@@ -464,7 +464,7 @@ export const INJURIES = [
   {
     id: 'nosebleed',
     name: 'Nosebleed',
-    emoji: '🩸',
+    icon: 'droplet',
     category: 'head',
     severity: 'minor',
     blurb: 'Ball or elbow to the face, or a spontaneous bleed.',
@@ -496,7 +496,7 @@ export const INJURIES = [
   {
     id: 'cuts',
     name: 'Cuts & grazes',
-    emoji: '🩹',
+    icon: 'bandage',
     category: 'medical',
     severity: 'minor',
     blurb: 'Studs, falls and turf burns — bleeding must be dealt with before play continues.',
@@ -528,7 +528,7 @@ export const INJURIES = [
   {
     id: 'eye',
     name: 'Blow to the eye',
-    emoji: '👁️',
+    icon: 'eye',
     category: 'head',
     severity: 'caution',
     blurb: 'Ball, finger or elbow to the eye.',
@@ -561,7 +561,7 @@ export const INJURIES = [
   {
     id: 'dental',
     name: 'Dental injury / knocked-out tooth',
-    emoji: '🦷',
+    icon: 'tooth',
     category: 'head',
     severity: 'caution',
     blurb: 'Tooth knocked loose, broken, or out entirely.',
@@ -594,7 +594,7 @@ export const INJURIES = [
   {
     id: 'asthma',
     name: 'Asthma attack / breathing difficulty',
-    emoji: '🫁',
+    icon: 'lungs',
     category: 'medical',
     severity: 'urgent',
     blurb: 'Wheezing, coughing and struggling for breath during exercise.',
@@ -627,7 +627,7 @@ export const INJURIES = [
   {
     id: 'heat',
     name: 'Heat exhaustion / dehydration',
-    emoji: '🌡️',
+    icon: 'thermometer-sun',
     category: 'medical',
     severity: 'caution',
     blurb: 'Overheating on hot days — headache, dizziness, cramps, exhaustion.',

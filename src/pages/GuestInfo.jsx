@@ -5,6 +5,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useStore, actions } from '../store/useStore.js'
 import { accountsEnabled } from '../config.js'
 import AccountButton from '../components/AccountButton.jsx'
+import Icon from '../icons/Icon.jsx'
 
 const GUEST_POINTS = [
   'One plan at a time — building a new one replaces the last',
@@ -45,15 +46,15 @@ export default function GuestInfo() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="row" style={{ alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <span className="tag grey" style={{ marginBottom: 8 }}>👤 Guest</span>
+            <span className="tag grey" style={{ marginBottom: 8 }}><Icon name="user-round" size={14} /> Guest</span>
             <ul className="nice-list" style={{ marginTop: 8 }}>
               {GUEST_POINTS.map((p, i) => <li key={i}><span className="dot">•</span><span>{p}</span></li>)}
             </ul>
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <span className="tag green" style={{ marginBottom: 8 }}>☁️ Signed in</span>
+            <span className="tag green" style={{ marginBottom: 8 }}><Icon name="cloud" size={14} /> Signed in</span>
             <ul className="nice-list" style={{ marginTop: 8 }}>
-              {SIGNED_IN_POINTS.map((p, i) => <li key={i}><span className="dot">✓</span><span>{p}</span></li>)}
+              {SIGNED_IN_POINTS.map((p, i) => <li key={i}><span className="dot"><Icon name="check" size={16} /></span><span>{p}</span></li>)}
             </ul>
           </div>
         </div>
@@ -68,11 +69,11 @@ export default function GuestInfo() {
           className="btn btn-ghost btn-block"
           onClick={() => { actions.enterAsGuest(); navigate('/') }}
         >
-          Continue as guest →
+          Continue as guest <Icon name="arrow-right" size={18} />
         </button>
       </div>
 
-      <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={() => navigate('/')}>← Back</button>
+      <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={() => navigate('/')}><Icon name="arrow-left" size={16} /> Back</button>
     </div>
   )
 }

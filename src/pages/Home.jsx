@@ -8,6 +8,7 @@ import { useStore, actions } from '../store/useStore.js'
 import { getDrill } from '../data/drills.js'
 import { accountsEnabled } from '../config.js'
 import AccountButton from '../components/AccountButton.jsx'
+import Icon from '../icons/Icon.jsx'
 import Landing from './Landing.jsx'
 
 function timeAgo(ts) {
@@ -21,7 +22,7 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString()
 }
 
-function ProgramCard({ p, onRun, onEdit, inProgress = false, primaryLabel = '▶ Run again', meta = null }) {
+function ProgramCard({ p, onRun, onEdit, inProgress = false, primaryLabel = <><Icon name="play" size={16} /> Run again</>, meta = null }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const drills = p.session.blocks.filter((b) => b.drillId).length
   return (
@@ -30,7 +31,7 @@ function ProgramCard({ p, onRun, onEdit, inProgress = false, primaryLabel = '▶
         <div className="row" style={{ gap: 8 }}>
           <strong className="program-name">{p.name}</strong>
           {inProgress
-            ? <span className="tag inprogress">⏱ In progress</span>
+            ? <span className="tag inprogress"><Icon name="timer" size={14} /> In progress</span>
             : p.runs > 1 && <span className="tag grey">×{p.runs}</span>}
         </div>
         <p className="muted program-meta">
@@ -39,19 +40,19 @@ function ProgramCard({ p, onRun, onEdit, inProgress = false, primaryLabel = '▶
       </div>
       <div className="program-actions">
         <button className="btn btn-primary btn-sm" onClick={onRun}>{primaryLabel}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onEdit}>✎ Edit</button>
+        <button className="btn btn-ghost btn-sm" onClick={onEdit}><Icon name="pencil" size={16} /> Edit</button>
         <button
           className="icon-btn sm"
           aria-label={p.saved ? 'Unsave' : 'Save for later'}
           title={p.saved ? 'Remove from saved' : 'Save for later'}
           onClick={() => actions.toggleSaved(p.id)}
         >
-          {p.saved ? '📌' : '📍'}
+          <Icon name="pin" size={16} filled={p.saved} />
         </button>
         {confirmDelete ? (
           <button className="btn btn-ghost btn-sm danger" onClick={() => actions.deleteProgram(p.id)}>Sure?</button>
         ) : (
-          <button className="icon-btn sm" aria-label="Delete" onClick={() => setConfirmDelete(true)}>🗑</button>
+          <button className="icon-btn sm" aria-label="Delete" onClick={() => setConfirmDelete(true)}><Icon name="trash-2" size={16} /></button>
         )}
       </div>
     </div>
@@ -110,22 +111,22 @@ export default function Home() {
       </div>
 
       <Link to="/new" className="card new-session-card">
-        <span className="emoji-badge" style={{ background: 'var(--green-100)', fontSize: 24 }}>⚽</span>
+        <span className="emoji-badge" style={{ background: 'var(--green-100)', color: 'var(--green-700)' }}><Icon name="football" size={24} /></span>
         <span style={{ flex: 1 }}>
           <strong style={{ fontSize: 17 }}>Plan a new session</strong>
           <span className="muted" style={{ display: 'block', fontSize: 13.5 }}>Your usual setup is already filled in</span>
         </span>
-        <span aria-hidden="true">→</span>
+        <Icon name="arrow-right" size={20} />
       </Link>
 
       {(inProgressProgram || recent.length > 0) && (
         <section style={{ marginTop: 26 }}>
-          <h2 className="home-h">🕐 Recent sessions</h2>
+          <h2 className="home-h"><Icon name="history" /> Recent sessions</h2>
           {inProgressProgram && (
             <ProgramCard
               p={inProgressProgram}
               inProgress
-              primaryLabel="▶ Continue"
+              primaryLabel={<><Icon name="play" size={16} /> Continue</>}
               meta={`${liveDone} of ${liveBlocks.length} done · ${inProgressProgram.session.request.duration} min`}
               onRun={() => navigate('/plan')}
               onEdit={() => navigate('/plan?edit=1')}
@@ -137,7 +138,7 @@ export default function Home() {
 
       {saved.length > 0 && (
         <section style={{ marginTop: 26 }}>
-          <h2 className="home-h">📌 Saved sessions</h2>
+          <h2 className="home-h"><Icon name="pin" /> Saved sessions</h2>
           {saved.map((p) => <ProgramCard key={p.id} p={p} onRun={() => run(p.id)} onEdit={() => edit(p.id)} />)}
         </section>
       )}
@@ -145,8 +146,8 @@ export default function Home() {
       {favDrills.length > 0 && (
         <section style={{ marginTop: 26 }}>
           <div className="spread">
-            <h2 className="home-h">❤️ Favourite drills</h2>
-            <Link to="/library" className="muted" style={{ fontSize: 13.5, fontWeight: 700 }}>Library →</Link>
+            <h2 className="home-h"><Icon name="heart" /> Favourite drills</h2>
+            <Link to="/library" className="muted" style={{ fontSize: 13.5, fontWeight: 700 }}>Library <Icon name="arrow-right" size={14} /></Link>
           </div>
           <div className="fav-strip">
             {favDrills.map((d) => (
@@ -160,7 +161,7 @@ export default function Home() {
 
       {!auth && accountsEnabled() && (
         <div className="card" style={{ marginTop: 26 }}>
-          <div className="section-h">☁️ Keep your sessions everywhere</div>
+          <div className="section-h"><Icon name="cloud" /> Keep your sessions everywhere</div>
           <p className="muted" style={{ marginBottom: 14, fontSize: 14 }}>
             Sign in and your plans, saved sessions and favourite drills follow you to any device.
             Everything on this phone comes with you.

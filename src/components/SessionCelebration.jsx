@@ -18,6 +18,7 @@ import { compileScene } from '../anim/compile.js'
 import { PitchBoard } from './PitchAnimation.jsx'
 import { CELEBRATION, CONE_RUNS, STACK_AT, GOODBYE_BEAT } from '../data/scenes/celebration.js'
 import { KIT } from '../anim/theme.js'
+import Icon from '../icons/Icon.jsx'
 
 const COUNT_FOR = 0.9
 
@@ -160,13 +161,13 @@ export default function SessionCelebration({ session }) {
         <div className={`ft-copy${showBoard ? ' on' : ''}`}>
           <p className="ft-sub">Great work, coach. That's a whole session, warm-up to cool-down, and the team went home better than they arrived.</p>
           {!reduced && t >= end && (
-            <button className="btn btn-ghost btn-sm ft-replay" onClick={replay}>↺ Watch again</button>
+            <button className="btn btn-ghost btn-sm ft-replay" onClick={replay}><Icon name="rotate-ccw" size={16} /> Watch again</button>
           )}
         </div>
       </section>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <div className="section-h">⭐ Which drills landed well?</div>
+        <div className="section-h"><Icon name="star" /> Which drills landed well?</div>
         <p className="muted" style={{ marginBottom: 6 }}>
           Heart the ones your team loved — favourites get picked first next time.
         </p>
@@ -184,7 +185,7 @@ export default function SessionCelebration({ session }) {
                 onClick={() => actions.toggleFavourite(b.drillId)}
                 aria-label={isFav ? `Remove ${b.title} from favourites` : `Add ${b.title} to favourites`}
               >
-                {isFav ? '❤️' : '🤍'}
+                <Icon name="heart" size={18} filled={isFav} style={isFav ? { color: 'var(--coral-600)' } : undefined} />
               </button>
             </div>
           )

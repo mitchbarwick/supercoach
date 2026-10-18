@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { apiEnabled, APP_VERSION } from '../config.js'
 import { api } from '../api/client.js'
 import { useStore } from '../store/useStore.js'
+import Icon from '../icons/Icon.jsx'
 
 export default function DrillFeedback({ drill, source }) {
   const session = useStore((s) => s.session)
@@ -54,16 +55,16 @@ export default function DrillFeedback({ drill, source }) {
     <div className="card feedback-card">
       {!open ? (
         <button className="feedback-open" onClick={() => setOpen(true)}>
-          <span>💬</span>
+          <Icon name="message-square" size={22} style={{ color: 'var(--green-700)' }} />
           <span style={{ flex: 1, textAlign: 'left' }}>
             <strong>Something not quite right with this drill?</strong>
             <span className="muted" style={{ display: 'block', fontSize: 13.5 }}>Tell the app creator — it goes with your age group and squad size attached.</span>
           </span>
-          <span aria-hidden="true">→</span>
+          <Icon name="arrow-right" size={18} />
         </button>
       ) : (
         <div>
-          <div className="section-h">💬 Feedback on "{drill.name}"</div>
+          <div className="section-h"><Icon name="message-square" /> Feedback on "{drill.name}"</div>
           <textarea
             className="note-input"
             autoFocus

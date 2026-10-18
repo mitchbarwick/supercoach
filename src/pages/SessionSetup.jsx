@@ -6,6 +6,7 @@ import { buildSession } from '../engine/sessionBuilder.js'
 import { aiConfigured } from '../ai/azure.js'
 import { designSessionWithAI, SessionDesignError } from '../ai/sessionDesigner.js'
 import { useStore, actions, drillRecencyMap } from '../store/useStore.js'
+import Icon from '../icons/Icon.jsx'
 
 const DURATIONS = [30, 45, 60, 75, 90]
 
@@ -132,7 +133,7 @@ export default function SessionSetup() {
         <div className="card fade-in">
           <label className="field-label">Age group</label>
           {prefs?.ageGroup && (
-            <p className="field-hint">✨ Remembered from last time — tap {prefs.ageGroup} to keep everything as usual.</p>
+            <p className="field-hint"><Icon name="sparkles" size={14} /> Remembered from last time — tap {prefs.ageGroup} to keep everything as usual.</p>
           )}
           <div className="age-list">
             {AGE_GROUPS.map((a) => (
@@ -148,7 +149,7 @@ export default function SessionSetup() {
         <div className="card fade-in">
           {fixedAge && (
             <div className="setup-fixed">
-              <span>👕 <strong>{ageLabel}</strong>{fixedKit ? <span style={{ whiteSpace: 'nowrap' }}>{` · 🎒 ${fixedKit.length} kit item${fixedKit.length === 1 ? '' : 's'}`}</span> : ''}</span>
+              <span><Icon name="shirt" size={16} /> <strong>{ageLabel}</strong>{fixedKit ? <span style={{ whiteSpace: 'nowrap' }}> · <Icon name="backpack" size={16} /> {`${fixedKit.length} kit item${fixedKit.length === 1 ? '' : 's'}`}</span> : ''}</span>
               <Link to="/settings" className="muted" style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap' }}>Change</Link>
             </div>
           )}
@@ -184,7 +185,7 @@ export default function SessionSetup() {
           <p className="field-hint">Pick up to three — the plan will prioritise these. Or pick anything.</p>
           <div className="chip-row">
             <button className={`chip ${anything ? 'on coral' : ''}`} onClick={pickAnything}>
-              🌈 Anything
+              <Icon name="dices" size={18} /> Anything
             </button>
             {FOCUS_AREAS.map((f) => (
               <button
@@ -192,15 +193,15 @@ export default function SessionSetup() {
                 className={`chip ${focus.includes(f.id) ? 'on coral' : ''}`}
                 onClick={() => (focus.includes(f.id) || focus.length < 3) && pickFocus(f.id)}
               >
-                {f.emoji} {f.label}
+                <Icon name={f.icon} size={18} /> {f.label}
               </button>
             ))}
           </div>
           {fixedKit && (
-            <p className="muted" style={{ marginTop: 16 }}>🎒 Using your kit list from Settings ({fixedKit.length} item{fixedKit.length === 1 ? '' : 's'}).</p>
+            <p className="muted" style={{ marginTop: 16 }}><Icon name="backpack" size={16} /> Using your kit list from Settings ({fixedKit.length} item{fixedKit.length === 1 ? '' : 's'}).</p>
           )}
           {favourites.length > 0 && (
-            <p className="muted" style={{ marginTop: 16 }}>⭐ You have {favourites.length} favourite drill{favourites.length > 1 ? 's' : ''} — they'll be picked first when they fit.</p>
+            <p className="muted" style={{ marginTop: 16 }}><Icon name="star" size={16} /> You have {favourites.length} favourite drill{favourites.length > 1 ? 's' : ''} — they'll be picked first when they fit.</p>
           )}
         </div>
       )}
@@ -212,7 +213,7 @@ export default function SessionSetup() {
           <div className="chip-row">
             {EQUIPMENT.map((e) => (
               <button key={e.id} className={`chip ${equipment.includes(e.id) ? 'on' : ''}`} onClick={() => toggle(equipment, e.id, setEquipment)}>
-                {e.emoji} {e.label}
+                <Icon name={e.icon} size={18} /> {e.label}
               </button>
             ))}
           </div>
@@ -221,7 +222,7 @@ export default function SessionSetup() {
 
       {isLast && aiState === 'error' && (
         <div className="card fade-in" style={{ borderColor: 'var(--coral-600)' }}>
-          <p style={{ color: 'var(--coral-700)', fontWeight: 800 }}>⚠️ Couldn't build your session</p>
+          <p style={{ color: 'var(--coral-700)', fontWeight: 800 }}><Icon name="triangle-alert" size={18} /> Couldn't build your session</p>
           <p className="muted" style={{ marginTop: 6 }}>{aiError}</p>
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={generate}>Try again</button>
         </div>
@@ -232,7 +233,7 @@ export default function SessionSetup() {
           <div className="inner">
             {stepIdx > 0 && <button className="btn btn-ghost" onClick={goBack} disabled={aiState === 'loading'}>Back</button>}
             <button className="btn btn-primary btn-block" onClick={next} disabled={!canNext || aiState === 'loading'}>
-              {aiState === 'loading' ? '✨ Designing your session…' : isLast ? '✨ Build my session' : 'Continue'}
+              {aiState === 'loading' ? <><Icon name="sparkles" size={18} /> Designing your session…</> : isLast ? <><Icon name="sparkles" size={18} /> Build my session</> : 'Continue'}
             </button>
           </div>
         </div>

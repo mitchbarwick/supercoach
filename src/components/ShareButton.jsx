@@ -3,13 +3,14 @@
 // copy everywhere else — with a little confirmation toast.
 import { useState } from 'react'
 import { shareLink } from '../share/share.js'
+import Icon from '../icons/Icon.jsx'
 
 export default function ShareButton({
   url,
   title = 'SuperCoach',
   text = '',
   label = 'Share',
-  icon = '🔗',
+  icon = 'share-2',
   className = 'btn btn-ghost btn-sm',
   ariaLabel,
 }) {
@@ -27,7 +28,7 @@ export default function ShareButton({
   return (
     <>
       <button type="button" className={className} onClick={onClick} disabled={!url} aria-label={ariaLabel} title={ariaLabel}>
-        <span aria-hidden="true">{icon}</span> {label}
+        <Icon name={icon} size={label ? 16 : 18} />{label && ` ${label}`}
       </button>
       {toast && <div className="toast">{toast}</div>}
     </>

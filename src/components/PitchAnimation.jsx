@@ -11,6 +11,7 @@ import { compileScene } from '../anim/compile.js'
 import { Defs, Pitch, FieldBase, FieldKit } from '../anim/Field.jsx'
 import { qNlerp } from '../anim/ball.js'
 import { PlayerToken, BallToken, StretchFigure, Wake, Effects, Highlights, Bubbles } from '../anim/Actors.jsx'
+import Icon from '../icons/Icon.jsx'
 
 const lerp = (a, b, u) => a + (b - a) * u
 const lerpAngle = (a, b, u) => {
@@ -101,11 +102,11 @@ export default function PitchAnimation({ diagram, freezeAt, viewBox }) {
             {/* Speed: both choices always visible, the active one lit —
                 tortoise = slow motion to study it, hare = normal speed. */}
             <div className="speed-toggle" role="radiogroup" aria-label="Animation speed">
-              <button role="radio" aria-checked={pb.speed !== 1} aria-label="Slow" title="Slow" className={pb.speed !== 1 ? 'on' : ''} onClick={() => pb.setSpeed(0.5)}>🐢</button>
-              <button role="radio" aria-checked={pb.speed === 1} aria-label="Normal speed" title="Normal speed" className={pb.speed === 1 ? 'on' : ''} onClick={() => pb.setSpeed(1)}>🐇</button>
+              <button role="radio" aria-checked={pb.speed !== 1} aria-label="Slow" title="Slow" className={pb.speed !== 1 ? 'on' : ''} onClick={() => pb.setSpeed(0.5)}><Icon name="turtle" size={18} /></button>
+              <button role="radio" aria-checked={pb.speed === 1} aria-label="Normal speed" title="Normal speed" className={pb.speed === 1 ? 'on' : ''} onClick={() => pb.setSpeed(1)}><Icon name="rabbit" size={18} /></button>
             </div>
-            <button onClick={() => pb.setPlaying(!pb.playing)} aria-label={pb.playing ? 'Pause' : 'Play'}>{pb.playing ? '⏸' : '▶️'}</button>
-            <button onClick={() => { pb.seek(0); pb.setPlaying(true) }} aria-label="Restart">↺</button>
+            <button onClick={() => pb.setPlaying(!pb.playing)} aria-label={pb.playing ? 'Pause' : 'Play'}><Icon name={pb.playing ? 'pause' : 'play'} size={18} /></button>
+            <button onClick={() => { pb.seek(0); pb.setPlaying(true) }} aria-label="Restart"><Icon name="rotate-ccw" size={18} /></button>
           </div>
         </div>
       </div>

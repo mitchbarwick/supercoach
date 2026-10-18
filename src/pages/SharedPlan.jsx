@@ -8,6 +8,8 @@ import { actions } from '../store/useStore.js'
 import { BLOCK_STYLE } from '../engine/sessionBuilder.js'
 import { FOCUS_AREAS } from '../data/drills.js'
 import { decodeSession } from '../share/share.js'
+import BlockIcon from '../components/BlockIcon.jsx'
+import Icon from '../icons/Icon.jsx'
 
 const fmtTime = (m) => `${m}'`
 
@@ -25,13 +27,13 @@ export default function SharedPlan() {
   }, [payload])
 
   if (session === undefined) {
-    return <div className="empty-state"><div className="big">🔗</div><h2>Opening shared session…</h2></div>
+    return <div className="empty-state"><div className="big"><Icon name="link" size={44} /></div><h2>Opening shared session…</h2></div>
   }
 
   if (!session) {
     return (
       <div className="empty-state">
-        <div className="big">🔗</div>
+        <div className="big"><Icon name="link" size={44} /></div>
         <h2>This shared link looks broken</h2>
         <p style={{ margin: '10px 0 22px' }}>The plan couldn’t be read. Ask whoever sent it to share again.</p>
         <Link to="/" className="btn btn-primary">Go to SuperCoach</Link>
@@ -54,7 +56,7 @@ export default function SharedPlan() {
 
   return (
     <div>
-      <div className="shared-banner">🎁 A coach shared this session with you</div>
+      <div className="shared-banner"><Icon name="gift" size={18} /> A coach shared this session with you</div>
 
       <h1 style={{ fontSize: 26, marginBottom: 6 }}>Shared session</h1>
       <p className="muted" style={{ marginBottom: 16 }}>
@@ -78,14 +80,14 @@ export default function SharedPlan() {
                   style={{ cursor: clickable ? 'pointer' : 'default' }}
                   onClick={() => clickable && navigate(`/drill/${b.drillId}`)}
                 >
-                  <div className="emoji-badge" style={{ background: style.bg }}>{b.emoji}</div>
+                  <div className="emoji-badge" style={{ background: style.bg }}><BlockIcon block={b} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="row" style={{ gap: 8 }}>
                       <span className="item-title">{b.title}</span>
                       <span className="duration-pill">{b.duration} min</span>
                     </div>
                     <p className="item-sub">{b.blurb}</p>
-                    {clickable && <span className="muted" style={{ fontSize: 12.5, color: 'var(--green-700)', fontWeight: 800 }}>Tap for full drill →</span>}
+                    {clickable && <span className="muted" style={{ fontSize: 12.5, color: 'var(--green-700)', fontWeight: 800 }}>Tap for full drill <Icon name="arrow-right" size={13} /></span>}
                   </div>
                 </div>
               </div>
@@ -97,7 +99,7 @@ export default function SharedPlan() {
       <div className="sticky-cta">
         <div className="inner">
           <button className="btn btn-primary btn-block" onClick={useThisPlan} disabled={saving}>
-            {saving ? 'Adding…' : 'Use this plan →'}
+            {saving ? 'Adding…' : <>Use this plan <Icon name="arrow-right" size={18} /></>}
           </button>
         </div>
       </div>

@@ -9,6 +9,8 @@ import { FOCUS_AREAS, DRILLS } from '../data/drills.js'
 import { accountsEnabled } from '../config.js'
 import SessionCelebration from '../components/SessionCelebration.jsx'
 import ShareButton from '../components/ShareButton.jsx'
+import BlockIcon from '../components/BlockIcon.jsx'
+import Icon from '../icons/Icon.jsx'
 import { sessionShareUrl } from '../share/share.js'
 
 const fmtTime = (m) => `${m}'`
@@ -24,7 +26,7 @@ function SwapPicker({ block, session, favourites, onPick, onClose }) {
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="spread" style={{ marginBottom: 4 }}>
           <strong style={{ fontSize: 16 }}>Swap "{block.title}"</strong>
-          <button className="icon-btn sm" aria-label="Close" onClick={onClose}>✕</button>
+          <button className="icon-btn sm" aria-label="Close" onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
         <p className="muted" style={{ fontSize: 13.5, marginBottom: 12 }}>
           Everything below fits your {session.request.players} players and tonight's kit.
@@ -35,7 +37,7 @@ function SwapPicker({ block, session, favourites, onPick, onClose }) {
             <button key={d.id} className="swap-option" onClick={() => onPick(d)}>
               <span className="emoji-badge" style={{ background: 'var(--green-100)' }}>{d.emoji}</span>
               <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <span className="item-title">{d.name} {favourites.includes(d.id) && '❤️'}</span>
+                <span className="item-title">{d.name} {favourites.includes(d.id) && <Icon name="heart" size={14} filled aria-label="Favourite" style={{ color: 'var(--coral-600)' }} />}</span>
                 <span className="item-sub" style={{ display: 'block' }}>{d.blurb}</span>
               </span>
             </button>
@@ -89,7 +91,7 @@ export default function PlanView() {
   if (!session) {
     return (
       <div className="empty-state">
-        <div className="big">📋</div>
+        <div className="big"><Icon name="clipboard-list" size={44} /></div>
         <h2>No session yet</h2>
         <p style={{ margin: '10px 0 22px' }}>Build one in under a minute.</p>
         <Link to="/new" className="btn btn-primary">Plan a session</Link>
@@ -105,15 +107,15 @@ export default function PlanView() {
 
   return (
     <div>
-      <div className="spread" style={{ marginBottom: 6 }}>
+      <div className="spread" style={{ marginBottom: 6, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26 }}>Tonight's session</h1>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           {!guest && (
             <button
               className={`btn btn-sm ${editing ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setEditing(!editing)}
             >
-              {editing ? '✓ Done' : '✎ Edit'}
+              {editing ? <><Icon name="check" size={16} /> Done</> : <><Icon name="pencil" size={16} /> Edit</>}
             </button>
           )}
           <ShareButton
@@ -127,7 +129,7 @@ export default function PlanView() {
       </div>
       {editing && (
         <div className="edit-banner">
-          ⇄ Tap <strong>Swap</strong> on any drill to switch it for one that fits tonight's squad.
+          <Icon name="arrow-left-right" size={16} /> Tap <strong>Swap</strong> on any drill to switch it for one that fits tonight's squad.
           {currentProgramId ? ' Changes save to this session automatically.' : ''}
         </div>
       )}
@@ -160,21 +162,22 @@ export default function PlanView() {
                   style={{ cursor: clickable ? 'pointer' : 'default' }}
                   onClick={() => clickable && navigate(`/drill/${b.drillId}?block=${b.id}`)}
                 >
-                  <div className="emoji-badge" style={{ background: style.bg }}>{b.emoji}</div>
+                  <div className="emoji-badge" style={{ background: style.bg }}><BlockIcon block={b} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="row" style={{ gap: 8 }}>
                       <span className="item-title">{b.title}</span>
                       <span className="duration-pill">{b.duration} min</span>
                     </div>
                     <p className="item-sub">{b.blurb}</p>
-                    {clickable && !editing && <span className="muted" style={{ fontSize: 12.5, color: 'var(--green-700)', fontWeight: 800 }}>Tap for full drill →</span>}
+                    {clickable && !editing && <span className="muted" style={{ fontSize: 12.5, color: 'var(--green-700)', fontWeight: 800 }}>Tap for full drill <Icon name="arrow-right" size={13} /></span>}
                   </div>
                   {editing && clickable ? (
                     <button
                       className="btn btn-ghost btn-sm swap-btn"
+                      aria-label={`Swap ${b.title}`}
                       onClick={(e) => { e.stopPropagation(); setSwapBlock(b) }}
                     >
-                      ⇄ Swap
+                      <Icon name="arrow-left-right" size={16} /><span className="swap-label">Swap</span>
                     </button>
                   ) : (
                     <button
@@ -182,7 +185,7 @@ export default function PlanView() {
                       aria-label={ticks[b.id] ? 'Mark not done' : 'Mark done'}
                       onClick={(e) => { e.stopPropagation(); actions.toggleTick(b.id) }}
                     >
-                      ✓
+                      <Icon name="check" size={18} strokeWidth={2.5} />
                     </button>
                   )}
                 </div>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { INJURIES, INJURY_CATEGORIES } from '../data/injuries.js'
 import { useStore } from '../store/useStore.js'
 import AccountButton from '../components/AccountButton.jsx'
+import Icon from '../icons/Icon.jsx'
 
 const SEVERITY_META = {
   urgent: { label: 'Treat as serious', cls: 'coral' },
@@ -20,7 +21,7 @@ export default function Emergency() {
   if (!auth) {
     return (
       <div className="empty-state">
-        <div className="big">🔒</div>
+        <div className="big"><Icon name="lock" size={44} /></div>
         <h2>Sign in for Emergency support</h2>
         <p style={{ margin: '10px 0 22px' }}>Injury guidance is only available to signed-in coaches.</p>
         <AccountButton />
@@ -39,7 +40,7 @@ export default function Emergency() {
     <div>
       {/* ---- Safety preface ---- */}
       <div className="emergency-banner" role="alert">
-        <div className="emergency-banner-icon" aria-hidden="true">🚨</div>
+        <div className="emergency-banner-icon"><Icon name="siren" size={26} /></div>
         <div>
           <strong>Serious injury? Call emergency services first.</strong>
           <p>
@@ -49,8 +50,8 @@ export default function Emergency() {
             it does not replace trained help.
           </p>
           <div className="row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-            <a className="btn btn-coral btn-sm" href="tel:000">📞 Call 000</a>
-            <a className="btn btn-ghost btn-sm" href="tel:112">📞 Call 112</a>
+            <a className="btn btn-coral btn-sm" href="tel:000"><Icon name="phone" size={16} /> Call 000</a>
+            <a className="btn btn-ghost btn-sm" href="tel:112"><Icon name="phone" size={16} /> Call 112</a>
           </div>
         </div>
       </div>
@@ -63,7 +64,7 @@ export default function Emergency() {
 
       <input
         className="text-input"
-        placeholder="🔍 Search — e.g. ankle, head, breathing…"
+        placeholder="Search — e.g. ankle, head, breathing…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         style={{ marginBottom: 12 }}
@@ -78,14 +79,14 @@ export default function Emergency() {
             className={`chip ${cat === c.id ? 'on' : ''}`}
             onClick={() => setCat(cat === c.id ? null : c.id)}
           >
-            {c.emoji} {c.label}
+            <Icon name={c.icon} size={18} /> {c.label}
           </button>
         ))}
       </div>
 
       {list.length === 0 && (
         <div className="empty-state">
-          <div className="big">🔍</div>
+          <div className="big"><Icon name="search" size={44} /></div>
           <p>No match — try a simpler word like "leg" or "head", or call a medical professional if you're unsure.</p>
         </div>
       )}
@@ -99,7 +100,7 @@ export default function Emergency() {
             style={{ animationDelay: `${Math.min(idx * 0.04, 0.4)}s` }}
             onClick={() => navigate(`/emergency/${inj.id}`)}
           >
-            <div className={`emoji-badge sev-${inj.severity}`}>{inj.emoji}</div>
+            <div className={`emoji-badge sev-${inj.severity}`}><Icon name={inj.icon} size={24} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="item-title">{inj.name}</div>
               <p className="item-sub">{inj.blurb}</p>

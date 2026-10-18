@@ -4,13 +4,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getInjury } from '../data/injuries.js'
 import { useStore } from '../store/useStore.js'
 import AccountButton from '../components/AccountButton.jsx'
+import Icon from '../icons/Icon.jsx'
 
 const STEPS = [
-  { key: 'flags', title: 'First: any red flags?', icon: '🚩' },
-  { key: 'assess', title: 'How serious is it?', icon: '🔎' },
-  { key: 'do', title: 'What to do now', icon: '✅' },
-  { key: 'dont', title: 'What NOT to do', icon: '⛔' },
-  { key: 'after', title: 'Next steps & return to play', icon: '🔁' },
+  { key: 'flags', title: 'First: any red flags?', icon: 'flag' },
+  { key: 'assess', title: 'How serious is it?', icon: 'search' },
+  { key: 'do', title: 'What to do now', icon: 'circle-check' },
+  { key: 'dont', title: 'What NOT to do', icon: 'ban' },
+  { key: 'after', title: 'Next steps & return to play', icon: 'repeat' },
 ]
 
 export default function EmergencyGuide() {
@@ -24,7 +25,7 @@ export default function EmergencyGuide() {
   if (!auth) {
     return (
       <div className="empty-state">
-        <div className="big">🔒</div>
+        <div className="big"><Icon name="lock" size={44} /></div>
         <h2>Sign in for Emergency support</h2>
         <p style={{ margin: '10px 0 22px' }}>Injury guidance is only available to signed-in coaches.</p>
         <AccountButton />
@@ -35,7 +36,7 @@ export default function EmergencyGuide() {
   if (!injury) {
     return (
       <div className="empty-state">
-        <div className="big">🤔</div>
+        <div className="big"><Icon name="circle-help" size={44} /></div>
         <p>We couldn't find that injury guide.</p>
         <Link to="/emergency" className="btn btn-primary" style={{ marginTop: 14 }}>Back to injury support</Link>
       </div>
@@ -56,11 +57,11 @@ export default function EmergencyGuide() {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/emergency')}>← All injuries</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/emergency')}><Icon name="arrow-left" size={16} /> All injuries</button>
 
       <div className="row" style={{ margin: '16px 0 4px', gap: 12 }}>
-        <div className={`emoji-badge sev-${injury.severity}`} style={{ width: 52, height: 52, fontSize: 26 }}>
-          {injury.emoji}
+        <div className={`emoji-badge sev-${injury.severity}`} style={{ width: 52, height: 52 }}>
+          <Icon name={injury.icon} size={26} />
         </div>
         <div>
           <h1 style={{ fontSize: 23 }}>{injury.name}</h1>
@@ -90,7 +91,7 @@ export default function EmergencyGuide() {
       {/* Step card — key forces the slide-in animation on every step change */}
       <div key={step} className="card wizard-step">
         <div className="section-h">
-          <span aria-hidden="true">{meta.icon}</span> {meta.title}
+          <Icon name={meta.icon} style={meta.key === 'flags' ? { color: 'var(--coral-600)' } : undefined} /> {meta.title}
         </div>
 
         {meta.key === 'flags' && (
@@ -104,7 +105,7 @@ export default function EmergencyGuide() {
           {content.map((line, i) => (
             <li key={i} style={{ animationDelay: `${i * 0.07}s` }}>
               <span className={`dot ${meta.key === 'flags' ? 'flag' : ''} ${meta.key === 'dont' ? 'no' : ''}`}>
-                {meta.key === 'do' ? i + 1 : meta.key === 'dont' ? '✕' : meta.key === 'flags' ? '🚩' : '•'}
+                {meta.key === 'do' ? i + 1 : meta.key === 'dont' ? <Icon name="x" size={14} /> : meta.key === 'flags' ? <Icon name="flag" size={16} /> : '•'}
               </span>
               {line}
             </li>
@@ -114,7 +115,7 @@ export default function EmergencyGuide() {
         {meta.key === 'flags' && (
           <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button className="btn btn-coral btn-block" onClick={() => setShowCall(true)}>
-              ⚠️ One or more apply — get help now
+              <Icon name="triangle-alert" size={18} /> One or more apply — get help now
             </button>
             <button className="btn btn-primary btn-block" onClick={() => { setShowCall(false); setStep(1) }}>
               None apply — continue to assessment
@@ -124,7 +125,7 @@ export default function EmergencyGuide() {
 
         {showCall && meta.key === 'flags' && (
           <div className="call-panel fade-in" role="alert">
-            <strong>📞 Call 000 (Triple Zero) or 112 now.</strong>
+            <strong><Icon name="phone" size={16} /> Call 000 (Triple Zero) or 112 now.</strong>
             <ul className="nice-list" style={{ marginTop: 10 }}>
               <li><span className="dot">•</span> Put the phone on speaker so your hands stay free</li>
               <li><span className="dot">•</span> Stay with the player — send someone else to meet the ambulance</li>
@@ -132,8 +133,8 @@ export default function EmergencyGuide() {
               <li><span className="dot">•</span> Contact the player's parent or carer as soon as you can</li>
             </ul>
             <div className="row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-              <a className="btn btn-coral" href="tel:000">📞 Call 000</a>
-              <a className="btn btn-ghost" href="tel:112">📞 Call 112</a>
+              <a className="btn btn-coral" href="tel:000"><Icon name="phone" size={16} /> Call 000</a>
+              <a className="btn btn-ghost" href="tel:112"><Icon name="phone" size={16} /> Call 112</a>
             </div>
           </div>
         )}
@@ -142,10 +143,10 @@ export default function EmergencyGuide() {
       {/* Nav buttons for steps after the red-flag gate */}
       {!isFirst && (
         <div className="row" style={{ marginTop: 16 }}>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setStep(step - 1)}>← Back</button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setStep(step - 1)}><Icon name="arrow-left" size={16} /> Back</button>
           {!isLast ? (
             <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => setStep(step + 1)}>
-              {STEPS[step + 1].icon} {STEPS[step + 1].title} →
+              <Icon name={STEPS[step + 1].icon} size={16} /> {STEPS[step + 1].title} <Icon name="arrow-right" size={16} />
             </button>
           ) : (
             <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => navigate('/emergency')}>
