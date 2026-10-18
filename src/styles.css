@@ -31,6 +31,7 @@
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; min-height: 100%; }
 body {
+  overflow-x: clip; /* full-bleed sections use 100vw, which includes the scrollbar */
   font-family: var(--font);
   background: var(--bg);
   color: var(--ink-900);
@@ -73,6 +74,20 @@ input, select, textarea { font-family: inherit; }
 .icon-btn:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .icon-btn:disabled:hover { box-shadow: none; transform: none; }
+
+/* Landing: floats over the hero pitch, white on green (the hero
+   darkens the grass behind it) */
+.topbar.topbar-hero {
+  position: absolute; left: 0; right: 0; margin: 0;
+  padding-left: max(16px, calc(50% - 304px)); padding-right: max(16px, calc(50% - 304px));
+  background: none; backdrop-filter: none; border-bottom: none;
+}
+@media (min-width: 900px) {
+  .topbar.topbar-hero { padding-left: calc(50% - 364px); padding-right: calc(50% - 364px); }
+}
+.topbar.topbar-hero .brand { color: #fff; text-shadow: 0 1px 2px rgba(7, 59, 37, 0.35); }
+/* the logo ball's grass shadow reads as a smudge on green */
+.topbar.topbar-hero .brand .ball > g > ellipse:first-child { fill: rgba(7, 59, 37, 0.18); }
 
 /* ---- Top nav menu ---- */
 .topnav { display: flex; align-items: center; gap: 4px; }
@@ -143,34 +158,83 @@ input, select, textarea { font-family: inherit; }
 }
 
 /* ---- Landing / welcome screen ---- */
-.landing { padding: 6px 0 18px; }
-.landing-hero { text-align: center; padding: 16px 8px 20px; }
-.landing-anim {
-  max-width: 340px; margin: 0 auto; border-radius: var(--radius-lg);
-  overflow: hidden; box-shadow: var(--shadow-md); aspect-ratio: 100 / 64;
+.landing { padding: 0 0 18px; }
+/* Edge to edge, flush with the top of the screen. The grass and the
+   kids' animation fill it; the headline and sign-in sit on the grass,
+   the kids play in the stage below them. The coach overhangs the bottom
+   edge, so nothing here clips (the svg clips the grass itself). */
+.landing-hero {
+  position: relative;
+  width: 100vw; margin-left: calc(50% - 50vw);
+  padding: 92px 16px 0; text-align: center; color: #fff;
 }
-.landing-hero h1 { font-size: 30px; font-weight: 900; letter-spacing: -0.5px; margin-top: 16px; }
-.landing-hero p {
-  color: var(--ink-500); font-size: 16px; margin-top: 10px;
-  max-width: 420px; margin-left: auto; margin-right: auto;
+.landing-anim { position: absolute; inset: 0; }
+.landing-anim svg { display: block; }
+.landing-hero::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 70%; pointer-events: none;
+  background: linear-gradient(rgba(7, 59, 37, 0.5), rgba(7, 59, 37, 0.22) 55%, rgba(7, 59, 37, 0));
 }
-.landing-cta { text-align: center; padding: 22px 20px; }
-.landing-signin { display: flex; justify-content: center; min-height: 44px; }
-.landing-guest-note { font-size: 13.5px; margin: 14px auto 12px; max-width: 330px; }
-.landing-features { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-.landing-features li { display: flex; gap: 14px; align-items: flex-start; }
+.landing-hero-copy { position: relative; max-width: 560px; margin: 0 auto; }
+.landing-hero h1 {
+  font-size: 34px; font-weight: 900; letter-spacing: -0.6px; line-height: 1.12;
+  text-wrap: balance; text-shadow: 0 2px 12px rgba(7, 59, 37, 0.35);
+}
+.landing-signin { display: flex; justify-content: center; min-height: 44px; margin-top: 22px; }
+.landing-signin .signin-embedded { color: var(--ink-900); background: var(--card); border-radius: var(--radius-md); padding: 14px; }
+.landing-guest {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 6px 4px;
+  color: #fff; font-weight: 800; font-size: 15px; text-decoration: none;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.55);
+  transition: border-color 0.15s ease;
+}
+.landing-guest:hover { border-color: #fff; }
+.landing-guest .icon { transition: transform 0.15s ease; }
+.landing-guest:hover .icon { transform: translateX(2px); }
+.landing-stage { height: clamp(250px, 28vw, 360px); margin-top: 20px; }
+@media (min-width: 900px) {
+  .landing-hero { padding-top: 104px; }
+  .landing-hero h1 { font-size: 46px; letter-spacing: -1px; }
+}
+
+/* First thing below the grass: clear of the coach and their phone */
+.landing-lede {
+  margin: 56px auto 0; max-width: 34ch; text-align: center; text-wrap: balance;
+  color: var(--ink-700); font-size: 18px; line-height: 1.5;
+}
+
+.landing-features {
+  list-style: none; margin: 36px 0 0; padding: 0;
+  display: grid; gap: 16px;
+}
+@media (min-width: 720px) { .landing-features { grid-template-columns: repeat(3, 1fr); } }
+.landing-feature {
+  display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.landing-feature picture { display: block; }
+.landing-feature-media {
+  display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; object-position: top;
+}
+.landing-feature-body { padding: 16px 18px 20px; }
 .landing-feature-icon {
-  flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px;
   display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 11px; margin-bottom: 10px;
   color: var(--green-700); background: var(--green-100);
 }
-.landing-features strong { display: block; font-size: 15.5px; }
-.landing-feature-text { display: block; font-size: 14px; margin-top: 2px; }
-.landing-feature-photo {
-  display: block; width: 100%; max-width: 320px; margin-top: 12px;
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+.landing-feature strong { display: block; font-size: 16.5px; line-height: 1.3; }
+.landing-feature-text { display: block; font-size: 15px; margin-top: 4px; color: var(--ink-700); }
+.landing-synced {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, var(--green-50), var(--green-100)); color: var(--green-700);
 }
-.landing-foot { text-align: center; margin-top: 22px; font-size: 13.5px; }
+.landing-synced-devices { display: flex; align-items: flex-end; gap: 14px; margin-top: 34px; }
+.landing-synced-cloud {
+  position: absolute; top: 22%; left: 50%; transform: translateX(-50%);
+  display: inline-flex; padding: 10px; border-radius: 999px;
+  background: var(--card); box-shadow: var(--shadow-md);
+}
+.landing-foot { text-align: center; margin-top: 26px; font-size: 14px; color: var(--ink-700); text-wrap: balance; }
 @media (prefers-reduced-motion: reduce) {
   .topnav-emergency, .calm-dot, .injury-card, .wizard-step, .step-list li,
   .topnav { animation: none !important; }

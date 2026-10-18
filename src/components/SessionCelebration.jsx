@@ -17,7 +17,7 @@ import { useStore, actions } from '../store/useStore.js'
 import { compileScene } from '../anim/compile.js'
 import { PitchBoard } from './PitchAnimation.jsx'
 import { CELEBRATION, CONE_RUNS, STACK_AT, GOODBYE_BEAT } from '../data/scenes/celebration.js'
-import { KIT } from '../anim/theme.js'
+import { LooseCone } from '../anim/Field.jsx'
 import Icon from '../icons/Icon.jsx'
 
 const COUNT_FOR = 0.9
@@ -56,16 +56,6 @@ function useOneShot(end) {
 }
 
 // ---- Cones: on the grass → carried → stacked at the coach's feet ----
-function ConeShape({ x, y, r = 1.35, lift = 0 }) {
-  return (
-    <g>
-      {lift === 0 && <ellipse cx={x + 0.35} cy={y + 0.45} rx={r + 0.1} ry={r * 0.88} fill="rgba(0,0,0,0.18)" />}
-      <circle cx={x} cy={y - lift} r={r} fill={KIT.cone} stroke={KIT.coneDark} strokeWidth="0.3" />
-      <circle cx={x} cy={y - lift} r={r * 0.33} fill={KIT.coneHole} stroke={KIT.coneDark} strokeWidth="0.15" />
-    </g>
-  )
-}
-
 function ConeLayer({ scene, t }) {
   const f = Math.min(scene.n - 1, Math.floor(t * scene.fps))
   const at = (id) => {
@@ -79,14 +69,14 @@ function ConeLayer({ scene, t }) {
   return (
     <g style={{ pointerEvents: 'none' }}>
       {order.map((c, k) => {
-        if (t < end(c.pick)) return <ConeShape key={c.i} x={c.at[0]} y={c.at[1]} />
+        if (t < end(c.pick)) return <LooseCone key={c.i} x={c.at[0]} y={c.at[1]} />
         if (t < end(c.drop)) {
           const n = (carried[c.who] = (carried[c.who] || 0) + 1) - 1
           const [x, y] = at(c.who)
           // held out in front of the player, stacked if they've two
-          return <ConeShape key={c.i} x={x + 2.4} y={y - 1.2} r={1.15} lift={n * 0.55} />
+          return <LooseCone key={c.i} x={x + 2.4} y={y - 1.2} r={1.15} lift={n * 0.55} />
         }
-        return <ConeShape key={c.i} x={STACK_AT[0]} y={STACK_AT[1]} lift={k * 0.5} />
+        return <LooseCone key={c.i} x={STACK_AT[0]} y={STACK_AT[1]} lift={k * 0.5} />
       })}
     </g>
   )

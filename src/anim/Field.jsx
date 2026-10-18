@@ -18,12 +18,38 @@ export function Pitch() {
   )
 }
 
+// Open grass filling `rect` ([x, y, w, h]), striped in step with
+// <Pitch/> but with no markings: for frames that aren't a pitch view.
+export function OpenGrass({ rect: [x0, y0, w, h] }) {
+  const stripes = []
+  for (let x = Math.floor(x0 / 20) * 20; x < x0 + w; x += 20) stripes.push(x)
+  return (
+    <g>
+      <rect x={x0} y={y0} width={w} height={h} fill={PITCH.grass} />
+      {stripes.map((x) => <rect key={x} x={x} y={y0} width="10" height={h} fill={PITCH.stripe} />)}
+    </g>
+  )
+}
+
 export function Cone({ x, y, color = KIT.cone, dark = KIT.coneDark }) {
   return (
     <g>
       <ellipse cx={x + 0.35} cy={y + 0.45} rx="1.45" ry="1.2" fill="rgba(0,0,0,0.18)" />
       <circle cx={x} cy={y} r="1.35" fill={color} stroke={dark} strokeWidth="0.3" />
       <circle cx={x} cy={y} r="0.45" fill={KIT.coneHole} stroke={dark} strokeWidth="0.15" />
+    </g>
+  )
+}
+
+// A cone that kids pick up and carry (celebration, landing hero): drawn
+// over the scene rather than as field kit. Lifted (carried / stacked)
+// cones lose their grass shadow.
+export function LooseCone({ x, y, r = 1.35, lift = 0 }) {
+  return (
+    <g>
+      {lift === 0 && <ellipse cx={x + 0.35} cy={y + 0.45} rx={r + 0.1} ry={r * 0.88} fill="rgba(0,0,0,0.18)" />}
+      <circle cx={x} cy={y - lift} r={r} fill={KIT.cone} stroke={KIT.coneDark} strokeWidth="0.3" />
+      <circle cx={x} cy={y - lift} r={r * 0.33} fill={KIT.coneHole} stroke={KIT.coneDark} strokeWidth="0.15" />
     </g>
   )
 }
