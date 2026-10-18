@@ -6,10 +6,9 @@
 // same engine as the drill library. No controls or captions; it loops.
 //
 // It runs edge to edge from the top of the screen, under the
-// transparent top bar, with the page's headline and sign-in on the
-// grass (`children`). The kids play in the stage below the copy; the
-// scale is set so that stage holds the action, and the frame's bottom
-// edge runs through the coach so they stand half on the grass, half off.
+// transparent top bar: the headline (`title`) on the grass, the kids and
+// coach in the stage below it, then sign-in (`children`). The scale is
+// set so the stage holds the action.
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { compileScene } from '../anim/compile.js'
@@ -17,8 +16,10 @@ import { HERO, COACH_Y, CONES, PHONE_BEATS } from '../data/scenes/hero.js'
 import { PitchBoard } from './PitchAnimation.jsx'
 import { LooseCone } from '../anim/Field.jsx'
 
-// Pitch units the stage must hold, top to bottom and across.
+// Pitch units the stage must hold, top to bottom (the coach, their
+// phone and its shadow at the bottom) and across.
 const STAGE_TOP = 10
+const STAGE_BOTTOM = COACH_Y + 4
 const STAGE_W = 48
 // Reduced-motion users get a lively still: mid cone weave.
 const STILL_AT = 7.6
@@ -28,6 +29,17 @@ const SWAP = 0.25 // seconds to pick up / put down
 
 const clamp01 = (u) => Math.min(1, Math.max(0, u))
 const mix = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]
+
+// Heading (radians) a player faces at time t.
+function headingAt(scene, id, t) {
+  const a = scene.actors.find((x) => x.id === id)
+  const ff = Math.min(scene.n - 1, t * scene.fps)
+  const f = Math.floor(ff), f2 = Math.min(scene.n - 1, f + 1)
+  let d = a.h[f2] - a.h[f]
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return a.h[f] + d * (ff - f)
+}
 
 function actorAt(scene, id, t) {
   const a = scene.actors.find((x) => x.id === id)
@@ -56,10 +68,13 @@ function coneAt(scene, cone, t) {
   return { p, held: false }
 }
 
-// The coach's phone, in their right hand. Its screen lights up (and it
+// The coach's phone, held out in their right hand: just to the right of
+// the token's nose, turning with them. Its screen lights up (and it
 // comes up a little) while they read the session plan.
+const PHONE_AT = [3.0, 2.9] // along the heading, to the right of it
 function CoachPhone({ scene, t }) {
   const [x, y] = actorAt(scene, 'c', t)
+  const h = (headingAt(scene, 'c', t) * 180) / Math.PI
   let lit = 0
   for (const i of PHONE_BEATS) {
     const b = scene.beats[i]
@@ -67,7 +82,7 @@ function CoachPhone({ scene, t }) {
   }
   const s = 1 + lit * 0.25
   return (
-    <g transform={`translate(${x + 3.1} ${y + 1.5}) rotate(-14) scale(${s})`}>
+    <g transform={`translate(${x} ${y}) rotate(${h}) translate(${PHONE_AT[0]} ${PHONE_AT[1]}) rotate(90) scale(${s})`}>
       <rect x="-1.05" y="-1.75" width="2.1" height="3.5" rx="0.45" fill="#1a1f24" />
       <rect x="-0.82" y="-1.5" width="1.64" height="3" rx="0.25" fill="#36424c" />
       <g opacity={lit}>
@@ -81,7 +96,7 @@ function CoachPhone({ scene, t }) {
   )
 }
 
-export default function LandingHero({ children }) {
+export default function LandingHero({ title, children }) {
   const scene = useMemo(() => compileScene(HERO), [])
   const reduced =
     typeof window !== 'undefined' &&
@@ -92,14 +107,14 @@ export default function LandingHero({ children }) {
   const start = useRef(null)
   const hero = useRef(null)
   const stage = useRef(null)
-  const [size, setSize] = useState({ w: 390, h: 560, stage: 260 })
+  const [size, setSize] = useState({ w: 390, h: 640, top: 200, bottom: 480 })
 
   useLayoutEffect(() => {
     const measure = () => {
       if (!hero.current || !stage.current) return
       const h = hero.current.getBoundingClientRect()
       const s = stage.current.getBoundingClientRect()
-      if (h.width && h.height) setSize({ w: h.width, h: h.height, stage: h.bottom - s.top })
+      if (h.width && h.height) setSize({ w: h.width, h: h.height, top: s.top - h.top, bottom: s.bottom - h.top })
     }
     measure()
     if (typeof ResizeObserver === 'undefined') return
@@ -120,11 +135,12 @@ export default function LandingHero({ children }) {
     return () => cancelAnimationFrame(raf)
   }, [reduced, scene])
 
-  // Pixels per pitch unit: the stage holds STAGE_TOP..COACH_Y and at
-  // least STAGE_W across; the frame's bottom edge is COACH_Y.
-  const ppu = Math.min(size.stage / (COACH_Y - STAGE_TOP), size.w / STAGE_W)
+  // Pixels per pitch unit: the stage holds STAGE_TOP..STAGE_BOTTOM and
+  // at least STAGE_W across, centred in it; the grass fills the hero.
+  const ppu = Math.min((size.bottom - size.top) / (STAGE_BOTTOM - STAGE_TOP), size.w / STAGE_W)
   const vw = size.w / ppu, vh = size.h / ppu
-  const ground = [50 - vw / 2, COACH_Y - vh, vw, vh]
+  const top = (STAGE_TOP + STAGE_BOTTOM) / 2 - (size.top + size.bottom) / 2 / ppu
+  const ground = [50 - vw / 2, top, vw, vh]
   const cones = CONES.map((c) => coneAt(scene, c, t))
 
   return (
@@ -143,8 +159,9 @@ export default function LandingHero({ children }) {
           {cones.map((c, i) => !c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} />)}
         </PitchBoard>
       </div>
-      <div className="landing-hero-copy">{children}</div>
+      <div className="landing-hero-copy">{title}</div>
       <div className="landing-stage" ref={stage} />
+      <div className="landing-hero-copy landing-hero-actions">{children}</div>
     </section>
   )
 }

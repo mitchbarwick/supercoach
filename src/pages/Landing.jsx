@@ -63,8 +63,7 @@ const FEATURES = [
 export default function Landing() {
   return (
     <div className="landing fade-in">
-      <LandingHero>
-        <h1>Plan training your team will love</h1>
+      <LandingHero title={<h1>Plan training your team will love</h1>}>
         <div className="landing-signin">
           <AccountButton />
         </div>
