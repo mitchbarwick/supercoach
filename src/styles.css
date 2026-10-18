@@ -212,8 +212,9 @@ input, select, textarea { font-family: inherit; }
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
 }
+.landing-feature picture { display: block; }
 .landing-feature-media {
-  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top;
+  display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; object-position: top;
 }
 .landing-feature-body { padding: 16px 18px 20px; }
 .landing-feature-icon {
