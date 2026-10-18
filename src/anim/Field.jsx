@@ -6,28 +6,27 @@
 // ============================================================
 import { PITCH, KIT } from './theme.js'
 
-export function Pitch({ lines = true }) {
+export function Pitch() {
   return (
     <g>
       <rect x="0" y="0" width="100" height="64" fill={PITCH.grass} />
       {[0, 1, 2, 3, 4].map((i) => (
         <rect key={i} x={i * 20} y="0" width="10" height="64" fill={PITCH.stripe} />
       ))}
-      {lines && <rect x="3" y="3" width="94" height="58" fill="none" stroke={PITCH.line} strokeWidth="0.55" rx="1.5" opacity="0.8" />}
+      <rect x="3" y="3" width="94" height="58" fill="none" stroke={PITCH.line} strokeWidth="0.55" rx="1.5" opacity="0.8" />
     </g>
   )
 }
 
-// Grass beyond the pitch edges (x0..x1), striped in step with <Pitch/>,
-// for frames wider than the 100-unit pitch.
-export function GrassBleed({ x0, x1 }) {
-  const first = Math.floor(x0 / 20) * 20
+// Open grass filling `rect` ([x, y, w, h]), striped in step with
+// <Pitch/> but with no markings: for frames that aren't a pitch view.
+export function OpenGrass({ rect: [x0, y0, w, h] }) {
   const stripes = []
-  for (let x = first; x < x1; x += 20) if (x < 0 || x >= 100) stripes.push(x)
+  for (let x = Math.floor(x0 / 20) * 20; x < x0 + w; x += 20) stripes.push(x)
   return (
     <g>
-      <rect x={x0} y="-64" width={x1 - x0} height="192" fill={PITCH.grass} />
-      {stripes.map((x) => <rect key={x} x={x} y="-64" width="10" height="192" fill={PITCH.stripe} />)}
+      <rect x={x0} y={y0} width={w} height={h} fill={PITCH.grass} />
+      {stripes.map((x) => <rect key={x} x={x} y={y0} width="10" height={h} fill={PITCH.stripe} />)}
     </g>
   )
 }
@@ -38,6 +37,19 @@ export function Cone({ x, y, color = KIT.cone, dark = KIT.coneDark }) {
       <ellipse cx={x + 0.35} cy={y + 0.45} rx="1.45" ry="1.2" fill="rgba(0,0,0,0.18)" />
       <circle cx={x} cy={y} r="1.35" fill={color} stroke={dark} strokeWidth="0.3" />
       <circle cx={x} cy={y} r="0.45" fill={KIT.coneHole} stroke={dark} strokeWidth="0.15" />
+    </g>
+  )
+}
+
+// A cone that kids pick up and carry (celebration, landing hero): drawn
+// over the scene rather than as field kit. Lifted (carried / stacked)
+// cones lose their grass shadow.
+export function LooseCone({ x, y, r = 1.35, lift = 0 }) {
+  return (
+    <g>
+      {lift === 0 && <ellipse cx={x + 0.35} cy={y + 0.45} rx={r + 0.1} ry={r * 0.88} fill="rgba(0,0,0,0.18)" />}
+      <circle cx={x} cy={y - lift} r={r} fill={KIT.cone} stroke={KIT.coneDark} strokeWidth="0.3" />
+      <circle cx={x} cy={y - lift} r={r * 0.33} fill={KIT.coneHole} stroke={KIT.coneDark} strokeWidth="0.15" />
     </g>
   )
 }

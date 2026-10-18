@@ -8,7 +8,7 @@
 // ============================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { compileScene } from '../anim/compile.js'
-import { Defs, Pitch, GrassBleed, FieldBase, FieldKit } from '../anim/Field.jsx'
+import { Defs, Pitch, OpenGrass, FieldBase, FieldKit } from '../anim/Field.jsx'
 import { qNlerp } from '../anim/ball.js'
 import { PlayerToken, BallToken, StretchFigure, Wake, Effects, Highlights, Bubbles } from '../anim/Actors.jsx'
 import Icon from '../icons/Icon.jsx'
@@ -130,11 +130,12 @@ function groupSteps(beats, duration) {
 // the 100 x 64 pitch (the landing hero zooms on the middle); any other
 // props go on the <svg>.
 // `ground` ([x, y, w, h]) lets the players spill out of the frame: the
-// grass and kit are clipped to that rect, extended with matching stripes
-// if it runs past the pitch (touchlines hidden, so the frame reads as
-// open grass), while players, ball and bubbles draw
+// grass and kit are clipped to that rect and drawn as open striped
+// grass with no pitch markings, while players, ball and bubbles draw
 // unclipped (the svg overflows). Used by the landing hero.
-export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ground = null, ...svgProps }) {
+// `children` draw on the grass under the players; `over` draws on top
+// of them (kit in a player's hands).
+export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ground = null, children, over = null, ...svgProps }) {
   const ff = Math.min(scene.n - 1, t * scene.fps)
   const f = Math.floor(ff)
   const f2 = Math.min(scene.n - 1, f + 1)
@@ -166,14 +167,14 @@ export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ground = null, ..
         </clipPath>
       )}
       <g clipPath={ground ? 'url(#sc-ground)' : undefined}>
-        {ground && <GrassBleed x0={ground[0]} x1={ground[0] + ground[2]} />}
-        <Pitch lines={!ground} />
+        {ground ? <OpenGrass rect={ground} /> : <Pitch />}
         <FieldBase field={scene.field} />
         <g opacity={alpha}>
           {scene.trails && <Wake wake={scene.wake} t={t} duration={scene.duration} loop={!scene.fade} mode={scene.trails} />}
         </g>
         <FieldKit field={scene.field} ripples={ripples} pulses={pulses} />
       </g>
+      {children}
       <g opacity={alpha}>
         <Highlights highlights={scene.highlights} t={t} actors={scene.actors} frame={f} />
         {/* illustrated kids, back to front so nearer kids overlap further ones */}
@@ -206,6 +207,7 @@ export function PitchBoard({ scene, t, viewBox = '0 0 100 64', ground = null, ..
           />
         ))}
         <Effects effects={scene.effects} t={t} goals={scene.field.goals} />
+        {over}
         <Bubbles bubbles={scene.bubbles} t={t} actors={scene.actors} frame={f} />
       </g>
     </svg>
