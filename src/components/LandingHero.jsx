@@ -6,10 +6,9 @@
 // same engine as the drill library. No controls or captions; it loops.
 //
 // It runs edge to edge from the top of the screen, under the
-// transparent top bar, with the page's headline and sign-in on the
-// grass (`children`). The kids play in the stage below the copy; the
-// scale is set so that stage holds the action, and the frame's bottom
-// edge runs through the coach so they stand half on the grass, half off.
+// transparent top bar: the headline (`title`) on the grass, the kids and
+// coach in the stage below it, then sign-in (`children`). The scale is
+// set so the stage holds the action.
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { compileScene } from '../anim/compile.js'
@@ -17,8 +16,10 @@ import { HERO, COACH_Y, CONES, PHONE_BEATS } from '../data/scenes/hero.js'
 import { PitchBoard } from './PitchAnimation.jsx'
 import { LooseCone } from '../anim/Field.jsx'
 
-// Pitch units the stage must hold, top to bottom and across.
+// Pitch units the stage must hold, top to bottom (the coach, their
+// phone and its shadow at the bottom) and across.
 const STAGE_TOP = 10
+const STAGE_BOTTOM = COACH_Y + 4
 const STAGE_W = 48
 // Reduced-motion users get a lively still: mid cone weave.
 const STILL_AT = 7.6
@@ -81,7 +82,7 @@ function CoachPhone({ scene, t }) {
   )
 }
 
-export default function LandingHero({ children }) {
+export default function LandingHero({ title, children }) {
   const scene = useMemo(() => compileScene(HERO), [])
   const reduced =
     typeof window !== 'undefined' &&
@@ -92,14 +93,14 @@ export default function LandingHero({ children }) {
   const start = useRef(null)
   const hero = useRef(null)
   const stage = useRef(null)
-  const [size, setSize] = useState({ w: 390, h: 560, stage: 260 })
+  const [size, setSize] = useState({ w: 390, h: 640, top: 200, bottom: 480 })
 
   useLayoutEffect(() => {
     const measure = () => {
       if (!hero.current || !stage.current) return
       const h = hero.current.getBoundingClientRect()
       const s = stage.current.getBoundingClientRect()
-      if (h.width && h.height) setSize({ w: h.width, h: h.height, stage: h.bottom - s.top })
+      if (h.width && h.height) setSize({ w: h.width, h: h.height, top: s.top - h.top, bottom: s.bottom - h.top })
     }
     measure()
     if (typeof ResizeObserver === 'undefined') return
@@ -120,11 +121,12 @@ export default function LandingHero({ children }) {
     return () => cancelAnimationFrame(raf)
   }, [reduced, scene])
 
-  // Pixels per pitch unit: the stage holds STAGE_TOP..COACH_Y and at
-  // least STAGE_W across; the frame's bottom edge is COACH_Y.
-  const ppu = Math.min(size.stage / (COACH_Y - STAGE_TOP), size.w / STAGE_W)
+  // Pixels per pitch unit: the stage holds STAGE_TOP..STAGE_BOTTOM and
+  // at least STAGE_W across, centred in it; the grass fills the hero.
+  const ppu = Math.min((size.bottom - size.top) / (STAGE_BOTTOM - STAGE_TOP), size.w / STAGE_W)
   const vw = size.w / ppu, vh = size.h / ppu
-  const ground = [50 - vw / 2, COACH_Y - vh, vw, vh]
+  const top = (STAGE_TOP + STAGE_BOTTOM) / 2 - (size.top + size.bottom) / 2 / ppu
+  const ground = [50 - vw / 2, top, vw, vh]
   const cones = CONES.map((c) => coneAt(scene, c, t))
 
   return (
@@ -135,16 +137,16 @@ export default function LandingHero({ children }) {
           t={t}
           viewBox={ground.join(' ')}
           ground={ground}
-          over={<>
-            {cones.map((c, i) => c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} r={1.15} lift={0.01} />)}
-            <CoachPhone scene={scene} t={t} />
-          </>}
+          over={cones.map((c, i) => c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} r={1.15} lift={0.01} />)}
         >
           {cones.map((c, i) => !c.held && <LooseCone key={i} x={c.p[0]} y={c.p[1]} />)}
+          {/* under the coach, so it sits in their hand */}
+          <CoachPhone scene={scene} t={t} />
         </PitchBoard>
       </div>
-      <div className="landing-hero-copy">{children}</div>
+      <div className="landing-hero-copy">{title}</div>
       <div className="landing-stage" ref={stage} />
+      <div className="landing-hero-copy landing-hero-actions">{children}</div>
     </section>
   )
 }

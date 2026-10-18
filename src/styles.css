@@ -160,26 +160,29 @@ input, select, textarea { font-family: inherit; }
 /* ---- Landing / welcome screen ---- */
 .landing { padding: 0 0 18px; }
 /* Edge to edge, flush with the top of the screen. The grass and the
-   kids' animation fill it; the headline and sign-in sit on the grass,
-   the kids play in the stage below them. The coach overhangs the bottom
-   edge, so nothing here clips (the svg clips the grass itself). */
+   kids' animation fill it: the headline on the grass, the kids and
+   coach in the stage below it, then sign-in. */
 .landing-hero {
-  position: relative;
+  position: relative; overflow: hidden;
   width: 100vw; margin-left: calc(50% - 50vw);
-  padding: 92px 16px 0; text-align: center; color: #fff;
+  padding: 92px 16px 36px; text-align: center; color: #fff;
 }
 .landing-anim { position: absolute; inset: 0; }
 .landing-anim svg { display: block; }
+/* darkens the grass behind the headline (top) and sign-in (bottom),
+   leaving the kids in the middle in full colour */
 .landing-hero::before {
-  content: ''; position: absolute; inset: 0 0 auto; height: 70%; pointer-events: none;
-  background: linear-gradient(rgba(7, 59, 37, 0.5), rgba(7, 59, 37, 0.22) 55%, rgba(7, 59, 37, 0));
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(rgba(7, 59, 37, 0.5), rgba(7, 59, 37, 0.15) 22%, rgba(7, 59, 37, 0) 34%),
+    linear-gradient(0deg, rgba(7, 59, 37, 0.4), rgba(7, 59, 37, 0) 22%);
 }
 .landing-hero-copy { position: relative; max-width: 560px; margin: 0 auto; }
 .landing-hero h1 {
   font-size: 34px; font-weight: 900; letter-spacing: -0.6px; line-height: 1.12;
   text-wrap: balance; text-shadow: 0 2px 12px rgba(7, 59, 37, 0.35);
 }
-.landing-signin { display: flex; justify-content: center; min-height: 44px; margin-top: 22px; }
+.landing-signin { display: flex; justify-content: center; min-height: 44px; }
 .landing-signin .signin-embedded { color: var(--ink-900); background: var(--card); border-radius: var(--radius-md); padding: 14px; }
 .landing-guest {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 6px 4px;
@@ -190,15 +193,15 @@ input, select, textarea { font-family: inherit; }
 .landing-guest:hover { border-color: #fff; }
 .landing-guest .icon { transition: transform 0.15s ease; }
 .landing-guest:hover .icon { transform: translateX(2px); }
-.landing-stage { height: clamp(250px, 28vw, 360px); margin-top: 20px; }
+.landing-stage { height: clamp(280px, 30vw, 380px); margin: 12px 0 20px; }
 @media (min-width: 900px) {
-  .landing-hero { padding-top: 104px; }
+  .landing-hero { padding-top: 104px; padding-bottom: 44px; }
   .landing-hero h1 { font-size: 46px; letter-spacing: -1px; }
 }
 
-/* First thing below the grass: clear of the coach and their phone */
+/* First thing below the grass */
 .landing-lede {
-  margin: 56px auto 0; max-width: 34ch; text-align: center; text-wrap: balance;
+  margin: 36px auto 0; max-width: 34ch; text-align: center; text-wrap: balance;
   color: var(--ink-700); font-size: 18px; line-height: 1.5;
 }
 

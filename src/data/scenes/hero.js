@@ -9,9 +9,9 @@
 // end-of-session celebration. Each pick-up / drop lines up with these
 // runs — a kid reaches a cone at the END of a beat (runs fill their beat).
 //
-// The hero's bottom edge runs along y = COACH_Y, so the coach stands
-// half on the grass, half off it. Keep the kids inside x 26..74 and
-// y 10..34 (above the coach's speech bubble) so they fit on a phone.
+// The coach stands at the bottom of the hero's stage (y = COACH_Y).
+// Keep the kids inside x 26..74 and y 10..34 (above the coach's speech
+// bubble) so they fit on a phone.
 import { scene, beat, player, coach, run, dribble, pass, face, shout } from '../../anim/script.js'
 
 export const COACH_Y = 44
